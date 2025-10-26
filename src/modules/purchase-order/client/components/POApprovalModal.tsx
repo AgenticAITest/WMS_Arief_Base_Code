@@ -84,7 +84,7 @@ export const POApprovalModal: React.FC<POApprovalModalProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleCleanup}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-[90rem] sm:max-w-[90rem] max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Purchase Order Details - {po?.orderNumber}</DialogTitle>
           </DialogHeader>
