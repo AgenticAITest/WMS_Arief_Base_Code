@@ -135,21 +135,24 @@ router.post('/generate', async (req, res) => {
       });
     }
 
-    if (config.prefix1Required && !prefix1) {
+    // Apply defaults from config if caller doesn't provide prefixes
+    const actualPrefix1 = prefix1 || config.prefix1DefaultValue || null;
+    const actualPrefix2 = prefix2 || config.prefix2DefaultValue || null;
+
+    // Validate required prefixes AFTER applying defaults
+    if (config.prefix1Required && !actualPrefix1) {
       return res.status(400).json({ 
         error: `Prefix 1 (${config.prefix1Label}) is required` 
       });
     }
 
-    if (config.prefix2Required && !prefix2) {
+    if (config.prefix2Required && !actualPrefix2) {
       return res.status(400).json({ 
         error: `Prefix 2 (${config.prefix2Label}) is required` 
       });
     }
 
     const period = getCurrentPeriod(config.periodFormat);
-    const actualPrefix1 = prefix1 || null;
-    const actualPrefix2 = prefix2 || null;
 
     // Build WHERE conditions for tracker lookup
     const whereConditions = [
@@ -309,8 +312,9 @@ router.post('/preview', async (req, res) => {
     }
 
     const period = getCurrentPeriod(config.periodFormat);
-    const actualPrefix1 = prefix1 || null;
-    const actualPrefix2 = prefix2 || null;
+    // Apply defaults from config if caller doesn't provide prefixes
+    const actualPrefix1 = prefix1 || config.prefix1DefaultValue || null;
+    const actualPrefix2 = prefix2 || config.prefix2DefaultValue || null;
 
     // Build WHERE conditions for preview tracker lookup
     const previewWhereConditions = [
