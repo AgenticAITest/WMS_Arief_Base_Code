@@ -214,12 +214,37 @@ router.post('/preview-html', authorized('ADMIN', 'purchase-order.create'), async
       user: typeof user
     });
 
-    // Fetch preview number
+    // Fetch document numbering configuration to get default prefix
+    const [docConfigPreview] = await db
+      .select()
+      .from(documentNumberConfig)
+      .where(
+        and(
+          eq(documentNumberConfig.tenantId, tenantId),
+          eq(documentNumberConfig.documentType, 'PO'),
+          eq(documentNumberConfig.isActive, true)
+        )
+      )
+      .limit(1);
+
+    // Fetch preview number with proper prefix
     let previewNumber = 'PREVIEW-GENERATING';
     try {
+      const previewPayload: any = { documentType: 'PO' };
+      
+      // Add prefix1 if configured
+      if (docConfigPreview?.prefix1DefaultValue) {
+        previewPayload.prefix1 = docConfigPreview.prefix1DefaultValue;
+      }
+      
+      // Add prefix2 if configured
+      if (docConfigPreview?.prefix2DefaultValue) {
+        previewPayload.prefix2 = docConfigPreview.prefix2DefaultValue;
+      }
+
       const previewResponse = await axios.post(
         'http://localhost:5000/api/modules/document-numbering/preview',
-        { documentType: 'PO' },
+        previewPayload,
         { headers: { Authorization: req.headers.authorization } }
       );
       previewNumber = previewResponse.data.previewNumber || 'PREVIEW-0001';

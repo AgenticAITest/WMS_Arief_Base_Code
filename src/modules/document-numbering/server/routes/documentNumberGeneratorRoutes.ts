@@ -312,18 +312,31 @@ router.post('/preview', async (req, res) => {
     const actualPrefix1 = prefix1 || null;
     const actualPrefix2 = prefix2 || null;
 
+    // Build WHERE conditions for preview tracker lookup
+    const previewWhereConditions = [
+      eq(documentSequenceTracker.tenantId, tenantId),
+      eq(documentSequenceTracker.documentType, documentType),
+      eq(documentSequenceTracker.period, period),
+    ];
+
+    // Handle prefix1 - use isNull() for NULL comparison
+    if (actualPrefix1) {
+      previewWhereConditions.push(eq(documentSequenceTracker.prefix1, actualPrefix1));
+    } else {
+      previewWhereConditions.push(isNull(documentSequenceTracker.prefix1));
+    }
+
+    // Handle prefix2 - use isNull() for NULL comparison
+    if (actualPrefix2) {
+      previewWhereConditions.push(eq(documentSequenceTracker.prefix2, actualPrefix2));
+    } else {
+      previewWhereConditions.push(isNull(documentSequenceTracker.prefix2));
+    }
+
     const tracker = await db
       .select()
       .from(documentSequenceTracker)
-      .where(
-        and(
-          eq(documentSequenceTracker.tenantId, tenantId),
-          eq(documentSequenceTracker.documentType, documentType),
-          eq(documentSequenceTracker.period, period),
-          actualPrefix1 ? eq(documentSequenceTracker.prefix1, actualPrefix1) : eq(documentSequenceTracker.prefix1, null as any),
-          actualPrefix2 ? eq(documentSequenceTracker.prefix2, actualPrefix2) : eq(documentSequenceTracker.prefix2, null as any)
-        )
-      )
+      .where(and(...previewWhereConditions))
       .limit(1);
 
     const nextSequence = tracker.length === 0 ? 1 : tracker[0].currentSequence + 1;
