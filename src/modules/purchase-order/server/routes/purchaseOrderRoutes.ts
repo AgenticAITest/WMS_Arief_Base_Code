@@ -641,25 +641,6 @@ router.post('/preview', authorized('ADMIN', 'purchase-order.create'), async (req
       return sum + itemTotal;
     }, 0);
 
-    // Get preview number with fallback
-    let orderNumber = 'PREVIEW-GENERATING';
-    try {
-      const docNumberResponse = await axios.post(
-        'http://localhost:5000/api/modules/document-numbering/preview',
-        {
-          documentType: 'PO'
-        },
-        {
-          headers: {
-            Authorization: req.headers.authorization,
-          },
-        }
-      );
-      orderNumber = docNumberResponse.data.previewNumber;
-    } catch (error) {
-      console.error('Error fetching preview number:', error);
-      orderNumber = `PREVIEW-${Date.now()}`;
-    }
     const orderDate = new Date().toISOString().split('T')[0];
 
     // Fetch supplier info
@@ -705,6 +686,39 @@ router.post('/preview', authorized('ADMIN', 'purchase-order.create'), async (req
       .from(warehouses)
       .where(and(eq(warehouses.id, warehouseId), eq(warehouses.tenantId, tenantId)))
       .limit(1);
+
+    // Get document number config to use default prefix
+    const [docConfig] = await db
+      .select({
+        prefix1DefaultValue: documentNumberConfig.prefix1DefaultValue
+      })
+      .from(documentNumberConfig)
+      .where(and(
+        eq(documentNumberConfig.tenantId, tenantId),
+        eq(documentNumberConfig.documentType, 'PO')
+      ))
+      .limit(1);
+
+    // Get preview number with warehouse prefix (use config default if no warehouse code)
+    let orderNumber = 'PREVIEW-GENERATING';
+    try {
+      const docNumberResponse = await axios.post(
+        'http://localhost:5000/api/modules/document-numbering/preview',
+        {
+          documentType: 'PO',
+          prefix1: docConfig?.prefix1DefaultValue || 'WH'
+        },
+        {
+          headers: {
+            Authorization: req.headers.authorization,
+          },
+        }
+      );
+      orderNumber = docNumberResponse.data.previewNumber;
+    } catch (error) {
+      console.error('Error fetching preview number:', error);
+      orderNumber = `PREVIEW-${Date.now()}`;
+    }
 
     // Fetch user info
     const [currentUser] = await db
