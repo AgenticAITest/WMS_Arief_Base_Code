@@ -23,7 +23,7 @@ export const purchaseOrders = pgTable('purchase_orders', {
     .references(() => warehouses.id),
   status: varchar('status', { 
     length: 50, 
-    enum: ['pending', 'approved', 'received', 'completed'] 
+    enum: ['pending', 'approved', 'rejected', 'received', 'completed'] 
   }).notNull().default('pending'),
   workflowState: varchar('workflow_state', { 
     length: 50, 

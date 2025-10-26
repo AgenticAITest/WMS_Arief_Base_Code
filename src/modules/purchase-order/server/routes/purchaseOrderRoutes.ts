@@ -2241,4 +2241,248 @@ router.delete('/items/:id', authorized('ADMIN', 'purchase-order.delete'), async 
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/purchase-order/orders/{id}/approve:
+ *   post:
+ *     summary: Approve a purchase order
+ *     tags: [Purchase Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Purchase order approved successfully
+ *       400:
+ *         description: Invalid request or PO not in approvable state
+ *       404:
+ *         description: Purchase order not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/orders/:id/approve', authorized('ADMIN', 'purchase-order.approve'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+    const userName = req.user!.fullname || req.user!.username || 'Unknown User';
+    const { id } = req.params;
+
+    // Fetch existing order
+    const [existingOrder] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(and(
+        eq(purchaseOrders.id, id),
+        eq(purchaseOrders.tenantId, tenantId)
+      ));
+
+    if (!existingOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+      });
+    }
+
+    // Verify PO is in approvable state
+    if (existingOrder.status !== 'pending' || existingOrder.workflowState !== 'approve') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot approve purchase order: current status is ${existingOrder.status}/${existingOrder.workflowState}`,
+      });
+    }
+
+    // Perform approval in a transaction
+    await db.transaction(async (tx) => {
+      // Update purchase order status
+      await tx
+        .update(purchaseOrders)
+        .set({
+          status: 'approved',
+          workflowState: 'receive',
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseOrders.id, id));
+
+      // Log audit trail
+      await logAudit({
+        tenantId,
+        userId,
+        userName,
+        module: 'purchase-order',
+        action: 'approve',
+        resourceType: 'purchase_order',
+        resourceId: id,
+        description: `Approved purchase order ${existingOrder.orderNumber}`,
+        previousState: 'pending/approve',
+        newState: 'approved/receive',
+        changedFields: {
+          status: { from: 'pending', to: 'approved' },
+          workflowState: { from: 'approve', to: 'receive' },
+        },
+        status: 'success',
+        ipAddress: getClientIp(req),
+      });
+    });
+
+    // Regenerate HTML document with APPROVED stamp
+    try {
+      await PODocumentGenerator.generateAndSave({
+        orderId: id,
+        tenantId,
+        userId,
+        stamp: 'APPROVED',
+      });
+    } catch (docError) {
+      console.error('Error regenerating PO document after approval:', docError);
+      // Don't fail the approval if document generation fails
+    }
+
+    // Fetch updated order
+    const [updatedOrder] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, id));
+
+    res.json({
+      success: true,
+      data: updatedOrder,
+      message: 'Purchase order approved successfully',
+    });
+  } catch (error) {
+    console.error('Error approving purchase order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/modules/purchase-order/orders/{id}/reject:
+ *   post:
+ *     summary: Reject a purchase order
+ *     tags: [Purchase Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Optional reason for rejection
+ *     responses:
+ *       200:
+ *         description: Purchase order rejected successfully
+ *       400:
+ *         description: Invalid request or PO not in rejectable state
+ *       404:
+ *         description: Purchase order not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/orders/:id/reject', authorized('ADMIN', 'purchase-order.reject'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+    const userName = req.user!.fullname || req.user!.username || 'Unknown User';
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    // Fetch existing order
+    const [existingOrder] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(and(
+        eq(purchaseOrders.id, id),
+        eq(purchaseOrders.tenantId, tenantId)
+      ));
+
+    if (!existingOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+      });
+    }
+
+    // Verify PO is in rejectable state
+    if (existingOrder.status !== 'pending' || existingOrder.workflowState !== 'approve') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot reject purchase order: current status is ${existingOrder.status}/${existingOrder.workflowState}`,
+      });
+    }
+
+    // Perform rejection in a transaction
+    await db.transaction(async (tx) => {
+      // Update purchase order status - send back to create state for rework
+      await tx
+        .update(purchaseOrders)
+        .set({
+          status: 'rejected',
+          workflowState: 'create',
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseOrders.id, id));
+
+      // Log audit trail
+      await logAudit({
+        tenantId,
+        userId,
+        userName,
+        module: 'purchase-order',
+        action: 'reject',
+        resourceType: 'purchase_order',
+        resourceId: id,
+        description: reason 
+          ? `Rejected purchase order ${existingOrder.orderNumber}: ${reason}`
+          : `Rejected purchase order ${existingOrder.orderNumber}`,
+        previousState: 'pending/approve',
+        newState: 'rejected/create',
+        changedFields: {
+          status: { from: 'pending', to: 'rejected' },
+          workflowState: { from: 'approve', to: 'create' },
+          ...(reason && { rejectionReason: { to: reason } }),
+        },
+        status: 'success',
+        ipAddress: getClientIp(req),
+      });
+    });
+
+    // Fetch updated order
+    const [updatedOrder] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, id));
+
+    res.json({
+      success: true,
+      data: updatedOrder,
+      message: 'Purchase order rejected successfully',
+    });
+  } catch (error) {
+    console.error('Error rejecting purchase order:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 export default router;
