@@ -174,4 +174,4 @@ const PurchaseOrderApprove: React.FC = () => {
   );
 };
 
-export default withModuleAuthorization(PurchaseOrderApprove, 'purchase-order');
+export default withModuleAuthorization(PurchaseOrderApprove, { moduleId: 'purchase-order', moduleName: 'Purchase Order' });

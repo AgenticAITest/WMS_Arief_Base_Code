@@ -9,7 +9,6 @@ import {
 import { Button } from '@client/components/ui/button';
 import { Check, X, Loader2 } from 'lucide-react';
 import { POApproveConfirmDialog } from './POApproveConfirmDialog';
-import { Alert, AlertDescription } from '@client/components/ui/alert';
 import axios from 'axios';
 import { toast } from 'sonner';
 
@@ -99,11 +98,9 @@ export const POApprovalModal: React.FC<POApprovalModalProps> = ({
             ) : htmlPreview ? (
               <div dangerouslySetInnerHTML={{ __html: htmlPreview }} />
             ) : (
-              <Alert>
-                <AlertDescription>
-                  Purchase order preview is not available. The document may not have been generated yet.
-                </AlertDescription>
-              </Alert>
+              <div className="text-center py-8 text-muted-foreground">
+                <p>Purchase order preview is not available. The document may not have been generated yet.</p>
+              </div>
             )}
           </div>
 
