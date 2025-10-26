@@ -1,6 +1,6 @@
 import { db } from '@server/lib/db';
 import { authenticated } from '@server/middleware/authMiddleware';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import express from 'express';
 import {
   documentNumberConfig,
@@ -151,18 +151,31 @@ router.post('/generate', async (req, res) => {
     const actualPrefix1 = prefix1 || null;
     const actualPrefix2 = prefix2 || null;
 
+    // Build WHERE conditions for tracker lookup
+    const whereConditions = [
+      eq(documentSequenceTracker.tenantId, tenantId),
+      eq(documentSequenceTracker.documentType, documentType),
+      eq(documentSequenceTracker.period, period),
+    ];
+
+    // Handle prefix1 - use isNull() for NULL comparison
+    if (actualPrefix1) {
+      whereConditions.push(eq(documentSequenceTracker.prefix1, actualPrefix1));
+    } else {
+      whereConditions.push(isNull(documentSequenceTracker.prefix1));
+    }
+
+    // Handle prefix2 - use isNull() for NULL comparison
+    if (actualPrefix2) {
+      whereConditions.push(eq(documentSequenceTracker.prefix2, actualPrefix2));
+    } else {
+      whereConditions.push(isNull(documentSequenceTracker.prefix2));
+    }
+
     let tracker = await db
       .select()
       .from(documentSequenceTracker)
-      .where(
-        and(
-          eq(documentSequenceTracker.tenantId, tenantId),
-          eq(documentSequenceTracker.documentType, documentType),
-          eq(documentSequenceTracker.period, period),
-          actualPrefix1 ? eq(documentSequenceTracker.prefix1, actualPrefix1) : eq(documentSequenceTracker.prefix1, null as any),
-          actualPrefix2 ? eq(documentSequenceTracker.prefix2, actualPrefix2) : eq(documentSequenceTracker.prefix2, null as any)
-        )
-      )
+      .where(and(...whereConditions))
       .limit(1);
 
     let sequenceNumber: number;
