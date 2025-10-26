@@ -1,6 +1,7 @@
 import { RouteObject } from 'react-router';
 import PurchaseOrderCreate from '../pages/PurchaseOrderCreate';
-import { ApprovePOPage, ReceivePOPage, PutawayPOPage } from '../pages/PurchaseOrderPlaceholder';
+import PurchaseOrderApprove from '../pages/PurchaseOrderApprove';
+import { ReceivePOPage, PutawayPOPage } from '../pages/PurchaseOrderPlaceholder';
 
 export const purchaseOrderReactRoutes = (basePath: string): RouteObject => {
   return {
@@ -8,7 +9,7 @@ export const purchaseOrderReactRoutes = (basePath: string): RouteObject => {
     children: [
       { index: true, Component: PurchaseOrderCreate },
       { path: 'create', Component: PurchaseOrderCreate },
-      { path: 'approve', Component: ApprovePOPage },
+      { path: 'approve', Component: PurchaseOrderApprove },
       { path: 'receive', Component: ReceivePOPage },
       { path: 'putaway', Component: PutawayPOPage },
     ]

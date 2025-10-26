@@ -994,6 +994,103 @@ router.get('/orders/:id', authorized('ADMIN', 'purchase-order.view'), async (req
 
 /**
  * @swagger
+ * /api/modules/purchase-order/orders/{id}/html:
+ *   get:
+ *     summary: Get HTML preview of a purchase order
+ *     tags: [Purchase Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: HTML preview retrieved successfully
+ *       404:
+ *         description: Purchase order or HTML document not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/orders/:id/html', authorized('ADMIN', 'purchase-order.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { id } = req.params;
+
+    // Fetch purchase order to verify access and get order number
+    const [po] = await db
+      .select({
+        id: purchaseOrders.id,
+        orderNumber: purchaseOrders.orderNumber,
+        tenantId: purchaseOrders.tenantId,
+      })
+      .from(purchaseOrders)
+      .where(and(
+        eq(purchaseOrders.id, id),
+        eq(purchaseOrders.tenantId, tenantId)
+      ));
+
+    if (!po) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+      });
+    }
+
+    // Fetch the generated document metadata
+    const [document] = await db
+      .select()
+      .from(generatedDocuments)
+      .where(and(
+        eq(generatedDocuments.referenceType, 'purchase_order'),
+        eq(generatedDocuments.referenceId, id),
+        eq(generatedDocuments.tenantId, tenantId)
+      ))
+      .orderBy(desc(generatedDocuments.createdAt))
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: 'HTML document not found for this purchase order',
+      });
+    }
+
+    // Read HTML file from storage
+    const htmlFilePath = path.join(process.cwd(), (document.files as any).html.path);
+    
+    try {
+      const htmlContent = await fs.readFile(htmlFilePath, 'utf-8');
+      
+      res.json({
+        success: true,
+        html: htmlContent,
+        documentInfo: {
+          version: document.version,
+          generatedAt: document.createdAt,
+        },
+      });
+    } catch (fileError) {
+      console.error('Error reading HTML file:', fileError);
+      return res.status(404).json({
+        success: false,
+        message: 'HTML file not found on disk',
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching HTML preview:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/modules/purchase-order/orders:
  *   post:
  *     summary: Create a new purchase order
@@ -2270,7 +2367,6 @@ router.post('/orders/:id/approve', authorized('ADMIN', 'purchase-order.approve')
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
-    const userName = req.user!.fullname || req.user!.username || 'Unknown User';
     const { id } = req.params;
 
     // Fetch existing order
@@ -2313,7 +2409,6 @@ router.post('/orders/:id/approve', authorized('ADMIN', 'purchase-order.approve')
       await logAudit({
         tenantId,
         userId,
-        userName,
         module: 'purchase-order',
         action: 'approve',
         resourceType: 'purchase_order',
@@ -2330,18 +2425,8 @@ router.post('/orders/:id/approve', authorized('ADMIN', 'purchase-order.approve')
       });
     });
 
-    // Regenerate HTML document with APPROVED stamp
-    try {
-      await PODocumentGenerator.generateAndSave({
-        orderId: id,
-        tenantId,
-        userId,
-        stamp: 'APPROVED',
-      });
-    } catch (docError) {
-      console.error('Error regenerating PO document after approval:', docError);
-      // Don't fail the approval if document generation fails
-    }
+    // Note: HTML regeneration will be handled by frontend when viewing the approved PO
+    // The existing HTML document already has all the PO details
 
     // Fetch updated order
     const [updatedOrder] = await db
@@ -2401,7 +2486,6 @@ router.post('/orders/:id/reject', authorized('ADMIN', 'purchase-order.reject'), 
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
-    const userName = req.user!.fullname || req.user!.username || 'Unknown User';
     const { id } = req.params;
     const { reason } = req.body;
 
@@ -2445,7 +2529,6 @@ router.post('/orders/:id/reject', authorized('ADMIN', 'purchase-order.reject'), 
       await logAudit({
         tenantId,
         userId,
-        userName,
         module: 'purchase-order',
         action: 'reject',
         resourceType: 'purchase_order',
