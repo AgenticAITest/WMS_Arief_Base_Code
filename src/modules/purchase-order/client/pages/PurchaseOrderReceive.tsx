@@ -267,41 +267,40 @@ const PurchaseOrderReceive: React.FC = () => {
                     const hasDiscrepancy = received && received.receivedQuantity < remaining;
 
                     return (
-                      <div key={item.id} className="border rounded-lg p-4 space-y-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-semibold">{item.product.name}</h4>
-                            <p className="text-sm text-muted-foreground">SKU: {item.product.sku}</p>
+                      <div key={item.id} className="border rounded-lg p-3">
+                        <div className="flex items-center gap-3">
+                          {/* Product Info */}
+                          <div className="flex-1 min-w-[200px]">
+                            <h4 className="font-semibold text-sm">{item.product.name}</h4>
+                            <p className="text-xs text-muted-foreground">SKU: {item.product.sku}</p>
                           </div>
-                          {received?.confirmed && (
-                            <Badge variant="default">Confirmed</Badge>
-                          )}
-                        </div>
 
-                        <div className="grid grid-cols-4 gap-4">
-                          <div>
-                            <label className="text-sm font-medium">Ordered Qty</label>
+                          {/* Ordered Qty */}
+                          <div className="w-20">
+                            <label className="text-xs font-medium block mb-1">Ordered</label>
                             <Input 
                               value={item.orderedQuantity} 
                               disabled 
-                              className="bg-muted" 
+                              className="bg-muted h-8 text-sm" 
                             />
                           </div>
 
+                          {/* Already Received Qty (for incomplete POs) */}
                           {isIncomplete && (
-                            <div>
-                              <label className="text-sm font-medium">Received Qty</label>
+                            <div className="w-20">
+                              <label className="text-xs font-medium block mb-1">Received</label>
                               <Input 
                                 value={item.receivedQuantity} 
                                 disabled 
-                                className="bg-muted" 
+                                className="bg-muted h-8 text-sm" 
                               />
                             </div>
                           )}
 
-                          <div>
-                            <label className="text-sm font-medium">
-                              {isIncomplete ? 'Additional Qty' : 'Received Qty'}
+                          {/* Receiving Now Qty */}
+                          <div className="w-20">
+                            <label className="text-xs font-medium block mb-1">
+                              {isIncomplete ? 'Add' : 'Receive'}
                             </label>
                             <Input
                               type="number"
@@ -312,26 +311,27 @@ const PurchaseOrderReceive: React.FC = () => {
                                 const val = parseInt(e.target.value) || 0;
                                 updateReceivedItem(po.id, item.id, 'receivedQuantity', Math.min(val, remaining));
                               }}
-                              className={totalReceived > item.orderedQuantity ? 'border-destructive' : ''}
+                              className={cn("h-8 text-sm", totalReceived > item.orderedQuantity && 'border-destructive')}
                             />
                           </div>
 
-                          {item.product.hasExpiry && (
-                            <div>
-                              <label className="text-sm font-medium">Expiry Date</label>
+                          {/* Expiry Date */}
+                          <div className="w-32">
+                            <label className="text-xs font-medium block mb-1">Expiry</label>
+                            {item.product.hasExpiry ? (
                               <Popover>
                                 <PopoverTrigger asChild>
                                   <Button
                                     variant="outline"
                                     className={cn(
-                                      'w-full justify-start text-left font-normal',
+                                      'w-full h-8 justify-start text-left font-normal text-xs px-2',
                                       !received?.expiryDate && 'text-muted-foreground'
                                     )}
                                   >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    <CalendarIcon className="mr-1 h-3 w-3" />
                                     {received?.expiryDate 
-                                      ? format(new Date(received.expiryDate), 'PP')
-                                      : 'Select date'}
+                                      ? format(new Date(received.expiryDate), 'MM/dd/yy')
+                                      : 'Select'}
                                   </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
@@ -346,47 +346,43 @@ const PurchaseOrderReceive: React.FC = () => {
                                   />
                                 </PopoverContent>
                               </Popover>
-                            </div>
-                          )}
+                            ) : (
+                              <Input value="N/A" disabled className="bg-muted h-8 text-xs" />
+                            )}
+                          </div>
 
-                          {!item.product.hasExpiry && (
-                            <div>
-                              <label className="text-sm font-medium">Expiry Date</label>
-                              <Input value="N/A" disabled className="bg-muted" />
-                            </div>
-                          )}
-                        </div>
-
-                        {hasDiscrepancy && (
-                          <div>
-                            <label className="text-sm font-medium flex items-center gap-2">
-                              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                              Discrepancy Note (Required)
-                            </label>
-                            <Textarea
-                              placeholder="Enter reason for quantity discrepancy..."
-                              value={received?.discrepancyNote || ''}
-                              onChange={(e) => updateReceivedItem(po.id, item.id, 'discrepancyNote', e.target.value)}
-                              className="mt-1"
-                              rows={2}
+                          {/* Confirm Checkbox */}
+                          <div className="flex flex-col items-center w-16">
+                            <label className="text-xs font-medium block mb-1">Confirm</label>
+                            <Checkbox
+                              id={`confirm-${item.id}`}
+                              checked={received?.confirmed || false}
+                              onCheckedChange={(checked) => {
+                                updateReceivedItem(po.id, item.id, 'confirmed', checked as boolean);
+                              }}
                             />
                           </div>
-                        )}
 
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id={`confirm-${item.id}`}
-                            checked={received?.confirmed || false}
-                            onCheckedChange={(checked) => {
-                              updateReceivedItem(po.id, item.id, 'confirmed', checked as boolean);
-                            }}
-                          />
-                          <label
-                            htmlFor={`confirm-${item.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                          >
-                            Confirm received quantity for this item
-                          </label>
+                          {/* Discrepancy Note */}
+                          {hasDiscrepancy && (
+                            <div className="flex-1 min-w-[200px]">
+                              <label className="text-xs font-medium flex items-center gap-1 mb-1">
+                                <AlertTriangle className="h-3 w-3 text-yellow-600" />
+                                Discrepancy Note
+                              </label>
+                              <Input
+                                placeholder="Reason for discrepancy..."
+                                value={received?.discrepancyNote || ''}
+                                onChange={(e) => updateReceivedItem(po.id, item.id, 'discrepancyNote', e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          )}
+
+                          {/* Status Badge */}
+                          {received?.confirmed && (
+                            <Badge variant="default" className="ml-2">✓</Badge>
+                          )}
                         </div>
                       </div>
                     );
