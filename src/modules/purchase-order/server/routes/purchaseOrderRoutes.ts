@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '@server/lib/db';
-import { purchaseOrders, purchaseOrderItems } from '../lib/db/schemas/purchaseOrder';
+import { purchaseOrders, purchaseOrderItems, purchaseOrdersReceipt } from '../lib/db/schemas/purchaseOrder';
 import { suppliers, supplierLocations, products } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
 import { warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
@@ -12,6 +12,7 @@ import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddlewar
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { PODocumentGenerator } from '../services/poDocumentGenerator';
+import { GRNDocumentGenerator } from '../services/grnDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
 import fs from 'fs/promises';
 import path from 'path';
@@ -2603,6 +2604,481 @@ router.post('/orders/:id/reject', authorized('ADMIN', 'purchase-order.reject'), 
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+    });
+  }
+});
+
+// ==================== RECEIVE ITEMS ENDPOINTS ====================
+
+/**
+ * @swagger
+ * /api/modules/purchase-order/receive/approved:
+ *   get:
+ *     summary: Get approved purchase orders ready for receiving
+ *     tags: [Purchase Orders - Receive]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of approved POs with items
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/receive/approved', async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    // Get all approved POs in receive workflow state with their items
+    const approvedPOs = await db
+      .select({
+        po: purchaseOrders,
+        supplier: suppliers,
+        warehouse: warehouses,
+      })
+      .from(purchaseOrders)
+      .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
+      .where(
+        and(
+          eq(purchaseOrders.tenantId, tenantId),
+          eq(purchaseOrders.status, 'approved'),
+          eq(purchaseOrders.workflowState, 'receive')
+        )
+      )
+      .orderBy(desc(purchaseOrders.orderDate));
+
+    // Get items for each PO
+    const posWithItems = await Promise.all(
+      approvedPOs.map(async ({ po, supplier, warehouse }) => {
+        const items = await db
+          .select({
+            item: purchaseOrderItems,
+            product: products,
+          })
+          .from(purchaseOrderItems)
+          .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
+          .where(eq(purchaseOrderItems.purchaseOrderId, po.id));
+
+        return {
+          ...po,
+          supplier,
+          warehouse,
+          items: items.map(({ item, product }) => ({
+            ...item,
+            product,
+          })),
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: posWithItems,
+    });
+  } catch (error) {
+    console.error('Error fetching approved POs for receiving:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/modules/purchase-order/receive/incomplete:
+ *   get:
+ *     summary: Get incomplete purchase orders (partially received)
+ *     tags: [Purchase Orders - Receive]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of incomplete POs with items
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/receive/incomplete', async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    // Get all incomplete POs in receive workflow state with their items
+    const incompletePOs = await db
+      .select({
+        po: purchaseOrders,
+        supplier: suppliers,
+        warehouse: warehouses,
+      })
+      .from(purchaseOrders)
+      .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
+      .where(
+        and(
+          eq(purchaseOrders.tenantId, tenantId),
+          eq(purchaseOrders.status, 'incomplete'),
+          eq(purchaseOrders.workflowState, 'receive')
+        )
+      )
+      .orderBy(desc(purchaseOrders.orderDate));
+
+    // Get items for each PO
+    const posWithItems = await Promise.all(
+      incompletePOs.map(async ({ po, supplier, warehouse }) => {
+        const items = await db
+          .select({
+            item: purchaseOrderItems,
+            product: products,
+          })
+          .from(purchaseOrderItems)
+          .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
+          .where(eq(purchaseOrderItems.purchaseOrderId, po.id));
+
+        return {
+          ...po,
+          supplier,
+          warehouse,
+          items: items.map(({ item, product }) => ({
+            ...item,
+            product,
+          })),
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: posWithItems,
+    });
+  } catch (error) {
+    console.error('Error fetching incomplete POs for receiving:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/modules/purchase-order/receive/{id}/submit:
+ *   post:
+ *     summary: Submit receipt for purchase order
+ *     tags: [Purchase Orders - Receive]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Purchase order ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - items
+ *             properties:
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - itemId
+ *                     - receivedQuantity
+ *                   properties:
+ *                     itemId:
+ *                       type: string
+ *                       format: uuid
+ *                     receivedQuantity:
+ *                       type: integer
+ *                     expiryDate:
+ *                       type: string
+ *                       format: date
+ *                     discrepancyNote:
+ *                       type: string
+ *               notes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Receipt submitted successfully
+ *       400:
+ *         description: Bad request
+ *       404:
+ *         description: Purchase order not found
+ *       500:
+ *         description: Server error
+ */
+router.post('/receive/:id/submit', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { items: receivedItems, notes } = req.body;
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+
+    // Validate input
+    if (!receivedItems || !Array.isArray(receivedItems) || receivedItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Items array is required',
+      });
+    }
+
+    // Verify PO exists and is in receivable state
+    const [existingOrder] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(and(eq(purchaseOrders.id, id), eq(purchaseOrders.tenantId, tenantId)));
+
+    if (!existingOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'Purchase order not found',
+      });
+    }
+
+    if (existingOrder.workflowState !== 'receive') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot receive items: current workflow state is ${existingOrder.workflowState}`,
+      });
+    }
+
+    // Perform receipt in a transaction
+    const result = await db.transaction(async (tx) => {
+      // Update received quantities and discrepancy notes for each item
+      for (const receivedItem of receivedItems) {
+        const { itemId, receivedQuantity, expiryDate, discrepancyNote } = receivedItem;
+
+        // Get current item
+        const [currentItem] = await tx
+          .select()
+          .from(purchaseOrderItems)
+          .where(eq(purchaseOrderItems.id, itemId));
+
+        if (!currentItem) {
+          throw new Error(`Item ${itemId} not found`);
+        }
+
+        // Validate received quantity
+        const newTotalReceived = (currentItem.receivedQuantity || 0) + receivedQuantity;
+        if (newTotalReceived > currentItem.orderedQuantity) {
+          throw new Error(
+            `Received quantity (${newTotalReceived}) exceeds ordered quantity (${currentItem.orderedQuantity}) for item ${itemId}`
+          );
+        }
+
+        // Update item
+        await tx
+          .update(purchaseOrderItems)
+          .set({
+            receivedQuantity: newTotalReceived,
+            ...(expiryDate && { expectedExpiryDate: expiryDate }),
+            ...(discrepancyNote && { discrepancyNote }),
+            updatedAt: new Date(),
+          })
+          .where(eq(purchaseOrderItems.id, itemId));
+      }
+
+      // Check if all items are fully received
+      const allItems = await tx
+        .select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+      const allFullyReceived = allItems.every(
+        (item) => item.receivedQuantity >= item.orderedQuantity
+      );
+
+      // Update PO status
+      const newStatus = allFullyReceived ? 'approved' : 'incomplete';
+      const newWorkflowState = allFullyReceived ? 'putaway' : 'receive';
+
+      await tx
+        .update(purchaseOrders)
+        .set({
+          status: newStatus,
+          workflowState: newWorkflowState,
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseOrders.id, id));
+
+      // Generate GRN document number
+      const grnNumberResponse = await axios.post(
+        `http://localhost:5000/api/modules/document-numbering/generate`,
+        {
+          tenantId,
+          documentType: 'GRN',
+          prefix1: existingOrder.warehouseId, // Will use warehouse code or default
+        }
+      );
+
+      const grnNumber = grnNumberResponse.data.data.documentNumber;
+
+      // Fetch all required data for GRN document
+      const [supplierData] = await tx
+        .select()
+        .from(suppliers)
+        .where(eq(suppliers.id, existingOrder.supplierId));
+
+      const [warehouseData] = await tx
+        .select()
+        .from(warehouses)
+        .where(eq(warehouses.id, existingOrder.warehouseId));
+
+      const [receiverData] = await tx
+        .select({
+          username: user.username,
+        })
+        .from(user)
+        .where(eq(user.id, userId));
+
+      // Get all updated items with product details for GRN
+      const grnItems = await tx
+        .select({
+          item: purchaseOrderItems,
+          product: products,
+        })
+        .from(purchaseOrderItems)
+        .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+      // Prepare GRN document data
+      const grnData = {
+        grnNumber,
+        tenantId,
+        poNumber: existingOrder.orderNumber,
+        poId: existingOrder.id,
+        receiptDate: new Date().toISOString(),
+        receivedByName: receiverData?.username || null,
+        supplierName: supplierData?.name || 'Unknown Supplier',
+        warehouseName: warehouseData?.name || null,
+        warehouseAddress: warehouseData?.address || null,
+        warehouseCity: null,
+        notes,
+        items: grnItems.map(({ item, product }) => ({
+          productSku: product?.sku || 'N/A',
+          productName: product?.name || 'Unknown Product',
+          orderedQuantity: item.orderedQuantity,
+          receivedQuantity: item.receivedQuantity,
+          discrepancy: item.receivedQuantity - item.orderedQuantity,
+          expiryDate: item.expectedExpiryDate || null,
+          discrepancyNote: item.discrepancyNote || null,
+        })),
+      };
+
+      // Generate professional GRN HTML document
+      const grnHtmlContent = GRNDocumentGenerator.generateHTML(grnData);
+
+      // Save GRN HTML file
+      const year = new Date().getFullYear();
+      const grnDir = path.join(
+        process.cwd(),
+        'storage',
+        'purchase-order',
+        'documents',
+        'tenants',
+        tenantId,
+        'grn',
+        year.toString()
+      );
+      await fs.mkdir(grnDir, { recursive: true });
+
+      const grnFilePath = path.join(grnDir, `${grnNumber}.html`);
+      await fs.writeFile(grnFilePath, grnHtmlContent, 'utf-8');
+
+      const relativePath = `storage/purchase-order/documents/tenants/${tenantId}/grn/${year}/${grnNumber}.html`;
+
+      // Create generated_documents record
+      const [grnDoc] = await tx
+        .insert(generatedDocuments)
+        .values({
+          tenantId,
+          documentType: 'goods_receipt_note',
+          documentNumber: grnNumber,
+          referenceType: 'purchase_order',
+          referenceId: id,
+          files: {
+            html: {
+              path: relativePath,
+              size: Buffer.byteLength(grnHtmlContent, 'utf-8'),
+              generated_at: new Date().toISOString(),
+            },
+          },
+          version: 1,
+          generatedBy: userId,
+        })
+        .returning();
+
+      // Create purchase_orders_receipt record
+      await tx.insert(purchaseOrdersReceipt).values({
+        purchaseOrderId: id,
+        grnDocumentId: grnDoc.id,
+        tenantId,
+        receivedBy: userId,
+        notes,
+      });
+
+      // Log audit trail
+      await logAudit({
+        tenantId,
+        userId,
+        module: 'purchase-order',
+        action: 'receive',
+        resourceType: 'purchase_order',
+        resourceId: id,
+        description: `Received items for purchase order ${existingOrder.orderNumber}. Generated GRN ${grnNumber}`,
+        previousState: `${existingOrder.status}/${existingOrder.workflowState}`,
+        newState: `${newStatus}/${newWorkflowState}`,
+        changedFields: {
+          status: { from: existingOrder.status, to: newStatus },
+          workflowState: { from: existingOrder.workflowState, to: newWorkflowState },
+          grnNumber: { to: grnNumber },
+        },
+        status: 'success',
+        ipAddress: getClientIp(req),
+      });
+
+      return { grnNumber, grnDocId: grnDoc.id };
+    });
+
+    // Fetch updated order with items
+    const [updatedOrder] = await db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.id, id));
+
+    const updatedItems = await db
+      .select({
+        item: purchaseOrderItems,
+        product: products,
+      })
+      .from(purchaseOrderItems)
+      .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
+      .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+    res.json({
+      success: true,
+      data: {
+        order: updatedOrder,
+        items: updatedItems,
+        grnNumber: result.grnNumber,
+        grnDocumentId: result.grnDocId,
+      },
+      message: `Receipt submitted successfully. GRN ${result.grnNumber} generated.`,
+    });
+  } catch (error: any) {
+    console.error('Error submitting receipt:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error',
     });
   }
 });

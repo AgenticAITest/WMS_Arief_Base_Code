@@ -42,6 +42,9 @@ None specified yet
 - **Document Storage Strategy**: Generated documents (PO, SO, Packing Slips, etc.) are stored as HTML files (not database blobs) in `public/documents/tenants/{tenantId}/{docType}/{year}/` with metadata in a `JSONB` column in the `generated_documents` table. This supports easy reprinting, CDN readiness, and versioning. `warehouse_id` is included in `purchase_orders` and displayed in PO documents.
 - **Audit Logging**: Simple, practical audit trail system designed for SME/SMB market. Uses `audit_logs` table to track all critical operations (create, update, delete, state changes). Internal `logAudit()` service for easy integration throughout codebase. REST APIs available at `/api/audit-logs` for querying and `/api/audit-logs/resource/:type/:id` for viewing entity history. Supports filtering by module, action, resource, user, date range, and status.
 
+## Technical Debt
+- **PO Rejection Modal Sizing**: The reject confirmation dialog modal needs to be 1.5x wider and taller with better button spacing. Current fix attempts using Tailwind classes (max-w-3xl, min-h-[400px]) are not taking effect, possibly due to shadcn/ui Dialog component CSS specificity issues or browser caching problems that persist even after hard refresh.
+
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data, managed via Drizzle ORM.
 - **Swagger UI**: For interactive API documentation, accessible at `/api-docs`.

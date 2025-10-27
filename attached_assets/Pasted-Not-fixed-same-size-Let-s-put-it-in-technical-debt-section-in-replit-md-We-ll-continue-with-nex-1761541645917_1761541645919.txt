@@ -1,0 +1,29 @@
+Not fixed, same size.  Let's put it in technical debt section in replit.md.  We'll continue with next functioonalities.
+
+Let's work on the Receive page under Purchase Order.  Create a page:
+- List of Approved PO in a table format (status = approved and workflow_state = receive)
+- List of Incomplete PO in a table format.  This is the list of PO that not a complete items are received (status = incomplete, and workflow_state = receive).
+
+The first table should list the PO and the items under it.  Each record uhder the PO will have the following fields:
+- Item name with SKU number under it
+- Ordered Qty (fromo PO) - ordered_quantity from purchase_order_items
+- Received Qty (an entry field, will be associated with received_quantity in purchase_order_items. This field is prepopulated with the ordered_quantity field.  Entry CANNOT be higher than the ordererd_quantity
+- Expiry date (an antry fielld if the items has expiry status = yes), if no expiry date status, show N/A
+Confirm field, a check box, to ask the user to confirm the quantity
+- Discrepency Note field, a text field, only enterable when the received_quantity entered by the user is lower then  the ordered_quantity
+- each PO willl have a "Submit Receipt for <PO-number> button, that will update the purchase_order_items table with appropriate value (status field in purchase_orders table = incomplete if not all items are received), and create a GRN document (HTML).  The format of the number should follow the document_number_config for GRN
+- generated_documents table should be updated with the HTML format of GRN (please create a professioonal looking GRN document.  
+- a new table should be created called purchase_orders_receipt, where it holds the relationship between PO and GRN.  One PO can have multiple GRN
+- please look at the attached sample of receive page
+
+The second table (incomplete PO) should list all the incomplete PO, and willl have the following fields for each incomplete PO
+- Item name, with SKU number under it
+- Ordered Qty, taken from ordered_quantity from purchase_order_items table
+- Received Qty, taken from received_quantity from purchase_order_items table
+- Additional Qty, a text field, where the user can enter the  additional quantity received.  This field + received_quantity cannot be larger than the ordered_quantity.  
+- Discrepency Note field, a text field, only enterable when the received_quantity entered by the user is still lower then  the ordered_quantity
+- each incomplete PO will have a "Submit Receipt for <PO-number> button, that will update the purchase_order_items table with appropriate value (status field in purchase_orders table = incomplete if not all items are received), and create a GRN document (HTML).  The format of the number should follow the document_number_config for GRN
+- generated_documents table should be updated with the HTML format of GRN.  This should follow the format of the existing GRN format.
+- update the purchase_orders_receipt table with the new GRN for the PO
+
+Tis is a big tasks.  Please plan accordingly, and let me know your plan.
