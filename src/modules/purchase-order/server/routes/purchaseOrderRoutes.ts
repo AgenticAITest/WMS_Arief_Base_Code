@@ -2916,7 +2916,7 @@ router.post('/receive/:id/submit', async (req, res) => {
           {
             tenantId,
             documentType: 'GRN',
-            prefix1: existingOrder.warehouseId,
+            // Don't send prefix1 - let it use the default value from configuration
           },
           {
             headers: {
