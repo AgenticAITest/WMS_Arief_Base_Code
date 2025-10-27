@@ -104,15 +104,15 @@ export const POApprovalModal: React.FC<POApprovalModalProps> = ({
             )}
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={handleCleanup}>
+          <DialogFooter className="gap-3 sm:justify-start">
+            <Button variant="outline" onClick={handleCleanup} className="min-w-[120px]">
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleRejectClick}>
+            <Button variant="destructive" onClick={handleRejectClick} className="min-w-[120px]">
               <X className="mr-2 h-4 w-4" />
               Reject
             </Button>
-            <Button variant="default" onClick={handleApproveClick}>
+            <Button variant="default" onClick={handleApproveClick} className="min-w-[120px]">
               <Check className="mr-2 h-4 w-4" />
               Approve
             </Button>
