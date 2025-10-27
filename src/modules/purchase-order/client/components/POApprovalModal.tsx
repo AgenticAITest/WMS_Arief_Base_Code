@@ -138,11 +138,11 @@ export const POApprovalModal: React.FC<POApprovalModalProps> = ({
           document.documentElement.style.pointerEvents = '';
         }
       }}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl min-h-[400px]">
           <DialogHeader>
             <DialogTitle>Reject Purchase Order</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-6 py-4">
             <p className="text-sm text-muted-foreground">
               Are you sure you want to reject Purchase Order <strong>{po?.orderNumber}</strong>?
               This will send it back to the creator for revision.
@@ -150,14 +150,14 @@ export const POApprovalModal: React.FC<POApprovalModalProps> = ({
             <div className="space-y-2">
               <label className="text-sm font-medium">Reason for Rejection (Optional)</label>
               <textarea
-                className="w-full min-h-[100px] p-2 border rounded-md"
+                className="w-full min-h-[180px] p-3 border rounded-md"
                 placeholder="Enter reason for rejection..."
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="mt-6">
             <Button
               variant="outline"
               onClick={() => {
