@@ -37,8 +37,9 @@ import auditLogRoutes from "./routes/auditLogRoutes";
 
 const app = express();
 
-// Trust proxy for Replit environment
-app.set('trust proxy', true);
+// Trust proxy for Replit environment - trust only the first proxy (Replit's proxy)
+// Using 1 instead of true prevents IP spoofing and secures rate limiting
+app.set('trust proxy', 1);
 
 // rate limiter
 const limiter = rateLimit({

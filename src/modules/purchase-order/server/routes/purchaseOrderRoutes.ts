@@ -2915,6 +2915,11 @@ router.post('/receive/:id/submit', async (req, res) => {
           tenantId,
           documentType: 'GRN',
           prefix1: existingOrder.warehouseId, // Will use warehouse code or default
+        },
+        {
+          headers: {
+            Authorization: req.headers.authorization,
+          },
         }
       );
 
