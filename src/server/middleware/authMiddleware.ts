@@ -37,7 +37,7 @@ export const authenticated = () => async (req: Request, res: Response, next: Nex
     if (!currentUser) {
       return res.status(401).json({ message: 'Unauthorized.' });
     }
-    req.user = { username: currentUser.username, activeTenantId: currentUser.activeTenantId }; // Attach decoded user information to the request
+    req.user = { id: currentUser.id, username: currentUser.username, activeTenantId: currentUser.activeTenantId }; // Attach decoded user information to the request
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
