@@ -3045,15 +3045,25 @@ router.post('/receive/:id/submit', async (req, res) => {
 
       const relativePath = `storage/purchase-order/documents/tenants/${tenantId}/grn/${year}/${grnNumber}.html`;
 
-      // Create generated_documents record
+      // Create purchase_orders_receipt record FIRST (so we can reference it in the GRN document)
+      const [receiptRecord] = await tx.insert(purchaseOrdersReceipt).values({
+        purchaseOrderId: id,
+        grnDocumentId: null as any,
+        tenantId,
+        receivedBy: userId,
+        notes,
+      }).returning();
+
+      // Create generated_documents record referencing the RECEIPT (not the PO)
+      // This allows multiple GRNs per PO (partial receipts)
       const [grnDoc] = await tx
         .insert(generatedDocuments)
         .values({
           tenantId,
           documentType: 'goods_receipt_note',
           documentNumber: grnNumber,
-          referenceType: 'purchase_order',
-          referenceId: id,
+          referenceType: 'purchase_order_receipt',
+          referenceId: receiptRecord.id,
           files: {
             html: {
               path: relativePath,
@@ -3066,14 +3076,11 @@ router.post('/receive/:id/submit', async (req, res) => {
         })
         .returning();
 
-      // Create purchase_orders_receipt record
-      const [receiptRecord] = await tx.insert(purchaseOrdersReceipt).values({
-        purchaseOrderId: id,
-        grnDocumentId: grnDoc.id,
-        tenantId,
-        receivedBy: userId,
-        notes,
-      }).returning();
+      // Update receipt with GRN document ID
+      await tx
+        .update(purchaseOrdersReceipt)
+        .set({ grnDocumentId: grnDoc.id })
+        .where(eq(purchaseOrdersReceipt.id, receiptRecord.id));
 
       // Create receipt_items records for each received item
       for (const receivedItem of receivedItems) {
