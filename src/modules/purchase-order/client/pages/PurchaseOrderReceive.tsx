@@ -363,21 +363,23 @@ const PurchaseOrderReceive: React.FC = () => {
                             />
                           </div>
 
-                          {/* Discrepancy Note */}
-                          {hasDiscrepancy && (
-                            <div className="flex-1 min-w-[200px]">
-                              <label className="text-xs font-medium flex items-center gap-1 mb-1">
-                                <AlertTriangle className="h-3 w-3 text-yellow-600" />
-                                Discrepancy Note
-                              </label>
-                              <Input
-                                placeholder="Reason for discrepancy..."
-                                value={received?.discrepancyNote || ''}
-                                onChange={(e) => updateReceivedItem(po.id, item.id, 'discrepancyNote', e.target.value)}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                          )}
+                          {/* Discrepancy Note - Always visible, enabled/disabled based on quantity variance */}
+                          <div className="flex-1 min-w-[200px]">
+                            <label className="text-xs font-medium flex items-center gap-1 mb-1">
+                              {hasDiscrepancy && <AlertTriangle className="h-3 w-3 text-yellow-600" />}
+                              Discrepancy Note
+                            </label>
+                            <Input
+                              placeholder={hasDiscrepancy ? "Reason for discrepancy..." : "No discrepancy"}
+                              value={received?.discrepancyNote || ''}
+                              onChange={(e) => updateReceivedItem(po.id, item.id, 'discrepancyNote', e.target.value)}
+                              disabled={!hasDiscrepancy}
+                              className={cn(
+                                "h-8 text-sm",
+                                !hasDiscrepancy && "bg-muted cursor-not-allowed"
+                              )}
+                            />
+                          </div>
 
                           {/* Status Badge */}
                           {received?.confirmed && (
