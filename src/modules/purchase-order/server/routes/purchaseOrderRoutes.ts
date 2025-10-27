@@ -2908,22 +2908,58 @@ router.post('/receive/:id/submit', async (req, res) => {
         })
         .where(eq(purchaseOrders.id, id));
 
-      // Generate GRN document number
-      const grnNumberResponse = await axios.post(
-        `http://localhost:5000/api/modules/document-numbering/generate`,
-        {
-          tenantId,
-          documentType: 'GRN',
-          prefix1: existingOrder.warehouseId, // Will use warehouse code or default
-        },
-        {
-          headers: {
-            Authorization: req.headers.authorization,
+      // Generate GRN document number with proper error handling
+      let grnNumber: string;
+      try {
+        const grnNumberResponse = await axios.post(
+          `http://localhost:5000/api/modules/document-numbering/generate`,
+          {
+            tenantId,
+            documentType: 'GRN',
+            prefix1: existingOrder.warehouseId,
           },
-        }
-      );
+          {
+            headers: {
+              Authorization: req.headers.authorization,
+            },
+          }
+        );
 
-      const grnNumber = grnNumberResponse.data.documentNumber;
+        if (!grnNumberResponse?.data?.documentNumber) {
+          console.error('GRN generation failed - missing documentNumber in response:', grnNumberResponse?.data);
+          return res.status(500).json({
+            error: 'Failed to generate GRN document number',
+            details: 'Document numbering service returned invalid response'
+          });
+        }
+
+        grnNumber = grnNumberResponse.data.documentNumber;
+      } catch (error: any) {
+        console.error('Error calling document numbering service:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          error: error.response?.data,
+          message: error.message
+        });
+
+        // Return helpful error message based on the actual error
+        if (error.response?.status === 404) {
+          return res.status(400).json({
+            error: 'GRN document numbering not configured',
+            details: error.response?.data?.error || 'Please configure GRN document numbering in Settings > Document Numbering before receiving items.'
+          });
+        } else if (error.response?.status === 400) {
+          return res.status(400).json({
+            error: 'Invalid document numbering configuration',
+            details: error.response?.data?.error || 'Check your GRN document numbering configuration.'
+          });
+        } else {
+          return res.status(502).json({
+            error: 'Document numbering service error',
+            details: error.response?.data?.error || error.message
+          });
+        }
+      }
 
       // Fetch all required data for GRN document
       const [supplierData] = await tx
