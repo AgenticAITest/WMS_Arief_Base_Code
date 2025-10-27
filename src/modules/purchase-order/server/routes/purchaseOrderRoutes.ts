@@ -1,6 +1,6 @@
 import express from 'express';
 import { db } from '@server/lib/db';
-import { purchaseOrders, purchaseOrderItems, purchaseOrdersReceipt } from '../lib/db/schemas/purchaseOrder';
+import { purchaseOrders, purchaseOrderItems, purchaseOrdersReceipt, receiptItems } from '../lib/db/schemas/purchaseOrder';
 import { suppliers, supplierLocations, products } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
 import { warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
@@ -2853,9 +2853,9 @@ router.post('/receive/:id/submit', async (req, res) => {
 
     // Perform receipt in a transaction
     const result = await db.transaction(async (tx) => {
-      // Update received quantities and discrepancy notes for each item
+      // Update received quantities for each item (denormalized total)
       for (const receivedItem of receivedItems) {
-        const { itemId, receivedQuantity, expiryDate, discrepancyNote } = receivedItem;
+        const { itemId, receivedQuantity } = receivedItem;
 
         // Get current item
         const [currentItem] = await tx
@@ -2875,13 +2875,11 @@ router.post('/receive/:id/submit', async (req, res) => {
           );
         }
 
-        // Update item
+        // Update item's cumulative received quantity (denormalized)
         await tx
           .update(purchaseOrderItems)
           .set({
             receivedQuantity: newTotalReceived,
-            ...(expiryDate && { expectedExpiryDate: expiryDate }),
-            ...(discrepancyNote && { discrepancyNote }),
             updatedAt: new Date(),
           })
           .where(eq(purchaseOrderItems.id, itemId));
@@ -2940,15 +2938,33 @@ router.post('/receive/:id/submit', async (req, res) => {
         .from(user)
         .where(eq(user.id, userId));
 
-      // Get all updated items with product details for GRN
-      const grnItems = await tx
-        .select({
-          item: purchaseOrderItems,
-          product: products,
-        })
-        .from(purchaseOrderItems)
-        .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
-        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+      // Get receipt items with product details for THIS GRN (not all items)
+      const grnItems = [];
+      for (const receivedItem of receivedItems) {
+        const { itemId, receivedQuantity, expiryDate, discrepancyNote } = receivedItem;
+        
+        // Get PO item with product details
+        const [poItemWithProduct] = await tx
+          .select({
+            poItem: purchaseOrderItems,
+            product: products,
+          })
+          .from(purchaseOrderItems)
+          .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
+          .where(eq(purchaseOrderItems.id, itemId));
+        
+        if (poItemWithProduct) {
+          grnItems.push({
+            productSku: poItemWithProduct.product?.sku || 'N/A',
+            productName: poItemWithProduct.product?.name || 'Unknown Product',
+            orderedQuantity: poItemWithProduct.poItem.orderedQuantity,
+            receivedQuantity: receivedQuantity,
+            discrepancy: receivedQuantity - poItemWithProduct.poItem.orderedQuantity,
+            expiryDate: expiryDate || null,
+            discrepancyNote: discrepancyNote || null,
+          });
+        }
+      }
 
       // Prepare GRN document data
       const grnData = {
@@ -2963,15 +2979,7 @@ router.post('/receive/:id/submit', async (req, res) => {
         warehouseAddress: warehouseData?.address || null,
         warehouseCity: null,
         notes,
-        items: grnItems.map(({ item, product }) => ({
-          productSku: product?.sku || 'N/A',
-          productName: product?.name || 'Unknown Product',
-          orderedQuantity: item.orderedQuantity,
-          receivedQuantity: item.receivedQuantity,
-          discrepancy: item.receivedQuantity - item.orderedQuantity,
-          expiryDate: item.expectedExpiryDate || null,
-          discrepancyNote: item.discrepancyNote || null,
-        })),
+        items: grnItems,
       };
 
       // Generate professional GRN HTML document
@@ -3018,13 +3026,27 @@ router.post('/receive/:id/submit', async (req, res) => {
         .returning();
 
       // Create purchase_orders_receipt record
-      await tx.insert(purchaseOrdersReceipt).values({
+      const [receiptRecord] = await tx.insert(purchaseOrdersReceipt).values({
         purchaseOrderId: id,
         grnDocumentId: grnDoc.id,
         tenantId,
         receivedBy: userId,
         notes,
-      });
+      }).returning();
+
+      // Create receipt_items records for each received item
+      for (const receivedItem of receivedItems) {
+        const { itemId, receivedQuantity, expiryDate, discrepancyNote } = receivedItem;
+        
+        await tx.insert(receiptItems).values({
+          receiptId: receiptRecord.id,
+          poItemId: itemId,
+          tenantId,
+          receivedQuantity,
+          expiryDate: expiryDate || null,
+          discrepancyNote: discrepancyNote || null,
+        });
+      }
 
       // Log audit trail
       await logAudit({

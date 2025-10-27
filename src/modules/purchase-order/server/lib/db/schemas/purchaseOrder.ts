@@ -71,7 +71,6 @@ export const purchaseOrderItems = pgTable('purchase_order_items', {
   unitCost: decimal('unit_cost', { precision: 10, scale: 2 }),
   totalCost: decimal('total_cost', { precision: 15, scale: 2 }),
   expectedExpiryDate: date('expected_expiry_date'),
-  discrepancyNote: text('discrepancy_note'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
@@ -108,6 +107,30 @@ export const purchaseOrdersReceipt = pgTable('purchase_orders_receipt', {
   ]
 );
 
+export const receiptItems = pgTable('receipt_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  receiptId: uuid('receipt_id')
+    .notNull()
+    .references(() => purchaseOrdersReceipt.id, { onDelete: 'cascade' }),
+  poItemId: uuid('po_item_id')
+    .notNull()
+    .references(() => purchaseOrderItems.id, { onDelete: 'cascade' }),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenant.id),
+  receivedQuantity: integer('received_quantity').notNull(),
+  expiryDate: date('expiry_date'),
+  discrepancyNote: text('discrepancy_note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
+},
+  (t) => [
+    index('receipt_items_receipt_idx').on(t.receiptId),
+    index('receipt_items_po_item_idx').on(t.poItemId),
+    index('receipt_items_tenant_idx').on(t.tenantId),
+  ]
+);
+
 // Relations
 export const purchaseOrdersRelations = relations(purchaseOrders, ({ one, many }) => ({
   tenant: one(tenant, {
@@ -134,7 +157,7 @@ export const purchaseOrdersRelations = relations(purchaseOrders, ({ one, many })
   receipts: many(purchaseOrdersReceipt),
 }));
 
-export const purchaseOrderItemsRelations = relations(purchaseOrderItems, ({ one }) => ({
+export const purchaseOrderItemsRelations = relations(purchaseOrderItems, ({ one, many }) => ({
   purchaseOrder: one(purchaseOrders, {
     fields: [purchaseOrderItems.purchaseOrderId],
     references: [purchaseOrders.id],
@@ -147,9 +170,10 @@ export const purchaseOrderItemsRelations = relations(purchaseOrderItems, ({ one 
     fields: [purchaseOrderItems.tenantId],
     references: [tenant.id],
   }),
+  receiptItems: many(receiptItems),
 }));
 
-export const purchaseOrdersReceiptRelations = relations(purchaseOrdersReceipt, ({ one }) => ({
+export const purchaseOrdersReceiptRelations = relations(purchaseOrdersReceipt, ({ one, many }) => ({
   purchaseOrder: one(purchaseOrders, {
     fields: [purchaseOrdersReceipt.purchaseOrderId],
     references: [purchaseOrders.id],
@@ -166,6 +190,22 @@ export const purchaseOrdersReceiptRelations = relations(purchaseOrdersReceipt, (
     fields: [purchaseOrdersReceipt.tenantId],
     references: [tenant.id],
   }),
+  items: many(receiptItems),
+}));
+
+export const receiptItemsRelations = relations(receiptItems, ({ one }) => ({
+  receipt: one(purchaseOrdersReceipt, {
+    fields: [receiptItems.receiptId],
+    references: [purchaseOrdersReceipt.id],
+  }),
+  poItem: one(purchaseOrderItems, {
+    fields: [receiptItems.poItemId],
+    references: [purchaseOrderItems.id],
+  }),
+  tenant: one(tenant, {
+    fields: [receiptItems.tenantId],
+    references: [tenant.id],
+  }),
 }));
 
 // Types
@@ -177,3 +217,6 @@ export type NewPurchaseOrderItem = typeof purchaseOrderItems.$inferInsert;
 
 export type PurchaseOrderReceipt = typeof purchaseOrdersReceipt.$inferSelect;
 export type NewPurchaseOrderReceipt = typeof purchaseOrdersReceipt.$inferInsert;
+
+export type ReceiptItem = typeof receiptItems.$inferSelect;
+export type NewReceiptItem = typeof receiptItems.$inferInsert;
