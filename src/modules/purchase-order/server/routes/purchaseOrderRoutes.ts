@@ -2923,7 +2923,7 @@ router.post('/receive/:id/submit', async (req, res) => {
         }
       );
 
-      const grnNumber = grnNumberResponse.data.data.documentNumber;
+      const grnNumber = grnNumberResponse.data.documentNumber;
 
       // Fetch all required data for GRN document
       const [supplierData] = await tx
