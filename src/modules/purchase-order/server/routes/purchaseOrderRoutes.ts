@@ -2847,6 +2847,82 @@ router.get('/receive/received', async (req, res) => {
 
 /**
  * @swagger
+ * /api/modules/purchase-order/putaway:
+ *   get:
+ *     summary: Get purchase orders ready for putaway
+ *     tags: [Purchase Orders - Putaway]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of POs ready for putaway with items
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/putaway', async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    // Get all POs in putaway workflow state
+    const putawayPOs = await db
+      .select({
+        po: purchaseOrders,
+        supplier: suppliers,
+        warehouse: warehouses,
+      })
+      .from(purchaseOrders)
+      .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
+      .where(
+        and(
+          eq(purchaseOrders.tenantId, tenantId),
+          eq(purchaseOrders.workflowState, 'putaway')
+        )
+      )
+      .orderBy(desc(purchaseOrders.updatedAt));
+
+    // Get items for each PO
+    const posWithItems = await Promise.all(
+      putawayPOs.map(async ({ po, supplier, warehouse }) => {
+        const items = await db
+          .select({
+            item: purchaseOrderItems,
+            product: products,
+          })
+          .from(purchaseOrderItems)
+          .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
+          .where(eq(purchaseOrderItems.purchaseOrderId, po.id));
+
+        return {
+          ...po,
+          supplierName: supplier?.name || 'Unknown Supplier',
+          warehouseName: warehouse?.name || 'Unknown Warehouse',
+          warehouseId: po.warehouseId,
+          items: items.map(({ item, product }) => ({
+            ...item,
+            product,
+          })),
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: posWithItems,
+    });
+  } catch (error) {
+    console.error('Error fetching POs for putaway:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
  * /api/modules/purchase-order/receive/{id}/submit:
  *   post:
  *     summary: Submit receipt for purchase order

@@ -2,7 +2,7 @@ import { RouteObject } from 'react-router';
 import PurchaseOrderCreate from '../pages/PurchaseOrderCreate';
 import PurchaseOrderApprove from '../pages/PurchaseOrderApprove';
 import PurchaseOrderReceive from '../pages/PurchaseOrderReceive';
-import { PutawayPOPage } from '../pages/PurchaseOrderPlaceholder';
+import PurchaseOrderPutaway from '../pages/PurchaseOrderPutaway';
 
 export const purchaseOrderReactRoutes = (basePath: string): RouteObject => {
   return {
@@ -12,7 +12,7 @@ export const purchaseOrderReactRoutes = (basePath: string): RouteObject => {
       { path: 'create', Component: PurchaseOrderCreate },
       { path: 'approve', Component: PurchaseOrderApprove },
       { path: 'receive', Component: PurchaseOrderReceive },
-      { path: 'putaway', Component: PutawayPOPage },
+      { path: 'putaway', Component: PurchaseOrderPutaway },
     ]
   };
 };
