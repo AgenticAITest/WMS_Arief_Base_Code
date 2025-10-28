@@ -88,7 +88,6 @@ export const purchaseOrdersReceipt = pgTable('purchase_orders_receipt', {
     .notNull()
     .references(() => purchaseOrders.id, { onDelete: 'cascade' }),
   grnDocumentId: uuid('grn_document_id')
-    .notNull()
     .references(() => generatedDocuments.id, { onDelete: 'cascade' }),
   tenantId: uuid('tenant_id')
     .notNull()
