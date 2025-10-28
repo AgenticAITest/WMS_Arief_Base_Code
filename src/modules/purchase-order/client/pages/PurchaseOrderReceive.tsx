@@ -24,6 +24,8 @@ interface PO {
   status: string;
   totalAmount: string;
   items: POItem[];
+  grnNumber?: string | null;
+  grnDocumentId?: string | null;
 }
 
 interface POItem {
@@ -51,6 +53,7 @@ interface ReceivedItem {
 const PurchaseOrderReceive: React.FC = () => {
   const [approvedPOs, setApprovedPOs] = useState<PO[]>([]);
   const [incompletePOs, setIncompletePOs] = useState<PO[]>([]);
+  const [receivedPOs, setReceivedPOs] = useState<PO[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Track received items for each PO
@@ -70,13 +73,15 @@ const PurchaseOrderReceive: React.FC = () => {
   const fetchReceivableOrders = async () => {
     try {
       setLoading(true);
-      const [approvedResponse, incompleteResponse] = await Promise.all([
+      const [approvedResponse, incompleteResponse, receivedResponse] = await Promise.all([
         axios.get('/api/modules/purchase-order/receive/approved'),
         axios.get('/api/modules/purchase-order/receive/incomplete'),
+        axios.get('/api/modules/purchase-order/receive/received'),
       ]);
       
       setApprovedPOs(approvedResponse.data.data || []);
       setIncompletePOs(incompleteResponse.data.data || []);
+      setReceivedPOs(receivedResponse.data.data || []);
       
       // Initialize received items for approved POs (prepopulate with ordered quantities)
       const initialReceived: Record<string, Record<string, ReceivedItem>> = {};
@@ -203,22 +208,34 @@ const PurchaseOrderReceive: React.FC = () => {
     }
   };
 
+  const handleViewGRN = (po: PO) => {
+    if (po.grnNumber && po.grnDocumentId) {
+      setCurrentGRN({
+        number: po.grnNumber,
+        documentId: po.grnDocumentId,
+      });
+      setIsGRNModalOpen(true);
+    }
+  };
+
   const formatCurrency = (amount: string | number | null | undefined) => {
     if (!amount) return '$0.00';
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const renderPOTable = (pos: PO[], isIncomplete: boolean = false) => {
+  const renderPOTable = (pos: PO[], displayType: 'approved' | 'incomplete' | 'received' = 'approved') => {
     if (pos.length === 0) {
+      const emptyMessages = {
+        approved: 'No approved purchase orders awaiting receipt.',
+        incomplete: 'No incomplete purchase orders to receive.',
+        received: 'No received purchase orders awaiting putaway.',
+      };
+      
       return (
         <div className="text-center py-8 text-muted-foreground">
           <Package className="mx-auto h-12 w-12 mb-2 opacity-50" />
-          <p className="text-lg">
-            {isIncomplete 
-              ? 'No incomplete purchase orders to receive.' 
-              : 'No approved purchase orders awaiting receipt.'}
-          </p>
+          <p className="text-lg">{emptyMessages[displayType]}</p>
         </div>
       );
     }
@@ -237,9 +254,14 @@ const PurchaseOrderReceive: React.FC = () => {
                   <div>
                     <CardTitle className="text-xl flex items-center gap-2">
                       {po.orderNumber}
-                      <Badge variant={isIncomplete ? 'secondary' : 'default'}>
-                        {isIncomplete ? 'Incomplete' : 'Ready to Receive'}
+                      <Badge variant={displayType === 'incomplete' ? 'secondary' : displayType === 'received' ? 'outline' : 'default'}>
+                        {displayType === 'incomplete' ? 'Incomplete' : displayType === 'received' ? 'Received' : 'Ready to Receive'}
                       </Badge>
+                      {displayType === 'received' && po.grnNumber && (
+                        <Badge variant="default" className="ml-1">
+                          GRN: {po.grnNumber}
+                        </Badge>
+                      )}
                     </CardTitle>
                     <div className="text-sm text-muted-foreground mt-2 space-y-1">
                       <p><strong>Supplier:</strong> {po.supplierName}</p>
@@ -248,33 +270,50 @@ const PurchaseOrderReceive: React.FC = () => {
                       <p><strong>Total Amount:</strong> {formatCurrency(po.totalAmount)}</p>
                     </div>
                   </div>
-                  <Button
-                    onClick={() => handleSubmitReceipt(po, isIncomplete)}
-                    disabled={!allConfirmed || isSubmittingThis}
-                    className="min-w-[180px]"
-                  >
-                    {isSubmittingThis ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Submit Receipt for {po.orderNumber}
-                      </>
-                    )}
-                  </Button>
+                  {displayType === 'received' ? (
+                    <Button
+                      onClick={() => handleViewGRN(po)}
+                      variant="outline"
+                      className="min-w-[120px]"
+                    >
+                      <Package className="mr-2 h-4 w-4" />
+                      View GRN
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleSubmitReceipt(po, displayType === 'incomplete')}
+                      disabled={!allConfirmed || isSubmittingThis}
+                      className="min-w-[180px]"
+                    >
+                      {isSubmittingThis ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Submit Receipt for {po.orderNumber}
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {po.items.map(item => {
+                {displayType === 'received' ? (
+                  <div className="text-sm text-muted-foreground">
+                    <p className="mb-2"><strong>Items Received:</strong> {po.items.length}</p>
+                    <p><strong>Total Items Quantity:</strong> {po.items.reduce((sum, item) => sum + item.receivedQuantity, 0)}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {po.items.map(item => {
                     const received = poItems[item.id];
-                    const totalReceived = isIncomplete 
+                    const totalReceived = displayType === 'incomplete'
                       ? item.receivedQuantity + (received?.receivedQuantity || 0)
                       : (received?.receivedQuantity || 0);
-                    const remaining = item.orderedQuantity - (isIncomplete ? item.receivedQuantity : 0);
+                    const remaining = item.orderedQuantity - (displayType === 'incomplete' ? item.receivedQuantity : 0);
                     const hasDiscrepancy = received && received.receivedQuantity < remaining;
 
                     return (
@@ -297,7 +336,7 @@ const PurchaseOrderReceive: React.FC = () => {
                           </div>
 
                           {/* Already Received Qty (for incomplete POs) */}
-                          {isIncomplete && (
+                          {displayType === 'incomplete' && (
                             <div className="w-20">
                               <label className="text-xs font-medium block mb-1">Received</label>
                               <Input 
@@ -311,7 +350,7 @@ const PurchaseOrderReceive: React.FC = () => {
                           {/* Receiving Now Qty */}
                           <div className="w-20">
                             <label className="text-xs font-medium block mb-1">
-                              {isIncomplete ? 'Add' : 'Receive'}
+                              {displayType === 'incomplete' ? 'Add' : 'Receive'}
                             </label>
                             <Input
                               type="number"
@@ -400,7 +439,8 @@ const PurchaseOrderReceive: React.FC = () => {
                       </div>
                     );
                   })}
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
@@ -439,7 +479,7 @@ const PurchaseOrderReceive: React.FC = () => {
               </p>
             </CardHeader>
             <CardContent>
-              {renderPOTable(approvedPOs, false)}
+              {renderPOTable(approvedPOs, 'approved')}
             </CardContent>
           </Card>
 
@@ -454,7 +494,22 @@ const PurchaseOrderReceive: React.FC = () => {
               </p>
             </CardHeader>
             <CardContent>
-              {renderPOTable(incompletePOs, true)}
+              {renderPOTable(incompletePOs, 'incomplete')}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                Received Purchase Orders ({receivedPOs.length})
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Items have been received and documented. View GRN documents or proceed to putaway.
+              </p>
+            </CardHeader>
+            <CardContent>
+              {renderPOTable(receivedPOs, 'received')}
             </CardContent>
           </Card>
         </>

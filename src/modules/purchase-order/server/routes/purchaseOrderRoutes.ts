@@ -2663,8 +2663,8 @@ router.get('/receive/approved', async (req, res) => {
 
         return {
           ...po,
-          supplier,
-          warehouse,
+          supplierName: supplier?.name || 'Unknown Supplier',
+          warehouseName: warehouse?.name || 'Unknown Warehouse',
           items: items.map(({ item, product }) => ({
             ...item,
             product,
@@ -2739,8 +2739,8 @@ router.get('/receive/incomplete', async (req, res) => {
 
         return {
           ...po,
-          supplier,
-          warehouse,
+          supplierName: supplier?.name || 'Unknown Supplier',
+          warehouseName: warehouse?.name || 'Unknown Warehouse',
           items: items.map(({ item, product }) => ({
             ...item,
             product,
@@ -2755,6 +2755,99 @@ router.get('/receive/incomplete', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching incomplete POs for receiving:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/modules/purchase-order/receive/received:
+ *   get:
+ *     summary: Get received purchase orders awaiting putaway
+ *     tags: [Purchase Orders - Receive]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of received POs with GRN information
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/receive/received', async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    // Get all received POs awaiting putaway with their receipts and GRN documents
+    const receivedPOs = await db
+      .select({
+        po: purchaseOrders,
+        supplier: suppliers,
+        warehouse: warehouses,
+      })
+      .from(purchaseOrders)
+      .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+      .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
+      .where(
+        and(
+          eq(purchaseOrders.tenantId, tenantId),
+          eq(purchaseOrders.status, 'received'),
+          eq(purchaseOrders.workflowState, 'putaway')
+        )
+      )
+      .orderBy(desc(purchaseOrders.orderDate));
+
+    // Get items and GRN document for each PO
+    const posWithDetails = await Promise.all(
+      receivedPOs.map(async ({ po, supplier, warehouse }) => {
+        const items = await db
+          .select({
+            item: purchaseOrderItems,
+            product: products,
+          })
+          .from(purchaseOrderItems)
+          .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
+          .where(eq(purchaseOrderItems.purchaseOrderId, po.id));
+
+        // Get the latest receipt for this PO with its GRN document
+        const [latestReceipt] = await db
+          .select({
+            receipt: purchaseOrdersReceipt,
+            grnDocument: generatedDocuments,
+          })
+          .from(purchaseOrdersReceipt)
+          .leftJoin(
+            generatedDocuments,
+            eq(purchaseOrdersReceipt.grnDocumentId, generatedDocuments.id)
+          )
+          .where(eq(purchaseOrdersReceipt.purchaseOrderId, po.id))
+          .orderBy(desc(purchaseOrdersReceipt.createdAt))
+          .limit(1);
+
+        return {
+          ...po,
+          supplierName: supplier?.name || 'Unknown Supplier',
+          warehouseName: warehouse?.name || 'Unknown Warehouse',
+          items: items.map(({ item, product }) => ({
+            ...item,
+            product,
+          })),
+          grnNumber: latestReceipt?.grnDocument?.documentNumber || null,
+          grnDocumentId: latestReceipt?.grnDocument?.id || null,
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: posWithDetails,
+    });
+  } catch (error) {
+    console.error('Error fetching received POs awaiting putaway:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
