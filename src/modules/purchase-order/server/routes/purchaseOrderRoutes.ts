@@ -2885,28 +2885,7 @@ router.post('/receive/:id/submit', async (req, res) => {
           .where(eq(purchaseOrderItems.id, itemId));
       }
 
-      // Check if all items are fully received
-      const allItems = await tx
-        .select()
-        .from(purchaseOrderItems)
-        .where(eq(purchaseOrderItems.purchaseOrderId, id));
-
-      const allFullyReceived = allItems.every(
-        (item) => item.receivedQuantity >= item.orderedQuantity
-      );
-
-      // Update PO status
-      const newStatus = allFullyReceived ? 'approved' : 'incomplete';
-      const newWorkflowState = allFullyReceived ? 'putaway' : 'receive';
-
-      await tx
-        .update(purchaseOrders)
-        .set({
-          status: newStatus,
-          workflowState: newWorkflowState,
-          updatedAt: new Date(),
-        })
-        .where(eq(purchaseOrders.id, id));
+      // Status update moved to AFTER receipt/GRN creation (will be done later in transaction)
 
       // Generate GRN document number with proper error handling
       let grnNumber: string;
@@ -3095,6 +3074,29 @@ router.post('/receive/:id/submit', async (req, res) => {
           discrepancyNote: discrepancyNote || null,
         });
       }
+
+      // Check if all items are fully received and update PO status
+      const allItems = await tx
+        .select()
+        .from(purchaseOrderItems)
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+      const allFullyReceived = allItems.every(
+        (item) => item.receivedQuantity >= item.orderedQuantity
+      );
+
+      // Update PO status based on completion
+      const newStatus = allFullyReceived ? 'received' : 'incomplete';
+      const newWorkflowState = allFullyReceived ? 'putaway' : 'receive';
+
+      await tx
+        .update(purchaseOrders)
+        .set({
+          status: newStatus,
+          workflowState: newWorkflowState,
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseOrders.id, id));
 
       // Log audit trail
       await logAudit({
