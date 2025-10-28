@@ -92,6 +92,9 @@ const PurchaseOrderPutaway: React.FC = () => {
   
   // Track putaway locations for each item
   const [putawayLocations, setPutawayLocations] = useState<Record<string, PutawayLocation>>({});
+  
+  // Track which item is currently being allocated
+  const [allocatingItemId, setAllocatingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPutawayData();
@@ -206,6 +209,8 @@ const PurchaseOrderPutaway: React.FC = () => {
    */
   const handleSmartAllocation = async (item: POItem, warehouseId: string) => {
     try {
+      setAllocatingItemId(item.id);
+      
       const response = await axios.post('/api/modules/purchase-order/putaway/smart-allocate', {
         productId: item.product.id,
         warehouseId: warehouseId,
@@ -234,6 +239,8 @@ const PurchaseOrderPutaway: React.FC = () => {
       console.error('Smart allocation error:', error);
       const message = error.response?.data?.message || 'Failed to get bin suggestion';
       toast.error(message);
+    } finally {
+      setAllocatingItemId(null);
     }
   };
 
@@ -349,10 +356,20 @@ const PurchaseOrderPutaway: React.FC = () => {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleSmartAllocation(item, po.warehouseId)}
+                                  disabled={allocatingItemId === item.id}
                                   className="w-full"
                                 >
-                                  <Zap className="w-4 h-4 mr-1" />
-                                  Smart Active
+                                  {allocatingItemId === item.id ? (
+                                    <>
+                                      <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
+                                      Allocating...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Zap className="w-4 h-4 mr-1" />
+                                      Smart Active
+                                    </>
+                                  )}
                                 </Button>
                               </td>
                               <td className="py-3 px-2">
