@@ -502,10 +502,10 @@ const PurchaseOrderReceive: React.FC = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-green-600" />
-                Received Purchase Orders ({receivedPOs.length})
+                Purchase Orders with GRNs ({receivedPOs.length})
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                Items have been received and documented. View GRN documents or proceed to putaway.
+                All receipts with generated GRN documents (partial and complete). View GRNs for reprinting or proceed to putaway.
               </p>
             </CardHeader>
             <CardContent>

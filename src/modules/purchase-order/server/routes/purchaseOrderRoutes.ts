@@ -7,7 +7,7 @@ import { warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/wareh
 import { user } from '@server/lib/db/schema/system';
 import { documentNumberConfig, generatedDocuments, documentNumberHistory } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
-import { eq, and, desc, count, ilike, or, sql, sum, inArray } from 'drizzle-orm';
+import { eq, and, desc, count, ilike, or, sql, sum, inArray, isNotNull } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
@@ -2782,28 +2782,31 @@ router.get('/receive/received', async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
 
-    // Get all received POs awaiting putaway with their receipts and GRN documents
-    const receivedPOs = await db
-      .select({
+    // Get all POs that have at least one GRN document (both complete and partial receipts)
+    const posWithGRNs = await db
+      .selectDistinct({
         po: purchaseOrders,
         supplier: suppliers,
         warehouse: warehouses,
       })
       .from(purchaseOrders)
+      .innerJoin(
+        purchaseOrdersReceipt,
+        eq(purchaseOrders.id, purchaseOrdersReceipt.purchaseOrderId)
+      )
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
       .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
       .where(
         and(
           eq(purchaseOrders.tenantId, tenantId),
-          eq(purchaseOrders.status, 'received'),
-          eq(purchaseOrders.workflowState, 'putaway')
+          isNotNull(purchaseOrdersReceipt.grnDocumentId)
         )
       )
       .orderBy(desc(purchaseOrders.orderDate));
 
     // Get items and GRN document for each PO
     const posWithDetails = await Promise.all(
-      receivedPOs.map(async ({ po, supplier, warehouse }) => {
+      posWithGRNs.map(async ({ po, supplier, warehouse }) => {
         const items = await db
           .select({
             item: purchaseOrderItems,
