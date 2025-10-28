@@ -9,6 +9,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@client/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@client/components/ui/dialog';
 import { RefreshCw, Package, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 import axios from 'axios';
@@ -95,6 +103,10 @@ const PurchaseOrderPutaway: React.FC = () => {
   
   // Track which item is currently being allocated
   const [allocatingItemId, setAllocatingItemId] = useState<string | null>(null);
+  
+  // Confirmation modal state
+  const [confirmPOId, setConfirmPOId] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   useEffect(() => {
     fetchPutawayData();
@@ -244,9 +256,58 @@ const PurchaseOrderPutaway: React.FC = () => {
     }
   };
 
-  const handleConfirmPutaway = async (po: PO) => {
-    toast.info('Putaway confirmation feature coming soon');
+  const handleConfirmPutaway = (po: PO) => {
+    // Validate all items have bin locations assigned
+    const missingLocations = po.items.filter(item => {
+      const location = putawayLocations[item.id];
+      return !location || !location.binId;
+    });
+
+    if (missingLocations.length > 0) {
+      toast.error('Please assign bin locations to all items before confirming putaway');
+      return;
+    }
+
+    // Show confirmation modal
+    setConfirmPOId(po.id);
   };
+
+  const confirmPutawaySubmit = async () => {
+    if (!confirmPOId) return;
+
+    const po = purchaseOrders.find(p => p.id === confirmPOId);
+    if (!po) return;
+
+    // Prepare items payload
+    const items = po.items.map(item => ({
+      poItemId: item.id,
+      binId: putawayLocations[item.id]?.binId,
+    }));
+
+    try {
+      setConfirming(true);
+      const response = await axios.post(
+        `/api/modules/purchase-order/putaway/${confirmPOId}/confirm`,
+        { items }
+      );
+
+      if (response.data.success) {
+        toast.success(`Putaway confirmed! Document ${response.data.data.putawayNumber} generated.`);
+        // Close modal
+        setConfirmPOId(null);
+        // Refresh data to remove completed PO from list
+        await fetchPutawayData();
+      }
+    } catch (error: any) {
+      console.error('Error confirming putaway:', error);
+      const message = error.response?.data?.message || 'Failed to confirm putaway';
+      toast.error(message);
+    } finally {
+      setConfirming(false);
+    }
+  };
+
+  const confirmPO = purchaseOrders.find(p => p.id === confirmPOId);
 
   if (loading) {
     return (
@@ -519,6 +580,78 @@ const PurchaseOrderPutaway: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <Dialog open={confirmPOId !== null} onOpenChange={(open) => !open && setConfirmPOId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Putaway</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to confirm putaway for PO {confirmPO?.orderNumber}? This will:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                <li>Create inventory items at assigned bin locations</li>
+                <li>Generate a putaway document</li>
+                <li>Mark the purchase order as complete</li>
+              </ul>
+            </DialogDescription>
+          </DialogHeader>
+          
+          {confirmPO && (
+            <div className="py-4">
+              <div className="text-sm font-medium mb-2">Items to be put away:</div>
+              <div className="space-y-2">
+                {confirmPO.items.map(item => {
+                  const location = putawayLocations[item.id];
+                  const zone = zones.find(z => z.id === location?.zoneId);
+                  const aisle = aisles.find(a => a.id === location?.aisleId);
+                  const shelf = shelves.find(s => s.id === location?.shelfId);
+                  const bin = bins.find(b => b.id === location?.binId);
+                  
+                  const locationPath = [zone?.name, aisle?.name, shelf?.name, bin?.name]
+                    .filter(Boolean)
+                    .join(' > ');
+
+                  return (
+                    <div key={item.id} className="flex justify-between text-sm border-b pb-2">
+                      <div>
+                        <div className="font-medium">{item.product.name}</div>
+                        <div className="text-xs text-muted-foreground">{item.product.sku}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-medium">Qty: {item.receivedQuantity}</div>
+                        <div className="text-xs text-green-600">{locationPath}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setConfirmPOId(null)}
+              disabled={confirming}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={confirmPutawaySubmit}
+              disabled={confirming}
+            >
+              {confirming ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Confirming...
+                </>
+              ) : (
+                'Confirm Putaway'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
