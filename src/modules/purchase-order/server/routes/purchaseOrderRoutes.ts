@@ -2832,6 +2832,13 @@ router.get('/receive/received', async (req, res) => {
       })
     );
 
+    console.log('=== /receive/received endpoint ===');
+    console.log('Query returned receipts:', receiptsWithGRNs.length);
+    console.log('Final response items:', posWithDetails.length);
+    posWithDetails.forEach((item, idx) => {
+      console.log(`${idx + 1}. PO: ${item.orderNumber}, GRN: ${item.grnNumber}, GRN Doc ID: ${item.grnDocumentId}`);
+    });
+
     res.json({
       success: true,
       data: posWithDetails,
