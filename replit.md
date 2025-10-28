@@ -44,10 +44,13 @@ None specified yet
 - **Receive Items UX**: Compact single-line form layout with fixed field positions. Discrepancy note field is always visible but enabled/disabled based on quantity variance to maintain consistent UI positions. All quantity, expiry, and confirmation fields maintain stable positions regardless of discrepancy state.
 - **Audit Logging**: Simple, practical audit trail system designed for SME/SMB market. Uses `audit_logs` table to track all critical operations (create, update, delete, state changes). Internal `logAudit()` service for easy integration throughout codebase. REST APIs available at `/api/audit-logs` for querying and `/api/audit-logs/resource/:type/:id` for viewing entity history. Supports filtering by module, action, resource, user, date range, and status.
 
-## Recent Fixes (Oct 27, 2025)
-- **Trust Proxy Security**: Fixed rate limiting vulnerability by changing `trust proxy` from `true` to `1` (trust only Replit's proxy), preventing IP spoofing attacks.
-- **GRN Document Number Generation**: Fixed 401 authentication error by passing `Authorization` header in internal API calls to document numbering service.
-- **GRN Response Parsing**: Fixed response structure handling - document numbering API returns flat JSON, not nested under `data.data`.
+## Recent Fixes
+- **Oct 28, 2025**:
+  - **GRN List Display**: Fixed "Received POs with GRNs" list to show ALL GRNs (multiple rows if a PO has multiple partial receipts). Changed backend query to fetch from `purchase_orders_receipt` table (one row per GRN) instead of from `purchase_orders` table. Fixed React key bug: changed from `key={po.id}` to `key={${po.id}-${po.grnDocumentId}}` to prevent duplicate key collisions when the same PO has multiple GRNs.
+- **Oct 27, 2025**:
+  - **Trust Proxy Security**: Fixed rate limiting vulnerability by changing `trust proxy` from `true` to `1` (trust only Replit's proxy), preventing IP spoofing attacks.
+  - **GRN Document Number Generation**: Fixed 401 authentication error by passing `Authorization` header in internal API calls to document numbering service.
+  - **GRN Response Parsing**: Fixed response structure handling - document numbering API returns flat JSON, not nested under `data.data`.
 
 ## Technical Debt
 - **PO Rejection Modal Sizing**: The reject confirmation dialog modal needs to be 1.5x wider and taller with better button spacing. Current fix attempts using Tailwind classes (max-w-3xl, min-h-[400px]) are not taking effect, possibly due to shadcn/ui Dialog component CSS specificity issues or browser caching problems that persist even after hard refresh.

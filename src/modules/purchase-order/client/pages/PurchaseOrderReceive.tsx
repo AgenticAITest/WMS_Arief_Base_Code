@@ -81,13 +81,6 @@ const PurchaseOrderReceive: React.FC = () => {
       
       setApprovedPOs(approvedResponse.data.data || []);
       setIncompletePOs(incompleteResponse.data.data || []);
-      
-      console.log('=== RECEIVED POS DATA ===');
-      console.log('API returned:', receivedResponse.data.data.length, 'items');
-      receivedResponse.data.data.forEach((po, idx) => {
-        console.log(`${idx + 1}. PO: ${po.orderNumber}, GRN: ${po.grnNumber}, Doc ID: ${po.grnDocumentId}`);
-      });
-      
       setReceivedPOs(receivedResponse.data.data || []);
       
       // Initialize received items for approved POs (prepopulate with ordered quantities)
