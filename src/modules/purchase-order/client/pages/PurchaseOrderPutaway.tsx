@@ -45,18 +45,21 @@ interface Warehouse {
 interface Zone {
   id: string;
   name: string;
+  description?: string;
   warehouseId: string;
 }
 
 interface Aisle {
   id: string;
   name: string;
+  description?: string;
   zoneId: string;
 }
 
 interface Shelf {
   id: string;
   name: string;
+  description?: string;
   aisleId: string;
 }
 
@@ -359,12 +362,29 @@ const PurchaseOrderPutaway: React.FC = () => {
                                   onValueChange={(value) => updatePutawayLocation(item.id, 'zoneId', value)}
                                 >
                                   <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select" />
+                                    <SelectValue placeholder="Select Zone">
+                                      {location.zoneId && (() => {
+                                        const selectedZone = availableZones.find(z => z.id === location.zoneId);
+                                        return selectedZone ? (
+                                          <div>
+                                            <div className="font-medium">{selectedZone.name}</div>
+                                            {selectedZone.description && (
+                                              <div className="text-xs text-muted-foreground">{selectedZone.description}</div>
+                                            )}
+                                          </div>
+                                        ) : null;
+                                      })()}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     {availableZones.map((zone) => (
                                       <SelectItem key={zone.id} value={zone.id}>
-                                        {zone.name}
+                                        <div>
+                                          <div className="font-medium">{zone.name}</div>
+                                          {zone.description && (
+                                            <div className="text-xs text-muted-foreground">{zone.description}</div>
+                                          )}
+                                        </div>
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -377,12 +397,29 @@ const PurchaseOrderPutaway: React.FC = () => {
                                   disabled={!location.zoneId}
                                 >
                                   <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select" />
+                                    <SelectValue placeholder="Select Aisle">
+                                      {location.aisleId && (() => {
+                                        const selectedAisle = availableAisles.find(a => a.id === location.aisleId);
+                                        return selectedAisle ? (
+                                          <div>
+                                            <div className="font-medium">{selectedAisle.name}</div>
+                                            {selectedAisle.description && (
+                                              <div className="text-xs text-muted-foreground">{selectedAisle.description}</div>
+                                            )}
+                                          </div>
+                                        ) : null;
+                                      })()}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     {availableAisles.map((aisle) => (
                                       <SelectItem key={aisle.id} value={aisle.id}>
-                                        {aisle.name}
+                                        <div>
+                                          <div className="font-medium">{aisle.name}</div>
+                                          {aisle.description && (
+                                            <div className="text-xs text-muted-foreground">{aisle.description}</div>
+                                          )}
+                                        </div>
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -395,12 +432,29 @@ const PurchaseOrderPutaway: React.FC = () => {
                                   disabled={!location.aisleId}
                                 >
                                   <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select" />
+                                    <SelectValue placeholder="Select Shelf">
+                                      {location.shelfId && (() => {
+                                        const selectedShelf = availableShelves.find(s => s.id === location.shelfId);
+                                        return selectedShelf ? (
+                                          <div>
+                                            <div className="font-medium">{selectedShelf.name}</div>
+                                            {selectedShelf.description && (
+                                              <div className="text-xs text-muted-foreground">{selectedShelf.description}</div>
+                                            )}
+                                          </div>
+                                        ) : null;
+                                      })()}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     {availableShelves.map((shelf) => (
                                       <SelectItem key={shelf.id} value={shelf.id}>
-                                        {shelf.name}
+                                        <div>
+                                          <div className="font-medium">{shelf.name}</div>
+                                          {shelf.description && (
+                                            <div className="text-xs text-muted-foreground">{shelf.description}</div>
+                                          )}
+                                        </div>
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
@@ -413,12 +467,19 @@ const PurchaseOrderPutaway: React.FC = () => {
                                   disabled={!location.shelfId}
                                 >
                                   <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Select bin" />
+                                    <SelectValue placeholder="Select Bin">
+                                      {location.binId && (() => {
+                                        const selectedBin = availableBins.find(b => b.id === location.binId);
+                                        return selectedBin ? (
+                                          <div className="font-medium">{selectedBin.name}</div>
+                                        ) : null;
+                                      })()}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     {availableBins.map((bin) => (
                                       <SelectItem key={bin.id} value={bin.id}>
-                                        {bin.name}
+                                        <div className="font-medium">{bin.name}</div>
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
