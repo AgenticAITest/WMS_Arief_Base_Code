@@ -3,7 +3,7 @@ import { db } from '@server/lib/db';
 import { purchaseOrders, purchaseOrderItems, purchaseOrdersReceipt, receiptItems } from '../lib/db/schemas/purchaseOrder';
 import { suppliers, supplierLocations, products } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
-import { warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
+import { warehouses, bins, zones, aisles, shelves } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { user } from '@server/lib/db/schema/system';
 import { documentNumberConfig, generatedDocuments, documentNumberHistory } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
@@ -2914,6 +2914,283 @@ router.get('/putaway', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching POs for putaway:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * SMART ALLOCATION ALGORITHM
+ * 
+ * This endpoint implements an automated bin suggestion system for putaway operations.
+ * It uses a weighted scoring algorithm to recommend the optimal bin for storing received items.
+ * 
+ * ALGORITHM OVERVIEW:
+ * The algorithm evaluates all active bins in the target warehouse using three weighted factors:
+ * 
+ * 1. AVAILABLE CAPACITY (45% weight):
+ *    - Measures: (maxVolume - currentVolume) / maxVolume
+ *    - Purpose: Prioritizes bins with more free space
+ *    - Rationale: Ensures items fit and allows for future growth
+ *    - Example: A bin 20% full scores higher than one 80% full
+ * 
+ * 2. ITEM MATCH (35% weight):
+ *    - Measures: Presence of same SKU in the bin (binary: 1.0 or 0.0)
+ *    - Purpose: Encourages SKU consolidation for easier picking
+ *    - Rationale: Storing like items together improves warehouse efficiency
+ *    - Example: Bin already containing "WIDGET-001" scores 1.0 for more "WIDGET-001"
+ * 
+ * 3. TEMPERATURE MATCH (20% weight):
+ *    - Measures: Product temp requirements fall within bin's temperature range
+ *    - Purpose: Ensures cold/frozen items go to appropriate bins
+ *    - Rationale: Compliance with storage requirements and product quality
+ *    - Example: Frozen food (-18°C) only scores 1.0 in freezer bins (-20°C to -15°C)
+ * 
+ * FINAL SCORE CALCULATION:
+ * score = (availableCapacity × 0.45) + (itemMatch × 0.35) + (tempMatch × 0.20)
+ * 
+ * The bin with the highest score is returned as the recommendation.
+ * 
+ * DESIGN PHILOSOPHY:
+ * - Optimized for SME/SMB operations (simplicity over complexity)
+ * - No distance calculations (assumes compact warehouse layouts)
+ * - Manual override always available (suggestions, not mandates)
+ * - Real-time calculation (no pre-computation needed)
+ * 
+ * @swagger
+ * /api/modules/purchase-order/putaway/smart-allocate:
+ *   post:
+ *     summary: Get smart bin allocation suggestion
+ *     description: Uses weighted scoring to suggest the best bin for putaway based on capacity, SKU matching, and temperature requirements
+ *     tags: [Purchase Orders - Putaway]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - productId
+ *               - warehouseId
+ *             properties:
+ *               productId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: The product being stored
+ *               warehouseId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Target warehouse for putaway
+ *               quantity:
+ *                 type: number
+ *                 description: Quantity being stored (for future capacity planning)
+ *     responses:
+ *       200:
+ *         description: Bin suggestion returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     binId:
+ *                       type: string
+ *                     zoneId:
+ *                       type: string
+ *                     aisleId:
+ *                       type: string
+ *                     shelfId:
+ *                       type: string
+ *                     score:
+ *                       type: number
+ *                       description: Final weighted score (0-1)
+ *                     breakdown:
+ *                       type: object
+ *                       properties:
+ *                         capacityScore:
+ *                           type: number
+ *                         itemMatchScore:
+ *                           type: number
+ *                         tempMatchScore:
+ *                           type: number
+ *       400:
+ *         description: Invalid request
+ *       404:
+ *         description: No suitable bin found
+ *       500:
+ *         description: Server error
+ */
+router.post('/putaway/smart-allocate', async (req, res) => {
+  try {
+    const { productId, warehouseId, quantity = 0 } = req.body;
+    const tenantId = req.user!.activeTenantId;
+
+    // Validate input
+    if (!productId || !warehouseId) {
+      return res.status(400).json({
+        success: false,
+        message: 'productId and warehouseId are required',
+      });
+    }
+
+    // Get product details (for temperature requirements)
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(and(
+        eq(products.id, productId),
+        eq(products.tenantId, tenantId)
+      ));
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+    }
+
+    // Get all active bins in the warehouse with their location hierarchy
+    const activeBins = await db
+      .select({
+        bin: bins,
+        shelf: shelves,
+        aisle: aisles,
+        zone: zones,
+      })
+      .from(bins)
+      .innerJoin(shelves, eq(bins.shelfId, shelves.id))
+      .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
+      .innerJoin(zones, eq(aisles.zoneId, zones.id))
+      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+      .where(and(
+        eq(warehouses.id, warehouseId),
+        eq(bins.tenantId, tenantId)
+      ));
+
+    if (activeBins.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No bins found in warehouse',
+      });
+    }
+
+    // Get inventory items to check which bins already have this SKU
+    const binsWithProduct = await db
+      .select({
+        binId: inventoryItems.binId,
+      })
+      .from(inventoryItems)
+      .where(and(
+        eq(inventoryItems.productId, productId),
+        eq(inventoryItems.tenantId, tenantId),
+        inArray(inventoryItems.binId, activeBins.map(b => b.bin.id))
+      ));
+
+    const binIdsWithSameSKU = new Set(binsWithProduct.map(b => b.binId));
+
+    // Calculate scores for each bin
+    interface ScoredBin {
+      binId: string;
+      zoneId: string;
+      aisleId: string;
+      shelfId: string;
+      score: number;
+      breakdown: {
+        capacityScore: number;
+        itemMatchScore: number;
+        tempMatchScore: number;
+      };
+    }
+
+    const scoredBins: ScoredBin[] = activeBins.map(({ bin, shelf, aisle, zone }) => {
+      // FACTOR 1: Available Capacity Score (45%)
+      // Higher score for bins with more free space
+      let capacityScore = 0;
+      if (bin.maxVolume && parseFloat(bin.maxVolume) > 0) {
+        const currentVol = parseFloat(bin.currentVolume || '0');
+        const maxVol = parseFloat(bin.maxVolume);
+        capacityScore = (maxVol - currentVol) / maxVol;
+      }
+
+      // FACTOR 2: Item Match Score (35%)
+      // 1.0 if bin already contains same SKU, 0.0 otherwise
+      const itemMatchScore = binIdsWithSameSKU.has(bin.id) ? 1.0 : 0.0;
+
+      // FACTOR 3: Temperature Match Score (20%)
+      // 1.0 if product temp requirements are compatible with bin's temp classification, 0.0 otherwise
+      let tempMatchScore = 0;
+      
+      const productMinTemp = product.requiredTemperatureMin ? parseFloat(product.requiredTemperatureMin) : null;
+      const productMaxTemp = product.requiredTemperatureMax ? parseFloat(product.requiredTemperatureMax) : null;
+      
+      if (!productMinTemp && !productMaxTemp) {
+        // Product has no temperature requirement - any bin works
+        tempMatchScore = 1.0;
+      } else if (bin.requiredTemperature) {
+        // Bin has a temperature classification
+        // Common classifications: "frozen" (<-15°C), "cold" (0-10°C), "ambient" (15-25°C)
+        const binTemp = bin.requiredTemperature.toLowerCase();
+        
+        if (binTemp.includes('frozen') || binTemp.includes('freezer')) {
+          // Frozen bins typically range from -25°C to -15°C
+          tempMatchScore = (productMinTemp && productMinTemp < -10) ? 1.0 : 0.0;
+        } else if (binTemp.includes('cold') || binTemp.includes('chilled') || binTemp.includes('refrigerat')) {
+          // Cold/chilled bins typically range from 0°C to 10°C
+          tempMatchScore = (productMinTemp && productMinTemp >= 0 && productMaxTemp && productMaxTemp <= 15) ? 1.0 : 0.0;
+        } else if (binTemp.includes('ambient') || binTemp.includes('room')) {
+          // Ambient/room temperature bins typically range from 15°C to 25°C
+          tempMatchScore = (productMinTemp && productMinTemp >= 10 && productMaxTemp && productMaxTemp <= 30) ? 1.0 : 0.0;
+        } else {
+          // Unknown classification - give partial credit
+          tempMatchScore = 0.5;
+        }
+      } else {
+        // Bin has no temperature requirement - only suitable for ambient products
+        tempMatchScore = (!productMinTemp || (productMinTemp >= 10 && productMaxTemp && productMaxTemp <= 30)) ? 1.0 : 0.0;
+      }
+
+      // Calculate weighted final score
+      const finalScore = (capacityScore * 0.45) + (itemMatchScore * 0.35) + (tempMatchScore * 0.20);
+
+      return {
+        binId: bin.id,
+        zoneId: zone.id,
+        aisleId: aisle.id,
+        shelfId: shelf.id,
+        score: finalScore,
+        breakdown: {
+          capacityScore,
+          itemMatchScore,
+          tempMatchScore,
+        },
+      };
+    });
+
+    // Sort by score (highest first) and return the best bin
+    scoredBins.sort((a, b) => b.score - a.score);
+    const bestBin = scoredBins[0];
+
+    if (!bestBin || bestBin.score === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No suitable bin found for this item',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: bestBin,
+    });
+  } catch (error) {
+    console.error('Error calculating smart allocation:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

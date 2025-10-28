@@ -97,6 +97,8 @@ export const bins = pgTable('bins', {
   barcode: varchar('barcode', { length: 100 }),
   maxWeight: decimal('max_weight', { precision: 10, scale: 3 }),
   maxVolume: decimal('max_volume', { precision: 10, scale: 3 }),
+  currentWeight: decimal('current_weight', { precision: 10, scale: 3 }).default('0').notNull(),
+  currentVolume: decimal('current_volume', { precision: 10, scale: 3 }).default('0').notNull(),
   fixedSku: varchar('fixed_sku', { length: 255 }),
   category: varchar('category', { length: 100 }),
   requiredTemperature: varchar('required_temperature', { length: 50 }),

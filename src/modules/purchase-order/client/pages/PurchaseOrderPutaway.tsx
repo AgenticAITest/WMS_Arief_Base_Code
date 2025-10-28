@@ -190,8 +190,49 @@ const PurchaseOrderPutaway: React.FC = () => {
     return bins.filter(b => b.shelfId === shelfId && b.isActive);
   };
 
-  const handleSmartAllocation = (item: POItem) => {
-    toast.info('Smart Allocation feature coming soon');
+  /**
+   * SMART ALLOCATION HANDLER
+   * 
+   * Calls the backend Smart Allocation API to get the optimal bin suggestion
+   * for a specific item based on:
+   * - Available Capacity (45%): Bins with more free space
+   * - Item Match (35%): Bins already containing the same SKU  
+   * - Temperature Match (20%): Bins matching product temperature requirements
+   * 
+   * The suggested bin is automatically populated into all cascading dropdowns.
+   * User can still manually override any selection.
+   */
+  const handleSmartAllocation = async (item: POItem, warehouseId: string) => {
+    try {
+      const response = await axios.post('/api/modules/purchase-order/putaway/smart-allocate', {
+        productId: item.product.id,
+        warehouseId: warehouseId,
+        quantity: item.receivedQuantity,
+      });
+
+      if (response.data.success) {
+        const { binId, zoneId, aisleId, shelfId } = response.data.data;
+        
+        // Auto-populate all location dropdowns with the suggested bin
+        setPutawayLocations(prev => ({
+          ...prev,
+          [item.id]: {
+            poItemId: item.id,
+            warehouseId: warehouseId,
+            zoneId: zoneId,
+            aisleId: aisleId,
+            shelfId: shelfId,
+            binId: binId,
+          },
+        }));
+
+        toast.success('Smart allocation complete - you can adjust if needed');
+      }
+    } catch (error: any) {
+      console.error('Smart allocation error:', error);
+      const message = error.response?.data?.message || 'Failed to get bin suggestion';
+      toast.error(message);
+    }
   };
 
   const handleConfirmPutaway = async (po: PO) => {
@@ -305,7 +346,7 @@ const PurchaseOrderPutaway: React.FC = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleSmartAllocation(item)}
+                                  onClick={() => handleSmartAllocation(item, po.warehouseId)}
                                   className="w-full"
                                 >
                                   <Zap className="w-4 h-4 mr-1" />
