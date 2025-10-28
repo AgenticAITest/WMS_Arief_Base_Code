@@ -1,5 +1,26 @@
 # React Admin - Warehouse Management System
 
+## ⚠️ CRITICAL RULE: DATABASE SCHEMA CHANGES ⚠️
+**REPLIT AGENT IS NOT AUTHORIZED TO CHANGE DATABASE SCHEMA. ASK THE USER FIRST.**
+
+**Before making ANY database schema changes:**
+1. **STOP** - Do not proceed
+2. **ASK** the user for explicit permission
+3. **EXPLAIN** what schema change is needed and why
+4. **WAIT** for user approval before touching the database
+
+**This includes:**
+- Adding/removing columns
+- Changing data types
+- Adding/removing tables
+- Modifying constraints or indexes
+- Running `npm run db:push` or any SQL migrations
+
+**When encountering schema-related bugs:**
+1. **First** try fixing the source code
+2. **Never** assume the schema is wrong
+3. **Always** ask the user which approach to take
+
 ## Overview
 This project is a comprehensive admin dashboard built with React, TypeScript, Vite, and Drizzle ORM. Its primary purpose is to provide a modular and scalable foundation for warehouse management, including features for managing users, roles, permissions, and multi-tenant organizations with robust authentication and authorization. The system aims to streamline warehouse operations, from product and inventory type management to detailed hierarchical setup of warehouses, zones, aisles, shelves, and bins. The business vision is to provide a robust, scalable, and intuitive platform for efficient warehouse operations, with market potential in various logistics and supply chain sectors.
 
@@ -32,12 +53,15 @@ None specified yet
 - Audit Logging: Comprehensive audit trail system tracking all user actions, state changes, and data modifications. Includes internal logging service for easy integration and read-only REST APIs for querying audit history.
 
 ### System Design Choices
+
+**⚠️ DATABASE SCHEMA POLICY: REPLIT AGENT IS NOT AUTHORIZED TO CHANGE DATABASE SCHEMA. ASK THE USER FIRST.**
+
 - **UI/UX**: Utilizes shadcn/ui and Radix UI for a consistent and accessible component library. Warehouse hierarchy uses an accordion-based visualization. Critical fixes for Radix UI Dialogs prevent common bugs:
     1.  **Pointer-Events Cleanup**: Ensures `document.body` and `document.documentElement` pointer events are correctly reset to prevent pages from becoming unclickable after dialog closure.
     2.  **Boolean Field Validation Fix**: Requires `Boolean()` coercion for switch components when loading entity data into forms to prevent silent Zod validation failures due to varied database boolean representations.
 - **Backend**: Employs a modular structure for features, with dedicated modules for system, master-data, warehouse-setup, and document-numbering. API endpoints follow clear naming conventions and support multi-tenant isolation. Database transactions are used for atomic operations.
 - **Document Numbering**: Uses a period-based numbering scheme (e.g., PO-2510-WH1-LOCAL-0001) with mandatory period components and optional user-defined prefixes. Each unique combination maintains its own auto-incrementing sequence.
-- **Database Schema**: Designed with clear separation between system, master data, and warehouse-specific tables. Key relationships ensure data integrity and support multi-tenancy. Geolocation support is included.
+- **Database Schema**: Designed with clear separation between system, master data, and warehouse-specific tables. Key relationships ensure data integrity and support multi-tenancy. Geolocation support is included. **⚠️ CRITICAL: REPLIT AGENT IS NOT AUTHORIZED TO CHANGE DATABASE SCHEMA WITHOUT EXPLICIT USER PERMISSION.**
 - **Authentication**: JWT-based authentication for secure access, with separate tokens for access, refresh, and password reset.
 - **Workflow Module**: Database-driven workflow configuration using `workflows` and `workflow_steps` tables. `isActive` field allows per-tenant customization. When loading workflow step states, all `setState` calls must be batched into a single update to prevent React state race conditions.
 - **Document Storage Strategy**: Generated documents (PO, SO, Packing Slips, etc.) are stored as HTML files (not database blobs) in `public/documents/tenants/{tenantId}/{docType}/{year}/` with metadata in a `JSONB` column in the `generated_documents` table. This supports easy reprinting, CDN readiness, and versioning. `warehouse_id` is included in `purchase_orders` and displayed in PO documents.
@@ -48,6 +72,9 @@ None specified yet
 - **Audit Logging**: Simple, practical audit trail system designed for SME/SMB market. Uses `audit_logs` table to track all critical operations (create, update, delete, state changes). Internal `logAudit()` service for easy integration throughout codebase. REST APIs available at `/api/audit-logs` for querying and `/api/audit-logs/resource/:type/:id` for viewing entity history. Supports filtering by module, action, resource, user, date range, and status.
 
 ## Recent Fixes
+
+**⚠️ REMINDER: REPLIT AGENT IS NOT AUTHORIZED TO CHANGE DATABASE SCHEMA. ASK THE USER FIRST.**
+
 - **Oct 28, 2025**:
   - **GRN List Display**: Fixed "Received POs with GRNs" list to show ALL GRNs (multiple rows if a PO has multiple partial receipts). Changed backend query to fetch from `purchase_orders_receipt` table (one row per GRN) instead of from `purchase_orders` table. Fixed React key bug: changed from `key={po.id}` to `key={${po.id}-${po.grnDocumentId}}` to prevent duplicate key collisions when the same PO has multiple GRNs.
 - **Oct 27, 2025**:

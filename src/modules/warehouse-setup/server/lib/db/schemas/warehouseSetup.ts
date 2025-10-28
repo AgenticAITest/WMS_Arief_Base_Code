@@ -103,7 +103,6 @@ export const bins = pgTable('bins', {
   category: varchar('category', { length: 100 }),
   requiredTemperature: varchar('required_temperature', { length: 50 }),
   accessibilityScore: integer('accessibility_score').default(50).notNull(),
-  isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 },
   (t) => [

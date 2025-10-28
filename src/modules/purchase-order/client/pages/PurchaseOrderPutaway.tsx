@@ -67,7 +67,6 @@ interface Bin {
   id: string;
   name: string;
   shelfId: string;
-  isActive: boolean;
 }
 
 interface PutawayLocation {
@@ -190,7 +189,7 @@ const PurchaseOrderPutaway: React.FC = () => {
 
   const getFilteredBins = (shelfId?: string) => {
     if (!shelfId) return [];
-    return bins.filter(b => b.shelfId === shelfId && b.isActive);
+    return bins.filter(b => b.shelfId === shelfId);
   };
 
   /**
