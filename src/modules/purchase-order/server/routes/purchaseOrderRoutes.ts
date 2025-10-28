@@ -13,6 +13,7 @@ import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { PODocumentGenerator } from '../services/poDocumentGenerator';
 import { GRNDocumentGenerator } from '../services/grnDocumentGenerator';
+import { PutawayDocumentGenerator } from '../services/putawayDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
 import fs from 'fs/promises';
 import path from 'path';
@@ -3194,6 +3195,269 @@ router.post('/putaway/smart-allocate', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/modules/purchase-order/putaway/{id}/confirm:
+ *   post:
+ *     summary: Confirm putaway for purchase order
+ *     tags: [Purchase Orders - Putaway]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Purchase order ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - items
+ *             properties:
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - poItemId
+ *                     - binId
+ *                   properties:
+ *                     poItemId:
+ *                       type: string
+ *                     binId:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Putaway confirmed successfully
+ *       400:
+ *         description: Bad request
+ *       404:
+ *         description: Purchase order not found
+ *       500:
+ *         description: Server error
+ */
+router.post('/putaway/:id/confirm', async (req, res) => {
+  const { id } = req.params;
+  const { items } = req.body;
+  const tenantId = req.user?.tenantId;
+  const userId = req.user?.id;
+
+  if (!tenantId || !userId) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Items array is required' 
+    });
+  }
+
+  // Validate all items have bin assignments
+  for (const item of items) {
+    if (!item.poItemId || !item.binId) {
+      return res.status(400).json({
+        success: false,
+        message: 'All items must have bin locations assigned'
+      });
+    }
+  }
+
+  try {
+    await db.transaction(async (tx) => {
+      // 1. Get PO details
+      const [po] = await tx
+        .select({
+          po: purchaseOrders,
+          supplier: suppliers,
+          warehouse: warehouses,
+        })
+        .from(purchaseOrders)
+        .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
+        .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
+        .where(and(
+          eq(purchaseOrders.id, id),
+          eq(purchaseOrders.tenantId, tenantId)
+        ));
+
+      if (!po) {
+        throw new Error('Purchase order not found');
+      }
+
+      // 2. Get PO items with product details
+      const poItems = await tx
+        .select({
+          item: purchaseOrderItems,
+          product: products,
+        })
+        .from(purchaseOrderItems)
+        .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
+        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+
+      // 3. Get bin details for all assigned locations
+      const binIds = items.map((i: any) => i.binId);
+      const binDetails = await tx
+        .select({
+          bin: bins,
+          shelf: shelves,
+          aisle: aisles,
+          zone: zones,
+        })
+        .from(bins)
+        .leftJoin(shelves, eq(bins.shelfId, shelves.id))
+        .leftJoin(aisles, eq(shelves.aisleId, aisles.id))
+        .leftJoin(zones, eq(aisles.zoneId, zones.id))
+        .where(and(
+          inArray(bins.id, binIds),
+          eq(bins.tenantId, tenantId)
+        ));
+
+      const binMap = new Map(binDetails.map(b => [b.bin.id, b]));
+
+      // 4. Create inventory items for each putaway
+      for (const putawayItem of items) {
+        const poItem = poItems.find(pi => pi.item.id === putawayItem.poItemId);
+        if (!poItem) continue;
+
+        // Create inventory item
+        await tx.insert(inventoryItems).values({
+          tenantId,
+          productId: poItem.item.productId,
+          binId: putawayItem.binId,
+          availableQuantity: poItem.item.receivedQuantity,
+          reservedQuantity: 0,
+          receivedDate: new Date().toISOString().split('T')[0],
+          costPerUnit: poItem.item.unitCost,
+        });
+
+        // Update bin capacity (add to currentVolume/currentWeight)
+        // For now, we'll skip this since we need product dimensions
+        // This would be: UPDATE bins SET currentVolume = currentVolume + (qty * product.volume)
+      }
+
+      // 5. Generate putaway document number
+      const authHeader = req.headers.authorization;
+      const docNumberResponse = await axios.post(
+        `${req.protocol}://${req.get('host')}/api/modules/document-numbering/generate`,
+        {
+          documentType: 'PUTAWAY',
+          options: {}
+        },
+        {
+          headers: {
+            Authorization: authHeader,
+          }
+        }
+      );
+
+      const putawayNumber = docNumberResponse.data.documentNumber;
+
+      // 6. Prepare putaway document data
+      const putawayDocData = {
+        putawayNumber,
+        tenantId,
+        poNumber: po.po.orderNumber,
+        poId: po.po.id,
+        putawayDate: new Date().toISOString(),
+        putawayByName: req.user?.fullname || null,
+        supplierName: po.supplier?.name || 'N/A',
+        warehouseName: po.warehouse?.name || null,
+        warehouseAddress: po.warehouse?.address || null,
+        notes: null,
+        items: items.map((putawayItem: any) => {
+          const poItem = poItems.find(pi => pi.item.id === putawayItem.poItemId);
+          const binDetail = binMap.get(putawayItem.binId);
+          
+          const locationPath = [
+            binDetail?.zone?.name,
+            binDetail?.aisle?.name,
+            binDetail?.shelf?.name,
+            binDetail?.bin?.name
+          ].filter(Boolean).join(' > ');
+
+          return {
+            productSku: poItem?.product?.sku || 'N/A',
+            productName: poItem?.product?.name || 'Unknown',
+            receivedQuantity: poItem?.item.receivedQuantity || 0,
+            zoneName: binDetail?.zone?.name || null,
+            aisleName: binDetail?.aisle?.name || null,
+            shelfName: binDetail?.shelf?.name || null,
+            binName: binDetail?.bin?.name || null,
+            locationPath,
+          };
+        }),
+      };
+
+      // 7. Generate and save putaway document
+      const { documentId, filePath } = await PutawayDocumentGenerator.generateAndSave(
+        putawayDocData,
+        userId
+      );
+
+      // 8. Update PO workflow status to 'complete'
+      await tx
+        .update(purchaseOrders)
+        .set({
+          workflowState: 'complete',
+          status: 'complete',
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseOrders.id, id));
+
+      // 9. Log audit trail
+      await logAudit({
+        tenantId,
+        userId,
+        module: 'purchase-order',
+        action: 'putaway_confirm',
+        resourceType: 'purchase_order',
+        resourceId: id,
+        status: 'success',
+        ipAddress: getClientIp(req),
+        changes: {
+          putawayNumber,
+          documentId,
+          itemsCount: items.length,
+          workflowState: 'complete',
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          putawayNumber,
+          documentId,
+          documentPath: filePath,
+        },
+      });
+    });
+  } catch (error: any) {
+    console.error('Error confirming putaway:', error);
+    
+    await logAudit({
+      tenantId: tenantId!,
+      userId: userId!,
+      module: 'purchase-order',
+      action: 'putaway_confirm',
+      resourceType: 'purchase_order',
+      resourceId: id,
+      status: 'failure',
+      ipAddress: getClientIp(req),
+      errorMessage: error.message,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error',
     });
   }
 });
