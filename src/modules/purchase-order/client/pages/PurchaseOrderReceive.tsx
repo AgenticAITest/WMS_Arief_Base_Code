@@ -248,7 +248,7 @@ const PurchaseOrderReceive: React.FC = () => {
           const isSubmittingThis = submitting[po.id];
 
           return (
-            <Card key={po.id} className="border-l-4 border-l-primary">
+            <Card key={`${po.id}-${po.grnDocumentId || po.id}`} className="border-l-4 border-l-primary">
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
