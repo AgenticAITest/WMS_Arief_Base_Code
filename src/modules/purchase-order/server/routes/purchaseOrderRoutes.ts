@@ -2782,31 +2782,32 @@ router.get('/receive/received', async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
 
-    // Get all POs that have at least one GRN document (both complete and partial receipts)
-    const posWithGRNs = await db
-      .selectDistinct({
+    // Get all receipts with GRN documents (one row per GRN)
+    const receiptsWithGRNs = await db
+      .select({
         po: purchaseOrders,
         supplier: suppliers,
         warehouse: warehouses,
+        receipt: purchaseOrdersReceipt,
+        grnDocument: generatedDocuments,
       })
-      .from(purchaseOrders)
+      .from(purchaseOrdersReceipt)
       .innerJoin(
-        purchaseOrdersReceipt,
-        eq(purchaseOrders.id, purchaseOrdersReceipt.purchaseOrderId)
+        generatedDocuments,
+        eq(purchaseOrdersReceipt.grnDocumentId, generatedDocuments.id)
+      )
+      .innerJoin(
+        purchaseOrders,
+        eq(purchaseOrdersReceipt.purchaseOrderId, purchaseOrders.id)
       )
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
       .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
-      .where(
-        and(
-          eq(purchaseOrders.tenantId, tenantId),
-          isNotNull(purchaseOrdersReceipt.grnDocumentId)
-        )
-      )
-      .orderBy(desc(purchaseOrders.orderDate));
+      .where(eq(purchaseOrders.tenantId, tenantId))
+      .orderBy(desc(purchaseOrdersReceipt.createdAt));
 
-    // Get items and GRN document for each PO
+    // Get items for each unique PO
     const posWithDetails = await Promise.all(
-      posWithGRNs.map(async ({ po, supplier, warehouse }) => {
+      receiptsWithGRNs.map(async ({ po, supplier, warehouse, receipt, grnDocument }) => {
         const items = await db
           .select({
             item: purchaseOrderItems,
@@ -2816,21 +2817,6 @@ router.get('/receive/received', async (req, res) => {
           .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
           .where(eq(purchaseOrderItems.purchaseOrderId, po.id));
 
-        // Get the latest receipt for this PO with its GRN document
-        const [latestReceipt] = await db
-          .select({
-            receipt: purchaseOrdersReceipt,
-            grnDocument: generatedDocuments,
-          })
-          .from(purchaseOrdersReceipt)
-          .leftJoin(
-            generatedDocuments,
-            eq(purchaseOrdersReceipt.grnDocumentId, generatedDocuments.id)
-          )
-          .where(eq(purchaseOrdersReceipt.purchaseOrderId, po.id))
-          .orderBy(desc(purchaseOrdersReceipt.createdAt))
-          .limit(1);
-
         return {
           ...po,
           supplierName: supplier?.name || 'Unknown Supplier',
@@ -2839,8 +2825,9 @@ router.get('/receive/received', async (req, res) => {
             ...item,
             product,
           })),
-          grnNumber: latestReceipt?.grnDocument?.documentNumber || null,
-          grnDocumentId: latestReceipt?.grnDocument?.id || null,
+          grnNumber: grnDocument?.documentNumber || null,
+          grnDocumentId: grnDocument?.id || null,
+          receiptDate: receipt?.createdAt || null,
         };
       })
     );
