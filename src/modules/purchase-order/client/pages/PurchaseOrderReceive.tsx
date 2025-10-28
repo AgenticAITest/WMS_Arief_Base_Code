@@ -13,6 +13,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@client/lib/utils';
+import { GRNConfirmationModal } from '../components/GRNConfirmationModal';
 
 interface PO {
   id: string;
@@ -57,6 +58,10 @@ const PurchaseOrderReceive: React.FC = () => {
   
   // Track which POs are being submitted
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
+  
+  // GRN modal state
+  const [isGRNModalOpen, setIsGRNModalOpen] = useState(false);
+  const [currentGRN, setCurrentGRN] = useState<{ number: string; documentId: string } | null>(null);
 
   useEffect(() => {
     fetchReceivableOrders();
@@ -182,6 +187,12 @@ const PurchaseOrderReceive: React.FC = () => {
 
       if (response.data.success) {
         toast.success(`Receipt submitted successfully. GRN ${response.data.data.grnNumber} generated.`);
+        // Show GRN modal
+        setCurrentGRN({
+          number: response.data.data.grnNumber,
+          documentId: response.data.data.grnDocumentId,
+        });
+        setIsGRNModalOpen(true);
         fetchReceivableOrders();
       }
     } catch (error: any) {
@@ -447,6 +458,18 @@ const PurchaseOrderReceive: React.FC = () => {
             </CardContent>
           </Card>
         </>
+      )}
+
+      {currentGRN && (
+        <GRNConfirmationModal
+          isOpen={isGRNModalOpen}
+          onClose={() => {
+            setIsGRNModalOpen(false);
+            setCurrentGRN(null);
+          }}
+          grnNumber={currentGRN.number}
+          grnDocumentId={currentGRN.documentId}
+        />
       )}
     </div>
   );

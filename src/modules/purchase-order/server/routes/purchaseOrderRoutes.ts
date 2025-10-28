@@ -3155,4 +3155,80 @@ router.post('/receive/:id/submit', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/purchase-order/grn/{documentId}/html:
+ *   get:
+ *     summary: Get HTML content of a GRN document
+ *     tags: [Purchase Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: GRN HTML retrieved successfully
+ *       404:
+ *         description: GRN document not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/grn/:documentId/html', async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { documentId } = req.params;
+
+    // Fetch the generated document metadata
+    const [document] = await db
+      .select()
+      .from(generatedDocuments)
+      .where(and(
+        eq(generatedDocuments.id, documentId),
+        eq(generatedDocuments.documentType, 'goods_receipt_note'),
+        eq(generatedDocuments.tenantId, tenantId)
+      ))
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: 'GRN document not found',
+      });
+    }
+
+    // Read HTML file from storage
+    const htmlFilePath = path.join(process.cwd(), (document.files as any).html.path);
+    
+    try {
+      const htmlContent = await fs.readFile(htmlFilePath, 'utf-8');
+      
+      res.json({
+        success: true,
+        html: htmlContent,
+        documentInfo: {
+          version: document.version,
+          generatedAt: document.createdAt,
+        },
+      });
+    } catch (fileError) {
+      console.error('Error reading GRN HTML file:', fileError);
+      return res.status(404).json({
+        success: false,
+        message: 'GRN HTML file not found on disk',
+      });
+    }
+  } catch (error: any) {
+    console.error('Error fetching GRN HTML:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error',
+    });
+  }
+});
+
 export default router;
