@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from '@server/lib/db';
-import { generatedDocuments } from '@server/lib/db/schema/documentNumbering';
+import { generatedDocuments } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
 
 interface PutawayDocumentData {
   putawayNumber: string;
