@@ -3248,7 +3248,7 @@ router.post('/putaway/smart-allocate', async (req, res) => {
 router.post('/putaway/:id/confirm', async (req, res) => {
   const { id } = req.params;
   const { items } = req.body;
-  const tenantId = req.user?.tenantId;
+  const tenantId = req.user?.activeTenantId;
   const userId = req.user?.id;
 
   if (!tenantId || !userId) {
