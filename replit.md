@@ -38,8 +38,8 @@ None specified yet
 - **Document Storage Strategy**: Generated documents (e.g., PO, SO) are stored as HTML files in a structured public directory with metadata in a `JSONB` column.
 - **Receipt Items Data Model**: Normalized `receipt_items` table for individual item receipts, with `purchase_order_items` maintaining a denormalized `receivedQuantity` for performance.
 - **Receive Items UX**: Compact single-line form layout with consistent field positions; discrepancy notes are contextually enabled/disabled.
-- **GRN-Based Putaway Architecture**: Putaway operates on a GRN (receipt) level, allowing multiple putaway operations per PO. `purchase_orders_receipt` table includes `putawayStatus`. Frontend displays GRN-centric accordions.
-- **Putaway Page Design**: Accordion-based layout with GRNs, cascading location dropdowns filtered by parent selections, and `warehouseId` in API responses for reliable filtering.
+- **GRN-Based Putaway Architecture**: Putaway operates on a GRN (receipt) level, allowing multiple putaway operations per PO. `purchase_orders_receipt` table includes `putawayStatus`. Backend returns GRNs with PO details; frontend groups them into a PO-focused hierarchy.
+- **Putaway Page Design**: Nested accordion layout with **PO-focused UI**: outer accordions display Purchase Orders, with GRNs grouped underneath each PO as nested sub-accordions. This allows multiple GRNs per PO to be organized clearly. Each GRN contains an item table with cascading location dropdowns filtered by parent selections, and `warehouseId` in API responses for reliable filtering.
 - **Smart Allocation Algorithm**: Bin suggestion system using weighted scoring based on Available Capacity (45%), Item Match (35%), and Temperature Match (20%).
 - **Confirm Putaway Flow**: GRN-based transactional workflow for bin assignments, `inventory_items` creation, PUTAWAY document generation, `putawayStatus` updates, and audit logging.
 - **Audit Logging**: Simple system using `audit_logs` table for critical operations, internal `logAudit()` service, and REST APIs for querying.
