@@ -3290,11 +3290,6 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         throw new Error('Purchase order not found');
       }
 
-      // Prevent duplicate putaway
-      if (po.po.workflowState === 'complete') {
-        throw new Error('This purchase order has already been completed');
-      }
-
       if (po.po.workflowState !== 'putaway') {
         throw new Error('Purchase order must be in putaway state to confirm');
       }
