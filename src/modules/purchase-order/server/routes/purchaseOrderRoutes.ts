@@ -2876,7 +2876,7 @@ router.get('/putaway', async (req, res) => {
         grnDocument: generatedDocuments,
       })
       .from(purchaseOrdersReceipt)
-      .leftJoin(purchaseOrders, eq(purchaseOrdersReceipt.purchaseOrderId, purchaseOrders.id))
+      .innerJoin(purchaseOrders, eq(purchaseOrdersReceipt.purchaseOrderId, purchaseOrders.id))
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
       .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
       .leftJoin(generatedDocuments, eq(purchaseOrdersReceipt.grnDocumentId, generatedDocuments.id))
@@ -2908,13 +2908,13 @@ router.get('/putaway', async (req, res) => {
           grnNumber: grnDocument?.documentNumber || 'N/A',
           grnDocumentId: grnDocument?.id || null,
           receiptDate: receipt.receiptDate,
-          poId: po?.id || '',
-          poNumber: po?.orderNumber || 'N/A',
-          orderDate: po?.orderDate || null,
+          poId: po.id,
+          poNumber: po.orderNumber,
+          orderDate: po.orderDate,
           supplierName: supplier?.name || 'Unknown Supplier',
           warehouseName: warehouse?.name || 'Unknown Warehouse',
-          warehouseId: po?.warehouseId || null,
-          status: po?.status || 'unknown',
+          warehouseId: po.warehouseId,
+          status: po.status,
           items: receiptItemsData.map(({ receiptItem, poItem, product }) => ({
             id: poItem?.id || '',
             receiptItemId: receiptItem.id,
