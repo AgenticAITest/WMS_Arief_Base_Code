@@ -23,26 +23,23 @@ import { PutawayConfirmationModal } from '../components/PutawayConfirmationModal
 import axios from 'axios';
 import { toast } from 'sonner';
 
-interface PO {
-  id: string;
-  orderNumber: string;
-  orderDate: string;
+interface GRN {
+  receiptId: string;
+  grnNumber: string;
+  poId: string;
+  poNumber: string;
   supplierName: string;
   warehouseName: string;
   warehouseId: string;
-  status: string;
-  totalAmount: string;
-  items: POItem[];
+  receiptDate: string;
+  items: ReceiptItem[];
 }
 
-interface POItem {
-  id: string;
-  product: {
-    id: string;
-    name: string;
-    sku: string;
-  };
-  orderedQuantity: number;
+interface ReceiptItem {
+  receiptItemId: string;
+  productId: string;
+  productName: string;
+  productSku: string;
   receivedQuantity: number;
 }
 
@@ -79,7 +76,7 @@ interface Bin {
 }
 
 interface PutawayLocation {
-  poItemId: string;
+  receiptItemId: string;
   warehouseId?: string;
   zoneId?: string;
   aisleId?: string;
@@ -88,9 +85,9 @@ interface PutawayLocation {
 }
 
 const PurchaseOrderPutaway: React.FC = () => {
-  const [purchaseOrders, setPurchaseOrders] = useState<PO[]>([]);
+  const [grns, setGrns] = useState<GRN[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedPOs, setExpandedPOs] = useState<Set<string>>(new Set());
+  const [expandedGRNs, setExpandedGRNs] = useState<Set<string>>(new Set());
   
   // Location data
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -106,7 +103,7 @@ const PurchaseOrderPutaway: React.FC = () => {
   const [allocatingItemId, setAllocatingItemId] = useState<string | null>(null);
   
   // Confirmation modal state
-  const [confirmPOId, setConfirmPOId] = useState<string | null>(null);
+  const [confirmReceiptId, setConfirmReceiptId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   
   // Putaway document modal state
@@ -120,7 +117,7 @@ const PurchaseOrderPutaway: React.FC = () => {
   const fetchPutawayData = async () => {
     try {
       setLoading(true);
-      const [posResponse, warehousesResponse, zonesResponse, aislesResponse, shelvesResponse, binsResponse] = await Promise.all([
+      const [grnsResponse, warehousesResponse, zonesResponse, aislesResponse, shelvesResponse, binsResponse] = await Promise.all([
         axios.get('/api/modules/purchase-order/putaway'),
         axios.get('/api/modules/warehouse-setup/warehouses?limit=1000'),
         axios.get('/api/modules/warehouse-setup/zones?limit=1000'),
@@ -129,25 +126,25 @@ const PurchaseOrderPutaway: React.FC = () => {
         axios.get('/api/modules/warehouse-setup/bins?limit=1000'),
       ]);
       
-      const poData = posResponse.data.data || [];
-      setPurchaseOrders(poData);
+      const grnData = grnsResponse.data.data || [];
+      setGrns(grnData);
       setWarehouses(warehousesResponse.data.data || []);
       setZones(zonesResponse.data.data || []);
       setAisles(aislesResponse.data.data || []);
       setShelves(shelvesResponse.data.data || []);
       setBins(binsResponse.data.data || []);
       
-      // Auto-expand all POs
-      const allPOIds = new Set<string>(poData.map((po: PO) => po.id));
-      setExpandedPOs(allPOIds);
+      // Auto-expand all GRNs
+      const allGRNIds = new Set<string>(grnData.map((grn: GRN) => grn.receiptId));
+      setExpandedGRNs(allGRNIds);
       
-      // Initialize putaway locations with PO warehouse for each item
+      // Initialize putaway locations with warehouse for each item
       const initialLocations: Record<string, PutawayLocation> = {};
-      poData.forEach((po: PO) => {
-        po.items.forEach(item => {
-          initialLocations[item.id] = {
-            poItemId: item.id,
-            warehouseId: po.warehouseId,
+      grnData.forEach((grn: GRN) => {
+        grn.items.forEach(item => {
+          initialLocations[item.receiptItemId] = {
+            receiptItemId: item.receiptItemId,
+            warehouseId: grn.warehouseId,
           };
         });
       });
@@ -160,28 +157,28 @@ const PurchaseOrderPutaway: React.FC = () => {
     }
   };
 
-  const togglePO = (poId: string) => {
-    setExpandedPOs(prev => {
+  const toggleGRN = (receiptId: string) => {
+    setExpandedGRNs(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(poId)) {
-        newSet.delete(poId);
+      if (newSet.has(receiptId)) {
+        newSet.delete(receiptId);
       } else {
-        newSet.add(poId);
+        newSet.add(receiptId);
       }
       return newSet;
     });
   };
 
   const updatePutawayLocation = (
-    itemId: string,
+    receiptItemId: string,
     field: keyof PutawayLocation,
     value: string | undefined
   ) => {
     setPutawayLocations(prev => ({
       ...prev,
-      [itemId]: {
-        ...prev[itemId],
-        poItemId: itemId,
+      [receiptItemId]: {
+        ...prev[receiptItemId],
+        receiptItemId: receiptItemId,
         [field]: value,
         // Reset dependent fields when parent changes
         ...(field === 'warehouseId' && { zoneId: undefined, aisleId: undefined, shelfId: undefined, binId: undefined }),
@@ -224,12 +221,12 @@ const PurchaseOrderPutaway: React.FC = () => {
    * The suggested bin is automatically populated into all cascading dropdowns.
    * User can still manually override any selection.
    */
-  const handleSmartAllocation = async (item: POItem, warehouseId: string) => {
+  const handleSmartAllocation = async (item: ReceiptItem, warehouseId: string) => {
     try {
-      setAllocatingItemId(item.id);
+      setAllocatingItemId(item.receiptItemId);
       
       const response = await axios.post('/api/modules/purchase-order/putaway/smart-allocate', {
-        productId: item.product.id,
+        productId: item.productId,
         warehouseId: warehouseId,
         quantity: item.receivedQuantity,
       });
@@ -240,8 +237,8 @@ const PurchaseOrderPutaway: React.FC = () => {
         // Auto-populate all location dropdowns with the suggested bin
         setPutawayLocations(prev => ({
           ...prev,
-          [item.id]: {
-            poItemId: item.id,
+          [item.receiptItemId]: {
+            receiptItemId: item.receiptItemId,
             warehouseId: warehouseId,
             zoneId: zoneId,
             aisleId: aisleId,
@@ -261,10 +258,10 @@ const PurchaseOrderPutaway: React.FC = () => {
     }
   };
 
-  const handleConfirmPutaway = (po: PO) => {
+  const handleConfirmPutaway = (grn: GRN) => {
     // Validate all items have bin locations assigned
-    const missingLocations = po.items.filter(item => {
-      const location = putawayLocations[item.id];
+    const missingLocations = grn.items.filter(item => {
+      const location = putawayLocations[item.receiptItemId];
       return !location || !location.binId;
     });
 
@@ -274,39 +271,39 @@ const PurchaseOrderPutaway: React.FC = () => {
     }
 
     // Show confirmation modal
-    setConfirmPOId(po.id);
+    setConfirmReceiptId(grn.receiptId);
   };
 
   const confirmPutawaySubmit = async () => {
-    if (!confirmPOId) return;
+    if (!confirmReceiptId) return;
 
-    const po = purchaseOrders.find(p => p.id === confirmPOId);
-    if (!po) return;
+    const grn = grns.find(g => g.receiptId === confirmReceiptId);
+    if (!grn) return;
 
     // Prepare items payload
-    const items = po.items.map(item => ({
-      poItemId: item.id,
-      binId: putawayLocations[item.id]?.binId,
+    const items = grn.items.map(item => ({
+      receiptItemId: item.receiptItemId,
+      binId: putawayLocations[item.receiptItemId]?.binId,
     }));
 
     try {
       setConfirming(true);
       const response = await axios.post(
-        `/api/modules/purchase-order/putaway/${confirmPOId}/confirm`,
+        `/api/modules/purchase-order/putaway/${confirmReceiptId}/confirm`,
         { items }
       );
 
       if (response.data.success) {
         toast.success(`Putaway confirmed! Document ${response.data.data.putawayNumber} generated.`);
         // Close confirmation modal
-        setConfirmPOId(null);
+        setConfirmReceiptId(null);
         // Show putaway document modal
         setCurrentPutaway({
           number: response.data.data.putawayNumber,
           documentId: response.data.data.documentId,
         });
         setIsPutawayModalOpen(true);
-        // Refresh data to remove completed PO from list
+        // Refresh data to remove completed GRN from list
         await fetchPutawayData();
       }
     } catch (error: any) {
@@ -318,7 +315,7 @@ const PurchaseOrderPutaway: React.FC = () => {
     }
   };
 
-  const confirmPO = purchaseOrders.find(p => p.id === confirmPOId);
+  const confirmGRN = grns.find(g => g.receiptId === confirmReceiptId);
 
   if (loading) {
     return (
@@ -343,51 +340,51 @@ const PurchaseOrderPutaway: React.FC = () => {
         </Button>
       </div>
 
-      {purchaseOrders.length === 0 ? (
+      {grns.length === 0 ? (
         <Card>
           <CardContent className="py-12">
             <div className="text-center">
               <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No purchase orders ready for putaway</p>
+              <p className="text-muted-foreground">No GRNs ready for putaway</p>
             </div>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
-          {purchaseOrders.map((po) => (
-            <Card key={po.id}>
+          {grns.map((grn) => (
+            <Card key={grn.receiptId}>
               <CardHeader 
                 className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => togglePO(po.id)}
+                onClick={() => toggleGRN(grn.receiptId)}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    {expandedPOs.has(po.id) ? (
+                    {expandedGRNs.has(grn.receiptId) ? (
                       <ChevronUp className="w-5 h-5 text-muted-foreground" />
                     ) : (
                       <ChevronDown className="w-5 h-5 text-muted-foreground" />
                     )}
                     <div>
                       <CardTitle className="text-lg">
-                        {po.orderNumber} - {po.supplierName}
+                        GRN: {grn.grnNumber}
                         <span className="text-sm font-normal text-muted-foreground ml-2">
-                          ({po.status === 'incomplete' ? 'Partial' : 'Full'})
+                          (PO: {grn.poNumber})
                         </span>
                       </CardTitle>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Warehouse: {po.warehouseName}
+                        {grn.supplierName} • Warehouse: {grn.warehouseName}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <Badge variant="secondary">
-                      {po.items.length} {po.items.length === 1 ? 'item' : 'items'}
+                      {grn.items.length} {grn.items.length === 1 ? 'item' : 'items'}
                     </Badge>
                   </div>
                 </div>
               </CardHeader>
 
-              {expandedPOs.has(po.id) && (
+              {expandedGRNs.has(grn.receiptId) && (
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -403,20 +400,20 @@ const PurchaseOrderPutaway: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {po.items.map((item) => {
-                          const location = putawayLocations[item.id] || {};
+                        {grn.items.map((item) => {
+                          const location = putawayLocations[item.receiptItemId] || {};
                           const availableZones = getFilteredZones(location.warehouseId);
                           const availableAisles = getFilteredAisles(location.zoneId);
                           const availableShelves = getFilteredShelves(location.aisleId);
                           const availableBins = getFilteredBins(location.shelfId);
 
                           return (
-                            <tr key={item.id} className="border-b hover:bg-muted/30">
+                            <tr key={item.receiptItemId} className="border-b hover:bg-muted/30">
                               <td className="py-3 px-2">
                                 <div>
-                                  <div className="font-medium">{item.product.name}</div>
+                                  <div className="font-medium">{item.productName}</div>
                                   <div className="text-sm text-muted-foreground">
-                                    SKU: {item.product.sku}
+                                    SKU: {item.productSku}
                                   </div>
                                 </div>
                               </td>
@@ -427,11 +424,11 @@ const PurchaseOrderPutaway: React.FC = () => {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleSmartAllocation(item, po.warehouseId)}
-                                  disabled={allocatingItemId === item.id}
+                                  onClick={() => handleSmartAllocation(item, grn.warehouseId)}
+                                  disabled={allocatingItemId === item.receiptItemId}
                                   className="w-full"
                                 >
-                                  {allocatingItemId === item.id ? (
+                                  {allocatingItemId === item.receiptItemId ? (
                                     <>
                                       <RefreshCw className="w-4 h-4 mr-1 animate-spin" />
                                       Allocating...
@@ -439,7 +436,7 @@ const PurchaseOrderPutaway: React.FC = () => {
                                   ) : (
                                     <>
                                       <Zap className="w-4 h-4 mr-1" />
-                                      Smart Active
+                                      Smart Allocate
                                     </>
                                   )}
                                 </Button>
@@ -447,7 +444,7 @@ const PurchaseOrderPutaway: React.FC = () => {
                               <td className="py-3 px-2">
                                 <Select
                                   value={location.zoneId || ''}
-                                  onValueChange={(value) => updatePutawayLocation(item.id, 'zoneId', value)}
+                                  onValueChange={(value) => updatePutawayLocation(item.receiptItemId, 'zoneId', value)}
                                 >
                                   <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Select Zone">
@@ -481,7 +478,7 @@ const PurchaseOrderPutaway: React.FC = () => {
                               <td className="py-3 px-2">
                                 <Select
                                   value={location.aisleId || ''}
-                                  onValueChange={(value) => updatePutawayLocation(item.id, 'aisleId', value)}
+                                  onValueChange={(value) => updatePutawayLocation(item.receiptItemId, 'aisleId', value)}
                                   disabled={!location.zoneId}
                                 >
                                   <SelectTrigger className="w-full">
@@ -516,7 +513,7 @@ const PurchaseOrderPutaway: React.FC = () => {
                               <td className="py-3 px-2">
                                 <Select
                                   value={location.shelfId || ''}
-                                  onValueChange={(value) => updatePutawayLocation(item.id, 'shelfId', value)}
+                                  onValueChange={(value) => updatePutawayLocation(item.receiptItemId, 'shelfId', value)}
                                   disabled={!location.aisleId}
                                 >
                                   <SelectTrigger className="w-full">
@@ -551,7 +548,7 @@ const PurchaseOrderPutaway: React.FC = () => {
                               <td className="py-3 px-2">
                                 <Select
                                   value={location.binId || ''}
-                                  onValueChange={(value) => updatePutawayLocation(item.id, 'binId', value)}
+                                  onValueChange={(value) => updatePutawayLocation(item.receiptItemId, 'binId', value)}
                                   disabled={!location.shelfId}
                                 >
                                   <SelectTrigger className="w-full">
@@ -581,7 +578,7 @@ const PurchaseOrderPutaway: React.FC = () => {
                   </div>
 
                   <div className="mt-6 flex justify-end">
-                    <Button onClick={() => handleConfirmPutaway(po)}>
+                    <Button onClick={() => handleConfirmPutaway(grn)}>
                       Confirm Putaway
                     </Button>
                   </div>
@@ -593,26 +590,26 @@ const PurchaseOrderPutaway: React.FC = () => {
       )}
 
       {/* Confirmation Modal */}
-      <Dialog open={confirmPOId !== null} onOpenChange={(open) => !open && setConfirmPOId(null)}>
+      <Dialog open={confirmReceiptId !== null} onOpenChange={(open) => !open && setConfirmReceiptId(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Putaway</DialogTitle>
             <DialogDescription>
-              Are you sure you want to confirm putaway for PO {confirmPO?.orderNumber}? This will:
+              Are you sure you want to confirm putaway for GRN {confirmGRN?.grnNumber}? This will:
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>Create inventory items at assigned bin locations</li>
                 <li>Generate a putaway document</li>
-                <li>Mark the purchase order as complete</li>
+                <li>Mark this receipt as putaway complete</li>
               </ul>
             </DialogDescription>
           </DialogHeader>
           
-          {confirmPO && (
+          {confirmGRN && (
             <div className="py-4">
               <div className="text-sm font-medium mb-2">Items to be put away:</div>
               <div className="space-y-2">
-                {confirmPO.items.map(item => {
-                  const location = putawayLocations[item.id];
+                {confirmGRN.items.map(item => {
+                  const location = putawayLocations[item.receiptItemId];
                   const zone = zones.find(z => z.id === location?.zoneId);
                   const aisle = aisles.find(a => a.id === location?.aisleId);
                   const shelf = shelves.find(s => s.id === location?.shelfId);
@@ -623,10 +620,10 @@ const PurchaseOrderPutaway: React.FC = () => {
                     .join(' > ');
 
                   return (
-                    <div key={item.id} className="flex justify-between text-sm border-b pb-2">
+                    <div key={item.receiptItemId} className="flex justify-between text-sm border-b pb-2">
                       <div>
-                        <div className="font-medium">{item.product.name}</div>
-                        <div className="text-xs text-muted-foreground">{item.product.sku}</div>
+                        <div className="font-medium">{item.productName}</div>
+                        <div className="text-xs text-muted-foreground">{item.productSku}</div>
                       </div>
                       <div className="text-right">
                         <div className="font-medium">Qty: {item.receivedQuantity}</div>
@@ -642,7 +639,7 @@ const PurchaseOrderPutaway: React.FC = () => {
           <DialogFooter>
             <Button 
               variant="outline" 
-              onClick={() => setConfirmPOId(null)}
+              onClick={() => setConfirmReceiptId(null)}
               disabled={confirming}
             >
               Cancel
