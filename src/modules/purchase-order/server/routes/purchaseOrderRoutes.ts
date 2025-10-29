@@ -2918,7 +2918,9 @@ router.get('/putaway', async (req, res) => {
           items: receiptItemsData.map(({ receiptItem, poItem, product }) => ({
             id: poItem?.id || '',
             receiptItemId: receiptItem.id,
-            product: product || { id: '', name: 'Unknown', sku: 'N/A' },
+            productId: poItem?.productId || product?.id || '',
+            productName: product?.name || 'Unknown',
+            productSku: product?.sku || 'N/A',
             orderedQuantity: poItem?.orderedQuantity || 0,
             receivedQuantity: receiptItem.receivedQuantity,
           })),
