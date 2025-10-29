@@ -42,7 +42,8 @@ None specified yet
 - **Putaway Page Design**: Nested accordion layout with **PO-focused UI**: outer accordions display Purchase Orders, with GRNs grouped underneath each PO as nested sub-accordions. This allows multiple GRNs per PO to be organized clearly. Each GRN contains an item table with cascading location dropdowns filtered by parent selections, and `warehouseId` in API responses for reliable filtering.
 - **Smart Allocation Algorithm**: Bin suggestion system using weighted scoring based on Available Capacity (45%), Item Match (35%), and Temperature Match (20%).
 - **Confirm Putaway Flow**: GRN-based transactional workflow for bin assignments, `inventory_items` creation, PUTAWAY document generation, `putawayStatus` updates, and audit logging.
-- **Audit Logging**: Simple system using `audit_logs` table for critical operations, internal `logAudit()` service, and REST APIs for querying.
+- **Audit Logging**: Simple system using `audit_logs` table for critical operations, internal `logAudit()` service, and REST APIs for querying. Includes `document_path` field for tracking generated HTML documents (PO, GRN, PUTAWAY).
+- **Document Viewer Integration**: Audit Log UI includes a "View Document" button (FileText icon) that appears when `documentPath` exists. Clicking opens a `DocumentViewerModal` component which fetches and displays the HTML document in a modal, supporting PO, GRN, and PUTAWAY document types.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.
