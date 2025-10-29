@@ -77,6 +77,7 @@ None specified yet
 **⚠️ REMINDER: REPLIT AGENT IS NOT AUTHORIZED TO CHANGE DATABASE SCHEMA. ASK THE USER FIRST.**
 
 - **Oct 29, 2025**:
+  - **Transaction Rollback Fix (CRITICAL)**: Fixed critical transaction atomicity issue where `purchase_orders` table was being updated even when document generation failed, creating data discrepancy. Modified `PutawayDocumentGenerator.generateAndSave()` to accept optional transaction parameter and use it for database inserts (ensuring all operations are atomic). Added duplicate putaway prevention by checking workflow state before processing. Now all confirm putaway operations (inventory creation, document generation, PO status update) are fully atomic - if ANY step fails, ALL changes roll back.
   - **Putaway Document Preview Modal**: Implemented complete HTML document viewing system for putaway confirmations. Created `PutawayConfirmationModal` component (mirrors GRN pattern), backend `/putaway/:documentId/html` API endpoint, and integrated modal into PurchaseOrderPutaway page. After confirming putaway, users can view/print the generated HTML document directly in the app. Fixed `putawayDocumentGenerator` to correctly insert `referenceType` and `referenceId` into `generated_documents` table (was using incorrect field names `relatedEntityType`/`relatedEntityId`).
   - **Confirm Putaway Authorization Fix**: Fixed 401 unauthorized error in confirm putaway endpoint. Changed `req.user?.tenantId` to `req.user!.activeTenantId` and used non-null assertion pattern matching working approve/receive endpoints.
 - **Oct 28, 2025**:

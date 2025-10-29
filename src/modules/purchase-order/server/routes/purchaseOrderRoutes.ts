@@ -3290,6 +3290,15 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         throw new Error('Purchase order not found');
       }
 
+      // Prevent duplicate putaway
+      if (po.po.workflowState === 'complete') {
+        throw new Error('This purchase order has already been completed');
+      }
+
+      if (po.po.workflowState !== 'putaway') {
+        throw new Error('Purchase order must be in putaway state to confirm');
+      }
+
       // 2. Get PO items with product details
       const poItems = await tx
         .select({
@@ -3394,10 +3403,11 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         }),
       };
 
-      // 7. Generate and save putaway document
+      // 7. Generate and save putaway document (pass transaction for atomicity)
       const { documentId, filePath } = await PutawayDocumentGenerator.generateAndSave(
         putawayDocData,
-        userId
+        userId,
+        tx
       );
 
       // 8. Update PO workflow status to 'complete'

@@ -361,7 +361,8 @@ export class PutawayDocumentGenerator {
 
   static async generateAndSave(
     putawayData: PutawayDocumentData,
-    userId: string
+    userId: string,
+    tx?: any
   ): Promise<{ filePath: string; documentId: string }> {
     try {
       const year = new Date().getFullYear().toString();
@@ -388,7 +389,10 @@ export class PutawayDocumentGenerator {
       const relativePath = `storage/purchase-order/documents/tenants/${putawayData.tenantId}/putaway/${year}/${fileName}`;
       const fileStats = await fs.stat(filePath);
 
-      const [document] = await db
+      // Use transaction if provided, otherwise use global db
+      const dbInstance = tx || db;
+      
+      const [document] = await dbInstance
         .insert(generatedDocuments)
         .values({
           tenantId: putawayData.tenantId,
