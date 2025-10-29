@@ -394,8 +394,8 @@ export class PutawayDocumentGenerator {
           tenantId: putawayData.tenantId,
           documentType: 'PUTAWAY',
           documentNumber: putawayData.putawayNumber,
-          relatedEntityType: 'purchase_order',
-          relatedEntityId: putawayData.poId,
+          referenceType: 'purchase_order',
+          referenceId: putawayData.poId,
           generatedBy: userId,
           version: 1,
           files: {

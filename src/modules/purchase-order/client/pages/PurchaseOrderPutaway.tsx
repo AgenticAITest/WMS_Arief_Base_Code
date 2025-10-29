@@ -19,6 +19,7 @@ import {
 } from '@client/components/ui/dialog';
 import { RefreshCw, Package, ChevronDown, ChevronUp, Zap } from 'lucide-react';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
+import { PutawayConfirmationModal } from '../components/PutawayConfirmationModal';
 import axios from 'axios';
 import { toast } from 'sonner';
 
@@ -107,6 +108,10 @@ const PurchaseOrderPutaway: React.FC = () => {
   // Confirmation modal state
   const [confirmPOId, setConfirmPOId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  
+  // Putaway document modal state
+  const [isPutawayModalOpen, setIsPutawayModalOpen] = useState(false);
+  const [currentPutaway, setCurrentPutaway] = useState<{ number: string; documentId: string } | null>(null);
 
   useEffect(() => {
     fetchPutawayData();
@@ -293,8 +298,14 @@ const PurchaseOrderPutaway: React.FC = () => {
 
       if (response.data.success) {
         toast.success(`Putaway confirmed! Document ${response.data.data.putawayNumber} generated.`);
-        // Close modal
+        // Close confirmation modal
         setConfirmPOId(null);
+        // Show putaway document modal
+        setCurrentPutaway({
+          number: response.data.data.putawayNumber,
+          documentId: response.data.data.documentId,
+        });
+        setIsPutawayModalOpen(true);
         // Refresh data to remove completed PO from list
         await fetchPutawayData();
       }
@@ -652,6 +663,19 @@ const PurchaseOrderPutaway: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Putaway Document Modal */}
+      {currentPutaway && (
+        <PutawayConfirmationModal
+          isOpen={isPutawayModalOpen}
+          onClose={() => {
+            setIsPutawayModalOpen(false);
+            setCurrentPutaway(null);
+          }}
+          putawayNumber={currentPutaway.number}
+          putawayDocumentId={currentPutaway.documentId}
+        />
+      )}
     </div>
   );
 };

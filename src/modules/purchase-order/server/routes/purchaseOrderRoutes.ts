@@ -3246,8 +3246,9 @@ router.post('/putaway/smart-allocate', async (req, res) => {
  *         description: Server error
  */
 router.post('/putaway/:id/confirm', async (req, res) => {
+  const { id } = req.params;
+  
   try {
-    const { id } = req.params;
     const { items } = req.body;
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -3364,7 +3365,7 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         poNumber: po.po.orderNumber,
         poId: po.po.id,
         putawayDate: new Date().toISOString(),
-        putawayByName: req.user?.fullname || null,
+        putawayByName: req.user!.username || null,
         supplierName: po.supplier?.name || 'N/A',
         warehouseName: po.warehouse?.name || null,
         warehouseAddress: po.warehouse?.address || null,
@@ -3404,7 +3405,7 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         .update(purchaseOrders)
         .set({
           workflowState: 'complete',
-          status: 'complete',
+          status: 'completed',
           updatedAt: new Date(),
         })
         .where(eq(purchaseOrders.id, id));
@@ -3419,12 +3420,6 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         resourceId: id,
         status: 'success',
         ipAddress: getClientIp(req),
-        changes: {
-          putawayNumber,
-          documentId,
-          itemsCount: items.length,
-          workflowState: 'complete',
-        },
       });
 
       res.json({
@@ -3922,6 +3917,82 @@ router.get('/grn/:documentId/html', async (req, res) => {
     }
   } catch (error: any) {
     console.error('Error fetching GRN HTML:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/modules/purchase-order/putaway/{documentId}/html:
+ *   get:
+ *     summary: Get HTML content of a Putaway document
+ *     tags: [Purchase Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Putaway HTML retrieved successfully
+ *       404:
+ *         description: Putaway document not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get('/putaway/:documentId/html', async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { documentId } = req.params;
+
+    // Fetch the generated document metadata
+    const [document] = await db
+      .select()
+      .from(generatedDocuments)
+      .where(and(
+        eq(generatedDocuments.id, documentId),
+        eq(generatedDocuments.documentType, 'PUTAWAY'),
+        eq(generatedDocuments.tenantId, tenantId)
+      ))
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: 'Putaway document not found',
+      });
+    }
+
+    // Read HTML file from storage
+    const htmlFilePath = path.join(process.cwd(), (document.files as any).html.path);
+    
+    try {
+      const htmlContent = await fs.readFile(htmlFilePath, 'utf-8');
+      
+      res.json({
+        success: true,
+        html: htmlContent,
+        documentInfo: {
+          version: document.version,
+          generatedAt: document.createdAt,
+        },
+      });
+    } catch (fileError) {
+      console.error('Error reading Putaway HTML file:', fileError);
+      return res.status(404).json({
+        success: false,
+        message: 'Putaway HTML file not found on disk',
+      });
+    }
+  } catch (error: any) {
+    console.error('Error fetching Putaway HTML:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Internal server error',

@@ -1,0 +1,84 @@
+[vite] (client) page reload storage/purchase-order/documents/tenants/8e017478-2f5f-4be3-b8b6-e389436ca28a/putaway/2025/PUTAWAY-2510-WH1-0001.html
+Error generating and saving putaway document: DrizzleQueryError: Failed query: insert into "generated_documents" ("id", "tenant_id", "document_type", "document_number", "reference_type", "reference_id", "files", "version", "generated_by", "created_at", "updated_at") values (default, $1, $2, $3, default, default, $4, $5, $6, default, default) returning "id", "tenant_id", "document_type", "document_number", "reference_type", "reference_id", "files", "version", "generated_by", "created_at", "updated_at"
+params: 8e017478-2f5f-4be3-b8b6-e389436ca28a,PUTAWAY,PUTAWAY-2510-WH1-0001,{"html":{"path":"storage/purchase-order/documents/tenants/8e017478-2f5f-4be3-b8b6-e389436ca28a/putaway/2025/PUTAWAY-2510-WH1-0001.html","size":6752,"mimeType":"text/html"}},1,4f56c3b2-9e5e-4a75-9326-ccb3ef02bd82
+    at PostgresJsPreparedQuery.queryWithCache (/home/runner/workspace/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/node_modules/src/postgres-js/session.ts:58:17)
+    at async Function.generateAndSave (/home/runner/workspace/src/modules/purchase-order/server/services/putawayDocumentGenerator.ts:391:26)
+    at async <anonymous> (/home/runner/workspace/src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:3397:40)
+    at async scope (file:///home/runner/workspace/node_modules/postgres/src/index.js:260:18)
+    at async Function.begin (file:///home/runner/workspace/node_modules/postgres/src/index.js:243:14)
+    at async <anonymous> (/home/runner/workspace/src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:3272:5) {
+  query: 'insert into "generated_documents" ("id", "tenant_id", "document_type", "document_number", "reference_type", "reference_id", "files", "version", "generated_by", "created_at", "updated_at") values (default, $1, $2, $3, default, default, $4, $5, $6, default, default) returning "id", "tenant_id", "document_type", "document_number", "reference_type", "reference_id", "files", "version", "generated_by", "created_at", "updated_at"',
+  params: [
+    '8e017478-2f5f-4be3-b8b6-e389436ca28a',
+    'PUTAWAY',
+    'PUTAWAY-2510-WH1-0001',
+    '{"html":{"path":"storage/purchase-order/documents/tenants/8e017478-2f5f-4be3-b8b6-e389436ca28a/putaway/2025/PUTAWAY-2510-WH1-0001.html","size":6752,"mimeType":"text/html"}}',
+    1,
+    '4f56c3b2-9e5e-4a75-9326-ccb3ef02bd82'
+  ],
+  cause: PostgresError: null value in column "reference_type" of relation "generated_documents" violates not-null constraint
+      at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+      at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+      at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+      at TLSSocket.emit (node:events:524:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+    severity_local: 'ERROR',
+    severity: 'ERROR',
+    code: '23502',
+    detail: 'Failing row contains (f04cd779-da04-4ff1-b864-b7e86f11449f, 8e017478-2f5f-4be3-b8b6-e389436ca28a, PUTAWAY, PUTAWAY-2510-WH1-0001, null, null, {"html": {"path": "storage/purchase-order/documents/tenants/8e01..., 1, 4f56c3b2-9e5e-4a75-9326-ccb3ef02bd82, 2025-10-29 03:34:12.164859, 2025-10-29 03:34:12.164859).',
+    schema_name: 'public',
+    table_name: 'generated_documents',
+    column_name: 'reference_type',
+    file: 'execMain.c',
+    line: '2021',
+    routine: 'ExecConstraints'
+  }
+}
+Error confirming putaway: DrizzleQueryError: Failed query: insert into "generated_documents" ("id", "tenant_id", "document_type", "document_number", "reference_type", "reference_id", "files", "version", "generated_by", "created_at", "updated_at") values (default, $1, $2, $3, default, default, $4, $5, $6, default, default) returning "id", "tenant_id", "document_type", "document_number", "reference_type", "reference_id", "files", "version", "generated_by", "created_at", "updated_at"
+params: 8e017478-2f5f-4be3-b8b6-e389436ca28a,PUTAWAY,PUTAWAY-2510-WH1-0001,{"html":{"path":"storage/purchase-order/documents/tenants/8e017478-2f5f-4be3-b8b6-e389436ca28a/putaway/2025/PUTAWAY-2510-WH1-0001.html","size":6752,"mimeType":"text/html"}},1,4f56c3b2-9e5e-4a75-9326-ccb3ef02bd82
+    at PostgresJsPreparedQuery.queryWithCache (/home/runner/workspace/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/node_modules/src/postgres-js/session.ts:58:17)
+    at async Function.generateAndSave (/home/runner/workspace/src/modules/purchase-order/server/services/putawayDocumentGenerator.ts:391:26)
+    at async <anonymous> (/home/runner/workspace/src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:3397:40)
+    at async scope (file:///home/runner/workspace/node_modules/postgres/src/index.js:260:18)
+    at async Function.begin (file:///home/runner/workspace/node_modules/postgres/src/index.js:243:14)
+    at async <anonymous> (/home/runner/workspace/src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:3272:5) {
+  query: 'insert into "generated_documents" ("id", "tenant_id", "document_type", "document_number", "reference_type", "reference_id", "files", "version", "generated_by", "created_at", "updated_at") values (default, $1, $2, $3, default, default, $4, $5, $6, default, default) returning "id", "tenant_id", "document_type", "document_number", "reference_type", "reference_id", "files", "version", "generated_by", "created_at", "updated_at"',
+  params: [
+    '8e017478-2f5f-4be3-b8b6-e389436ca28a',
+    'PUTAWAY',
+    'PUTAWAY-2510-WH1-0001',
+    '{"html":{"path":"storage/purchase-order/documents/tenants/8e017478-2f5f-4be3-b8b6-e389436ca28a/putaway/2025/PUTAWAY-2510-WH1-0001.html","size":6752,"mimeType":"text/html"}}',
+    1,
+    '4f56c3b2-9e5e-4a75-9326-ccb3ef02bd82'
+  ],
+  cause: PostgresError: null value in column "reference_type" of relation "generated_documents" violates not-null constraint
+      at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+      at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+      at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+      at TLSSocket.emit (node:events:524:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+    severity_local: 'ERROR',
+    severity: 'ERROR',
+    code: '23502',
+    detail: 'Failing row contains (f04cd779-da04-4ff1-b864-b7e86f11449f, 8e017478-2f5f-4be3-b8b6-e389436ca28a, PUTAWAY, PUTAWAY-2510-WH1-0001, null, null, {"html": {"path": "storage/purchase-order/documents/tenants/8e01..., 1, 4f56c3b2-9e5e-4a75-9326-ccb3ef02bd82, 2025-10-29 03:34:12.164859, 2025-10-29 03:34:12.164859).',
+    schema_name: 'public',
+    table_name: 'generated_documents',
+    column_name: 'reference_type',
+    file: 'execMain.c',
+    line: '2021',
+    routine: 'ExecConstraints'
+  }
+}
+ReferenceError: id is not defined
+    at <anonymous> (/home/runner/workspace/src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:3449:21)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
