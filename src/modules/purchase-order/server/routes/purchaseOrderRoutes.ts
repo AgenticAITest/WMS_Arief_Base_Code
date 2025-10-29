@@ -3220,7 +3220,7 @@ router.post('/putaway/smart-allocate', async (req, res) => {
  * @swagger
  * /api/modules/purchase-order/putaway/{id}/confirm:
  *   post:
- *     summary: Confirm putaway for purchase order
+ *     summary: Confirm putaway for GRN (receipt)
  *     tags: [Purchase Orders - Putaway]
  *     security:
  *       - bearerAuth: []
@@ -3230,7 +3230,7 @@ router.post('/putaway/smart-allocate', async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: Purchase order ID
+ *         description: Receipt ID (GRN ID)
  *     requestBody:
  *       required: true
  *       content:
@@ -3245,10 +3245,10 @@ router.post('/putaway/smart-allocate', async (req, res) => {
  *                 items:
  *                   type: object
  *                   required:
- *                     - poItemId
+ *                     - receiptItemId
  *                     - binId
  *                   properties:
- *                     poItemId:
+ *                     receiptItemId:
  *                       type: string
  *                     binId:
  *                       type: string
@@ -3258,12 +3258,12 @@ router.post('/putaway/smart-allocate', async (req, res) => {
  *       400:
  *         description: Bad request
  *       404:
- *         description: Purchase order not found
+ *         description: Receipt not found
  *       500:
  *         description: Server error
  */
 router.post('/putaway/:id/confirm', async (req, res) => {
-  const { id } = req.params;
+  const { id: receiptId } = req.params;
   
   try {
     const { items } = req.body;
@@ -3279,7 +3279,7 @@ router.post('/putaway/:id/confirm', async (req, res) => {
 
     // Validate all items have bin assignments
     for (const item of items) {
-      if (!item.poItemId || !item.binId) {
+      if (!item.receiptItemId || !item.binId) {
         return res.status(400).json({
           success: false,
           message: 'All items must have bin locations assigned'
@@ -3288,38 +3288,44 @@ router.post('/putaway/:id/confirm', async (req, res) => {
     }
 
     await db.transaction(async (tx) => {
-      // 1. Get PO details
-      const [po] = await tx
+      // 1. Get receipt with PO details
+      const [receiptData] = await tx
         .select({
+          receipt: purchaseOrdersReceipt,
           po: purchaseOrders,
           supplier: suppliers,
           warehouse: warehouses,
+          grnDocument: generatedDocuments,
         })
-        .from(purchaseOrders)
+        .from(purchaseOrdersReceipt)
+        .leftJoin(purchaseOrders, eq(purchaseOrdersReceipt.purchaseOrderId, purchaseOrders.id))
         .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
         .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
+        .leftJoin(generatedDocuments, eq(purchaseOrdersReceipt.grnDocumentId, generatedDocuments.id))
         .where(and(
-          eq(purchaseOrders.id, id),
-          eq(purchaseOrders.tenantId, tenantId)
+          eq(purchaseOrdersReceipt.id, receiptId),
+          eq(purchaseOrdersReceipt.tenantId, tenantId)
         ));
 
-      if (!po) {
-        throw new Error('Purchase order not found');
+      if (!receiptData) {
+        throw new Error('Receipt not found');
       }
 
-      if (po.po.workflowState !== 'putaway') {
-        throw new Error('Purchase order must be in putaway state to confirm');
+      if (receiptData.receipt.putawayStatus === 'completed') {
+        throw new Error('This receipt has already been put away');
       }
 
-      // 2. Get PO items with product details
-      const poItems = await tx
+      // 2. Get receipt items with product details
+      const receiptItemsData = await tx
         .select({
-          item: purchaseOrderItems,
+          receiptItem: receiptItems,
+          poItem: purchaseOrderItems,
           product: products,
         })
-        .from(purchaseOrderItems)
+        .from(receiptItems)
+        .leftJoin(purchaseOrderItems, eq(receiptItems.poItemId, purchaseOrderItems.id))
         .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
-        .where(eq(purchaseOrderItems.purchaseOrderId, id));
+        .where(eq(receiptItems.receiptId, receiptId));
 
       // 3. Get bin details for all assigned locations
       const binIds = items.map((i: any) => i.binId);
@@ -3343,18 +3349,18 @@ router.post('/putaway/:id/confirm', async (req, res) => {
 
       // 4. Create inventory items for each putaway
       for (const putawayItem of items) {
-        const poItem = poItems.find(pi => pi.item.id === putawayItem.poItemId);
-        if (!poItem) continue;
+        const receiptItemData = receiptItemsData.find(ri => ri.receiptItem.id === putawayItem.receiptItemId);
+        if (!receiptItemData) continue;
 
         // Create inventory item
         await tx.insert(inventoryItems).values({
           tenantId,
-          productId: poItem.item.productId,
+          productId: receiptItemData.poItem!.productId,
           binId: putawayItem.binId,
-          availableQuantity: poItem.item.receivedQuantity,
+          availableQuantity: receiptItemData.receiptItem.receivedQuantity,
           reservedQuantity: 0,
           receivedDate: new Date().toISOString().split('T')[0],
-          costPerUnit: poItem.item.unitCost,
+          costPerUnit: receiptItemData.poItem!.unitCost,
         });
 
         // Update bin capacity (add to currentVolume/currentWeight)
@@ -3383,16 +3389,18 @@ router.post('/putaway/:id/confirm', async (req, res) => {
       const putawayDocData = {
         putawayNumber,
         tenantId,
-        poNumber: po.po.orderNumber,
-        poId: po.po.id,
+        poNumber: receiptData.po?.orderNumber || 'N/A',
+        poId: receiptData.po?.id || '',
+        grnNumber: receiptData.grnDocument?.documentNumber || 'N/A',
+        receiptId: receiptData.receipt.id,
         putawayDate: new Date().toISOString(),
         putawayByName: req.user!.username || null,
-        supplierName: po.supplier?.name || 'N/A',
-        warehouseName: po.warehouse?.name || null,
-        warehouseAddress: po.warehouse?.address || null,
+        supplierName: receiptData.supplier?.name || 'N/A',
+        warehouseName: receiptData.warehouse?.name || null,
+        warehouseAddress: receiptData.warehouse?.address || null,
         notes: null,
         items: items.map((putawayItem: any) => {
-          const poItem = poItems.find(pi => pi.item.id === putawayItem.poItemId);
+          const receiptItemData = receiptItemsData.find(ri => ri.receiptItem.id === putawayItem.receiptItemId);
           const binDetail = binMap.get(putawayItem.binId);
           
           const locationPath = [
@@ -3403,9 +3411,9 @@ router.post('/putaway/:id/confirm', async (req, res) => {
           ].filter(Boolean).join(' > ');
 
           return {
-            productSku: poItem?.product?.sku || 'N/A',
-            productName: poItem?.product?.name || 'Unknown',
-            receivedQuantity: poItem?.item.receivedQuantity || 0,
+            productSku: receiptItemData?.product?.sku || 'N/A',
+            productName: receiptItemData?.product?.name || 'Unknown',
+            receivedQuantity: receiptItemData?.receiptItem.receivedQuantity || 0,
             zoneName: binDetail?.zone?.name || null,
             aisleName: binDetail?.aisle?.name || null,
             shelfName: binDetail?.shelf?.name || null,
@@ -3422,15 +3430,14 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         tx
       );
 
-      // 8. Update PO workflow status to 'complete'
+      // 8. Update receipt putaway status to 'completed'
       await tx
-        .update(purchaseOrders)
+        .update(purchaseOrdersReceipt)
         .set({
-          workflowState: 'complete',
-          status: 'completed',
+          putawayStatus: 'completed',
           updatedAt: new Date(),
         })
-        .where(eq(purchaseOrders.id, id));
+        .where(eq(purchaseOrdersReceipt.id, receiptId));
 
       // 9. Log audit trail
       await logAudit({
@@ -3438,8 +3445,8 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         userId,
         module: 'purchase-order',
         action: 'putaway_confirm',
-        resourceType: 'purchase_order',
-        resourceId: id,
+        resourceType: 'receipt',
+        resourceId: receiptId,
         status: 'success',
         ipAddress: getClientIp(req),
       });
@@ -3462,8 +3469,8 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         userId: req.user.id,
         module: 'purchase-order',
         action: 'putaway_confirm',
-        resourceType: 'purchase_order',
-        resourceId: id,
+        resourceType: 'receipt',
+        resourceId: receiptId,
         status: 'failure',
         ipAddress: getClientIp(req),
         errorMessage: error.message,
