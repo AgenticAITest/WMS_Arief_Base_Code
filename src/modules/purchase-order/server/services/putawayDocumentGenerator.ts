@@ -8,6 +8,8 @@ interface PutawayDocumentData {
   tenantId: string;
   poNumber: string;
   poId: string;
+  grnNumber: string;
+  receiptId: string;
   putawayDate: string;
   putawayByName: string | null;
   supplierName: string;
@@ -277,6 +279,10 @@ export class PutawayDocumentGenerator {
     <div class="info-section">
       <h2>Putaway Details</h2>
       <div class="detail-line">
+        <span class="label">GRN Number:</span>
+        ${putawayData.grnNumber}
+      </div>
+      <div class="detail-line">
         <span class="label">PO Reference:</span>
         ${putawayData.poNumber}
       </div>
@@ -398,8 +404,8 @@ export class PutawayDocumentGenerator {
           tenantId: putawayData.tenantId,
           documentType: 'PUTAWAY',
           documentNumber: putawayData.putawayNumber,
-          referenceType: 'purchase_order',
-          referenceId: putawayData.poId,
+          referenceType: 'receipt',
+          referenceId: putawayData.receiptId,
           generatedBy: userId,
           version: 1,
           files: {
