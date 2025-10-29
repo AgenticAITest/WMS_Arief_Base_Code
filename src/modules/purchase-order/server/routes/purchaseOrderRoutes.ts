@@ -2850,13 +2850,13 @@ router.get('/receive/received', async (req, res) => {
  * @swagger
  * /api/modules/purchase-order/putaway:
  *   get:
- *     summary: Get purchase orders ready for putaway
+ *     summary: Get GRNs (receipts) ready for putaway
  *     tags: [Purchase Orders - Putaway]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of POs ready for putaway with items
+ *         description: List of GRNs ready for putaway with items (grouped by PO)
  *       401:
  *         description: Unauthorized
  *       500:
@@ -2866,44 +2866,61 @@ router.get('/putaway', async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
 
-    // Get all POs in putaway workflow state
-    const putawayPOs = await db
+    // Get all receipts with pending putaway status
+    const pendingReceipts = await db
       .select({
+        receipt: purchaseOrdersReceipt,
         po: purchaseOrders,
         supplier: suppliers,
         warehouse: warehouses,
+        grnDocument: generatedDocuments,
       })
-      .from(purchaseOrders)
+      .from(purchaseOrdersReceipt)
+      .leftJoin(purchaseOrders, eq(purchaseOrdersReceipt.purchaseOrderId, purchaseOrders.id))
       .leftJoin(suppliers, eq(purchaseOrders.supplierId, suppliers.id))
       .leftJoin(warehouses, eq(purchaseOrders.warehouseId, warehouses.id))
+      .leftJoin(generatedDocuments, eq(purchaseOrdersReceipt.grnDocumentId, generatedDocuments.id))
       .where(
         and(
-          eq(purchaseOrders.tenantId, tenantId),
-          eq(purchaseOrders.workflowState, 'putaway')
+          eq(purchaseOrdersReceipt.tenantId, tenantId),
+          eq(purchaseOrdersReceipt.putawayStatus, 'pending')
         )
       )
-      .orderBy(desc(purchaseOrders.updatedAt));
+      .orderBy(desc(purchaseOrdersReceipt.receiptDate));
 
-    // Get items for each PO
-    const posWithItems = await Promise.all(
-      putawayPOs.map(async ({ po, supplier, warehouse }) => {
-        const items = await db
+    // Get items for each receipt
+    const receiptsWithItems = await Promise.all(
+      pendingReceipts.map(async ({ receipt, po, supplier, warehouse, grnDocument }) => {
+        // Get items from receipt_items (what was actually received in THIS GRN)
+        const receiptItemsData = await db
           .select({
-            item: purchaseOrderItems,
+            receiptItem: receiptItems,
+            poItem: purchaseOrderItems,
             product: products,
           })
-          .from(purchaseOrderItems)
+          .from(receiptItems)
+          .leftJoin(purchaseOrderItems, eq(receiptItems.poItemId, purchaseOrderItems.id))
           .leftJoin(products, eq(purchaseOrderItems.productId, products.id))
-          .where(eq(purchaseOrderItems.purchaseOrderId, po.id));
+          .where(eq(receiptItems.receiptId, receipt.id));
 
         return {
-          ...po,
+          receiptId: receipt.id,
+          grnNumber: grnDocument?.documentNumber || 'N/A',
+          grnDocumentId: grnDocument?.id || null,
+          receiptDate: receipt.receiptDate,
+          poId: po?.id || '',
+          poNumber: po?.orderNumber || 'N/A',
+          orderDate: po?.orderDate || null,
           supplierName: supplier?.name || 'Unknown Supplier',
           warehouseName: warehouse?.name || 'Unknown Warehouse',
-          warehouseId: po.warehouseId,
-          items: items.map(({ item, product }) => ({
-            ...item,
-            product,
+          warehouseId: po?.warehouseId || null,
+          status: po?.status || 'unknown',
+          items: receiptItemsData.map(({ receiptItem, poItem, product }) => ({
+            id: poItem?.id || '',
+            receiptItemId: receiptItem.id,
+            product: product || { id: '', name: 'Unknown', sku: 'N/A' },
+            orderedQuantity: poItem?.orderedQuantity || 0,
+            receivedQuantity: receiptItem.receivedQuantity,
           })),
         };
       })
@@ -2911,10 +2928,10 @@ router.get('/putaway', async (req, res) => {
 
     res.json({
       success: true,
-      data: posWithItems,
+      data: receiptsWithItems,
     });
   } catch (error) {
-    console.error('Error fetching POs for putaway:', error);
+    console.error('Error fetching receipts for putaway:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
