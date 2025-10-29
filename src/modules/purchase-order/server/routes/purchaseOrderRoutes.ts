@@ -3246,33 +3246,29 @@ router.post('/putaway/smart-allocate', async (req, res) => {
  *         description: Server error
  */
 router.post('/putaway/:id/confirm', async (req, res) => {
-  const { id } = req.params;
-  const { items } = req.body;
-  const tenantId = req.user?.activeTenantId;
-  const userId = req.user?.id;
+  try {
+    const { id } = req.params;
+    const { items } = req.body;
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
 
-  if (!tenantId || !userId) {
-    return res.status(401).json({ success: false, message: 'Unauthorized' });
-  }
-
-  if (!items || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Items array is required' 
-    });
-  }
-
-  // Validate all items have bin assignments
-  for (const item of items) {
-    if (!item.poItemId || !item.binId) {
-      return res.status(400).json({
-        success: false,
-        message: 'All items must have bin locations assigned'
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Items array is required' 
       });
     }
-  }
 
-  try {
+    // Validate all items have bin assignments
+    for (const item of items) {
+      if (!item.poItemId || !item.binId) {
+        return res.status(400).json({
+          success: false,
+          message: 'All items must have bin locations assigned'
+        });
+      }
+    }
+
     await db.transaction(async (tx) => {
       // 1. Get PO details
       const [po] = await tx
@@ -3443,17 +3439,19 @@ router.post('/putaway/:id/confirm', async (req, res) => {
   } catch (error: any) {
     console.error('Error confirming putaway:', error);
     
-    await logAudit({
-      tenantId: tenantId!,
-      userId: userId!,
-      module: 'purchase-order',
-      action: 'putaway_confirm',
-      resourceType: 'purchase_order',
-      resourceId: id,
-      status: 'failure',
-      ipAddress: getClientIp(req),
-      errorMessage: error.message,
-    });
+    if (req.user) {
+      await logAudit({
+        tenantId: req.user.activeTenantId,
+        userId: req.user.id,
+        module: 'purchase-order',
+        action: 'putaway_confirm',
+        resourceType: 'purchase_order',
+        resourceId: id,
+        status: 'failure',
+        ipAddress: getClientIp(req),
+        errorMessage: error.message,
+      });
+    }
 
     res.status(500).json({
       success: false,
