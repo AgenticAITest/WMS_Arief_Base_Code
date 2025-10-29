@@ -1477,7 +1477,7 @@ router.post('/orders', authorized('ADMIN', 'purchase-order.create'), async (req,
       action: 'create',
       resourceType: 'purchase_order',
       resourceId: orderId,
-      description: `Created purchase order ${orderNumber} for supplier ${result.completeOrder.supplierName} with ${items.length} item(s)`,
+      description: `Created purchase order ${orderNumber} for supplier ${result.completeOrder.supplierName} with ${items.length} item(s). Document generated.`,
       changedFields: {
         orderNumber,
         supplierId,
@@ -1490,6 +1490,7 @@ router.post('/orders', authorized('ADMIN', 'purchase-order.create'), async (req,
         status: 'pending',
         workflowState: 'approve'
       },
+      documentPath: result.documentInfo?.htmlPath,
       ipAddress: getClientIp(req),
     });
 
@@ -3449,6 +3450,8 @@ router.post('/putaway/:id/confirm', async (req, res) => {
         action: 'putaway_confirm',
         resourceType: 'receipt',
         resourceId: receiptId,
+        description: `Putaway confirmed for GRN ${receiptData.grnDocument?.documentNumber || 'N/A'}. Document ${putawayNumber} generated.`,
+        documentPath: filePath,
         status: 'success',
         ipAddress: getClientIp(req),
       });
@@ -3838,6 +3841,7 @@ router.post('/receive/:id/submit', async (req, res) => {
           workflowState: { from: existingOrder.workflowState, to: newWorkflowState },
           grnNumber: { to: grnNumber },
         },
+        documentPath: relativePath,
         status: 'success',
         ipAddress: getClientIp(req),
       });

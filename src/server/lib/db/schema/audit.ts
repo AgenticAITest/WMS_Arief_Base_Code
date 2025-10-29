@@ -28,6 +28,7 @@ export const auditLogs = pgTable('audit_logs', {
   errorMessage: text('error_message'),
   
   ipAddress: varchar('ip_address', { length: 50 }),
+  documentPath: text('document_path'),
   
   createdAt: timestamp('created_at').defaultNow().notNull(),
 },

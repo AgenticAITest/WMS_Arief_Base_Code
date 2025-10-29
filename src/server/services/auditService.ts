@@ -16,6 +16,7 @@ export interface AuditLogData {
   status?: 'success' | 'failure';
   errorMessage?: string;
   ipAddress?: string;
+  documentPath?: string;
 }
 
 export async function logAudit(data: AuditLogData) {
@@ -35,6 +36,7 @@ export async function logAudit(data: AuditLogData) {
       status: data.status || 'success',
       errorMessage: data.errorMessage || null,
       ipAddress: data.ipAddress || null,
+      documentPath: data.documentPath || null,
     });
   } catch (error) {
     console.error('Failed to write audit log:', error);

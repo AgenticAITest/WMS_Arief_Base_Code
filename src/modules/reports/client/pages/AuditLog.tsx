@@ -32,12 +32,14 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Calendar
+  Calendar,
+  FileText
 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
+import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 
 interface AuditLog {
   id: string;
@@ -54,6 +56,7 @@ interface AuditLog {
   status: string;
   errorMessage: string | null;
   ipAddress: string | null;
+  documentPath: string | null;
   createdAt: string;
 }
 
@@ -62,6 +65,12 @@ const AuditLog: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+
+  // Document viewer modal state
+  const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
+  const [documentType, setDocumentType] = useState<'PO' | 'GRN' | 'PUTAWAY'>('PO');
+  const [documentId, setDocumentId] = useState<string>('');
+  const [documentNumber, setDocumentNumber] = useState<string>('');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -266,6 +275,56 @@ const AuditLog: React.FC = () => {
         return 'bg-red-50 text-red-800 ring-red-600/20';
       default:
         return 'bg-gray-50 text-gray-800 ring-gray-600/20';
+    }
+  };
+
+  const handleViewDocument = async (log: AuditLog) => {
+    try {
+      // 1. Determine document type based on audit log action
+      let docType: 'PO' | 'GRN' | 'PUTAWAY';
+      if (log.action === 'create') {
+        docType = 'PO';
+      } else if (log.action === 'receive') {
+        docType = 'GRN';
+      } else if (log.action === 'putaway_confirm') {
+        docType = 'PUTAWAY';
+      } else {
+        toast.error('Unable to determine document type from action: ' + log.action);
+        return;
+      }
+
+      // 2. Extract document number from documentPath
+      // Example path: "storage/purchase-order/documents/tenants/xxx/po/2025/PO-2510-WH-0001.html"
+      // or "storage/purchase-order/documents/tenants/xxx/grn/2025/GRN-2510-WH1-0002.html"
+      // or "storage/purchase-order/documents/tenants/xxx/putaway/2025/PUTAWAY-2510-WH1-0003.html"
+      if (!log.documentPath) {
+        toast.error('No document path available');
+        return;
+      }
+
+      const pathParts = log.documentPath.split('/');
+      const fileName = pathParts[pathParts.length - 1]; // e.g., "PO-2510-WH-0001.html"
+      const docNumber = fileName.replace('.html', ''); // Remove .html extension
+
+      // 3. Make API call to get documentId based on document number
+      const response = await axios.get(
+        `/api/modules/document-numbering/documents/by-number/${encodeURIComponent(docNumber)}`
+      );
+
+      if (response.data && response.data.data && response.data.data.id) {
+        const docId = response.data.data.id;
+
+        // 4. Open modal to display the document
+        setDocumentType(docType);
+        setDocumentId(docId);
+        setDocumentNumber(docNumber);
+        setDocumentViewerOpen(true);
+      } else {
+        toast.error('Document not found in database');
+      }
+    } catch (error: any) {
+      console.error('Error viewing document:', error);
+      toast.error(error.response?.data?.error || 'Failed to load document');
     }
   };
 
@@ -507,14 +566,26 @@ const AuditLog: React.FC = () => {
                             </span>
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleViewDetails(log)}
-                              title="View Details"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleViewDetails(log)}
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {log.documentPath && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleViewDocument(log)}
+                                  title="View Document"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -650,6 +721,15 @@ const AuditLog: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Document Viewer Modal */}
+      <DocumentViewerModal
+        isOpen={documentViewerOpen}
+        onClose={() => setDocumentViewerOpen(false)}
+        documentType={documentType}
+        documentId={documentId}
+        documentNumber={documentNumber}
+      />
     </div>
   );
 };
