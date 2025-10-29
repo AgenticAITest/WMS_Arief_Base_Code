@@ -96,6 +96,7 @@ export const purchaseOrdersReceipt = pgTable('purchase_orders_receipt', {
   receivedBy: uuid('received_by')
     .references(() => user.id),
   notes: text('notes'),
+  putawayStatus: varchar('putaway_status', { length: 20 }).default('pending').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
 },
