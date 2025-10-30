@@ -3921,8 +3921,6 @@ router.get('/grn/:documentId/html', async (req, res) => {
     const tenantId = req.user!.activeTenantId;
     const { documentId } = req.params;
 
-    console.log('[DEBUG-GRN-HTML] Request for documentId:', documentId, 'tenantId:', tenantId);
-
     // Fetch the generated document metadata
     const [document] = await db
       .select()
@@ -3934,25 +3932,18 @@ router.get('/grn/:documentId/html', async (req, res) => {
       ))
       .limit(1);
 
-    console.log('[DEBUG-GRN-HTML] Document found:', document ? 'YES' : 'NO');
-
     if (!document) {
-      console.log('[DEBUG-GRN-HTML] Document not found in database');
       return res.status(404).json({
         success: false,
         message: 'GRN document not found',
       });
     }
 
-    console.log('[DEBUG-GRN-HTML] Document files field:', JSON.stringify(document.files, null, 2));
-
     // Read HTML file from storage
     const htmlFilePath = path.join(process.cwd(), (document.files as any).html.path);
-    console.log('[DEBUG-GRN-HTML] Attempting to read from path:', htmlFilePath);
     
     try {
       const htmlContent = await fs.readFile(htmlFilePath, 'utf-8');
-      console.log('[DEBUG-GRN-HTML] HTML content loaded, length:', htmlContent.length);
       
       res.json({
         success: true,
@@ -3963,14 +3954,14 @@ router.get('/grn/:documentId/html', async (req, res) => {
         },
       });
     } catch (fileError) {
-      console.error('[ERROR-GRN-HTML] Error reading HTML file:', fileError);
+      console.error('Error reading GRN HTML file:', fileError);
       return res.status(404).json({
         success: false,
         message: 'GRN HTML file not found on disk',
       });
     }
   } catch (error: any) {
-    console.error('[ERROR-GRN-HTML] Error fetching GRN HTML:', error);
+    console.error('Error fetching GRN HTML:', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Internal server error',

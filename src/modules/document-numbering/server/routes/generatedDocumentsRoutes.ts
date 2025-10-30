@@ -291,8 +291,6 @@ router.get('/documents/by-number/:documentNumber', async (req, res) => {
     const { documentNumber } = req.params;
     const tenantId = req.user?.activeTenantId;
 
-    console.log('[DEBUG] Looking for document:', documentNumber, 'for tenant:', tenantId);
-
     const [document] = await db
       .select()
       .from(generatedDocuments)
@@ -304,17 +302,13 @@ router.get('/documents/by-number/:documentNumber', async (req, res) => {
       )
       .limit(1);
 
-    console.log('[DEBUG] Document found:', document ? 'YES' : 'NO', document?.id);
-
     if (!document) {
-      console.log('[DEBUG] Returning 404 - document not found');
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    console.log('[DEBUG] Returning document data');
     res.json({ data: document });
   } catch (error) {
-    console.error('[ERROR] Error fetching document by number:', error);
+    console.error('Error fetching document by number:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
