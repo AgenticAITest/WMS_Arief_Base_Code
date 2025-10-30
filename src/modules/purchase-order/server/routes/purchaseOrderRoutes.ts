@@ -1470,6 +1470,9 @@ router.post('/orders', authorized('ADMIN', 'purchase-order.create'), async (req,
     });
 
     // Log audit trail
+    console.log('[DEBUG] result.documentInfo:', result.documentInfo);
+    console.log('[DEBUG] documentPath to be logged:', result.documentInfo?.filePath);
+    
     await logAudit({
       tenantId,
       userId: currentUser?.id,
