@@ -1490,7 +1490,7 @@ router.post('/orders', authorized('ADMIN', 'purchase-order.create'), async (req,
         status: 'pending',
         workflowState: 'approve'
       },
-      documentPath: result.documentInfo?.htmlPath,
+      documentPath: result.documentInfo?.filePath,
       ipAddress: getClientIp(req),
     });
 
