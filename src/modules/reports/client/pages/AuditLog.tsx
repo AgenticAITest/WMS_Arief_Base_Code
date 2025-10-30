@@ -279,8 +279,10 @@ const AuditLog: React.FC = () => {
   };
 
   const handleViewDocument = async (log: AuditLog) => {
+    console.log('[DEBUG-FRONTEND] handleViewDocument called with log:', log);
     try {
       // 1. Determine document type based on audit log action
+      console.log('[DEBUG-FRONTEND] Step 1: Determining document type from action:', log.action);
       let docType: 'PO' | 'GRN' | 'PUTAWAY';
       if (log.action === 'create') {
         docType = 'PO';
@@ -292,11 +294,13 @@ const AuditLog: React.FC = () => {
         toast.error('Unable to determine document type from action: ' + log.action);
         return;
       }
+      console.log('[DEBUG-FRONTEND] Document type:', docType);
 
       // 2. Extract document number from documentPath
       // Example path: "storage/purchase-order/documents/tenants/xxx/po/2025/PO-2510-WH-0001.html"
       // or "storage/purchase-order/documents/tenants/xxx/grn/2025/GRN-2510-WH1-0002.html"
       // or "storage/purchase-order/documents/tenants/xxx/putaway/2025/PUTAWAY-2510-WH1-0003.html"
+      console.log('[DEBUG-FRONTEND] Step 2: Extracting document number from path:', log.documentPath);
       if (!log.documentPath) {
         toast.error('No document path available');
         return;
@@ -305,14 +309,18 @@ const AuditLog: React.FC = () => {
       const pathParts = log.documentPath.split('/');
       const fileName = pathParts[pathParts.length - 1]; // e.g., "PO-2510-WH-0001.html"
       const docNumber = fileName.replace('.html', ''); // Remove .html extension
+      console.log('[DEBUG-FRONTEND] Extracted document number:', docNumber);
 
       // 3. Make API call to get documentId based on document number
+      console.log('[DEBUG-FRONTEND] Step 3: Making API call to get document ID');
       const response = await axios.get(
         `/api/modules/document-numbering/documents/by-number/${encodeURIComponent(docNumber)}`
       );
+      console.log('[DEBUG-FRONTEND] API response:', response.data);
 
       if (response.data && response.data.data && response.data.data.id) {
         const docId = response.data.data.id;
+        console.log('[DEBUG-FRONTEND] Step 4: Opening modal with docId:', docId);
 
         // 4. Open modal to display the document
         setDocumentType(docType);
@@ -320,10 +328,12 @@ const AuditLog: React.FC = () => {
         setDocumentNumber(docNumber);
         setDocumentViewerOpen(true);
       } else {
+        console.log('[DEBUG-FRONTEND] Document not found in response');
         toast.error('Document not found in database');
       }
     } catch (error: any) {
-      console.error('Error viewing document:', error);
+      console.error('[ERROR-FRONTEND] Error viewing document:', error);
+      console.error('[ERROR-FRONTEND] Error response:', error.response);
       toast.error(error.response?.data?.error || 'Failed to load document');
     }
   };
