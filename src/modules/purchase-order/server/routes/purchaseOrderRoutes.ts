@@ -1469,9 +1469,13 @@ router.post('/orders', authorized('ADMIN', 'purchase-order.create'), async (req,
       };
     });
 
+    console.log('[DEBUG-1] Transaction completed successfully');
+    console.log('[DEBUG-2] result:', JSON.stringify(result, null, 2));
+    
     // Log audit trail
-    console.log('[DEBUG] result.documentInfo:', result.documentInfo);
-    console.log('[DEBUG] documentPath to be logged:', result.documentInfo?.filePath);
+    console.log('[DEBUG-3] About to call logAudit');
+    console.log('[DEBUG-4] result.documentInfo:', result.documentInfo);
+    console.log('[DEBUG-5] documentPath to be logged:', result.documentInfo?.filePath);
     
     await logAudit({
       tenantId,
@@ -1497,6 +1501,8 @@ router.post('/orders', authorized('ADMIN', 'purchase-order.create'), async (req,
       ipAddress: getClientIp(req),
     });
 
+    console.log('[DEBUG-6] logAudit completed successfully');
+    
     res.status(201).json({
       success: true,
       data: {
@@ -1507,7 +1513,8 @@ router.post('/orders', authorized('ADMIN', 'purchase-order.create'), async (req,
       message: 'Purchase order created successfully',
     });
   } catch (error) {
-    console.error('Error creating purchase order:', error);
+    console.error('[ERROR] Error creating purchase order:', error);
+    console.error('[ERROR] Error stack:', (error as Error).stack);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
