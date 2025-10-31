@@ -12,17 +12,24 @@ export const transporters = pgTable('transporters', {
     .notNull()
     .references(() => tenant.id),
   name: varchar('name', { length: 255 }).notNull(),
+  code: varchar('code', { length: 50 }).notNull(),
   contactPerson: varchar('contact_person', { length: 255 }),
   phone: varchar('phone', { length: 50 }),
   email: varchar('email', { length: 255 }),
+  website: varchar('website', { length: 500 }),
   serviceAreas: jsonb('service_areas'),
   isActive: boolean('is_active').default(true).notNull(),
+  notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
+  createdBy: uuid('created_by').references(() => user.id),
+  updatedBy: uuid('updated_by').references(() => user.id),
 },
   (t) => [
-    uniqueIndex('transporters_unique_idx').on(t.tenantId, t.name),
+    uniqueIndex('transporters_unique_idx').on(t.tenantId, t.code),
     index('transporters_tenant_idx').on(t.tenantId),
+    index('transporters_active_idx').on(t.tenantId, t.isActive),
+    index('transporters_code_idx').on(t.tenantId, t.code),
   ]
 );
 
@@ -31,33 +38,33 @@ export const shippingMethods = pgTable('shipping_methods', {
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenant.id),
-  methodType: varchar('method_type', { 
-    length: 20,
+  name: varchar('name', { length: 255 }).notNull(),
+  code: varchar('code', { length: 50 }).notNull(),
+  type: varchar('type', { 
+    length: 50,
     enum: ['internal', 'third_party']
   }).notNull(),
   transporterId: uuid('transporter_id')
     .references(() => transporters.id),
-  name: varchar('name', { length: 255 }).notNull(),
-  estimatedDays: integer('estimated_days'),
-  costCalculation: varchar('cost_calculation', { 
+  costCalculationMethod: varchar('cost_calculation_method', { 
     length: 50,
-    enum: ['fixed', 'weight_based', 'volumetric_based']
-  }),
+    enum: ['fixed', 'weight_based', 'volume_based', 'distance_based']
+  }).notNull().default('fixed'),
+  baseCost: decimal('base_cost', { precision: 15, scale: 2 }),
+  estimatedDays: integer('estimated_days'),
   isActive: boolean('is_active').default(true).notNull(),
+  description: text('description'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
+  createdBy: uuid('created_by').references(() => user.id),
+  updatedBy: uuid('updated_by').references(() => user.id),
 },
   (t) => ({
-    uniqueIdx: uniqueIndex('shipping_methods_unique_idx').on(t.tenantId, t.name),
+    uniqueIdx: uniqueIndex('shipping_methods_unique_idx').on(t.tenantId, t.code),
     tenantIdx: index('shipping_methods_tenant_idx').on(t.tenantId),
+    activeIdx: index('shipping_methods_active_idx').on(t.tenantId, t.isActive),
+    typeIdx: index('shipping_methods_type_idx').on(t.tenantId, t.type),
     transporterIdx: index('shipping_methods_transporter_idx').on(t.transporterId),
-    methodTypeCheck: check(
-      'method_type_transporter_check',
-      sql`(
-        (method_type = 'internal' AND transporter_id IS NULL) OR
-        (method_type = 'third_party' AND transporter_id IS NOT NULL)
-      )`
-    ),
   })
 );
 
@@ -70,98 +77,97 @@ export const salesOrders = pgTable('sales_orders', {
   customerId: uuid('customer_id')
     .notNull()
     .references(() => customers.id),
-  billingLocationId: uuid('billing_location_id')
+  customerLocationId: uuid('customer_location_id')
     .references(() => customerLocations.id),
-  shippingLocationId: uuid('shipping_location_id')
-    .references(() => customerLocations.id),
-  shippingMethodId: uuid('shipping_method_id')
-    .references(() => shippingMethods.id),
   warehouseId: uuid('warehouse_id')
     .notNull()
     .references(() => warehouses.id),
+  orderDate: date('order_date').notNull(),
+  expectedDeliveryDate: date('expected_delivery_date'),
   status: varchar('status', { 
     length: 50, 
-    enum: ['pending', 'confirmed', 'allocated', 'picked', 'packed', 'shipped', 'delivered', 'cancelled', 'completed'] 
-  }).notNull().default('pending'),
-  workflowState: varchar('workflow_state', { 
-    length: 50, 
-    enum: ['create', 'allocate', 'pick', 'pack', 'ship', 'deliver', 'complete'] 
-  }).default('create'),
-  orderDate: date('order_date').notNull(),
-  requestedDeliveryDate: date('requested_delivery_date'),
-  actualDeliveryDate: date('actual_delivery_date'),
-  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }),
-  trackingNumber: varchar('tracking_number', { length: 100 }),
-  deliveryInstructions: text('delivery_instructions'),
+    enum: ['draft', 'confirmed', 'allocated', 'picking', 'picked', 'shipped', 'delivered', 'cancelled'] 
+  }).notNull().default('draft'),
+  workflowState: varchar('workflow_state', { length: 50 }),
+  priority: varchar('priority', { 
+    length: 50,
+    enum: ['low', 'normal', 'high', 'urgent']
+  }).default('normal'),
+  totalAmount: decimal('total_amount', { precision: 15, scale: 2 }).notNull().default('0'),
+  currency: varchar('currency', { length: 3 }).notNull().default('USD'),
+  paymentTerms: varchar('payment_terms', { length: 100 }),
   notes: text('notes'),
-  createdBy: uuid('created_by')
-    .references(() => user.id),
+  internalNotes: text('internal_notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
+  createdBy: uuid('created_by').references(() => user.id),
+  updatedBy: uuid('updated_by').references(() => user.id),
 },
   (t) => ({
-    orderNumberUnique: uniqueIndex('sales_orders_order_number_unique_idx').on(t.orderNumber),
+    orderNumberUnique: uniqueIndex('sales_orders_order_number_unique_idx').on(t.tenantId, t.orderNumber),
     tenantIdx: index('sales_orders_tenant_idx').on(t.tenantId),
     customerIdx: index('sales_orders_customer_idx').on(t.customerId),
-    statusIdx: index('sales_orders_status_idx').on(t.status),
     warehouseIdx: index('sales_orders_warehouse_idx').on(t.warehouseId),
-    orderDateIdx: index('sales_orders_order_date_idx').on(t.orderDate),
+    statusIdx: index('sales_orders_status_idx').on(t.tenantId, t.status),
+    dateIdx: index('sales_orders_date_idx').on(t.tenantId, t.orderDate),
+    numberIdx: index('sales_orders_number_idx').on(t.tenantId, t.orderNumber),
   })
 );
 
 export const salesOrderItems = pgTable('sales_order_items', {
   id: uuid('id').primaryKey().defaultRandom(),
-  salesOrderId: uuid('sales_order_id')
-    .notNull()
-    .references(() => salesOrders.id, { onDelete: 'cascade' }),
-  productId: uuid('product_id')
-    .notNull()
-    .references(() => products.id),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenant.id),
-  orderedQuantity: integer('ordered_quantity').notNull(),
-  allocatedQuantity: integer('allocated_quantity').default(0).notNull(),
-  pickedQuantity: integer('picked_quantity').default(0).notNull(),
-  shippedQuantity: integer('shipped_quantity').default(0).notNull(),
-  unitPrice: decimal('unit_price', { precision: 10, scale: 2 }),
-  totalPrice: decimal('total_price', { precision: 15, scale: 2 }),
+  salesOrderId: uuid('sales_order_id')
+    .notNull()
+    .references(() => salesOrders.id, { onDelete: 'cascade' }),
+  lineNumber: integer('line_number').notNull(),
+  productId: uuid('product_id')
+    .notNull()
+    .references(() => products.id),
+  quantity: decimal('quantity', { precision: 15, scale: 3 }).notNull(),
+  allocatedQuantity: decimal('allocated_quantity', { precision: 15, scale: 3 }).default('0').notNull(),
+  pickedQuantity: decimal('picked_quantity', { precision: 15, scale: 3 }).default('0').notNull(),
+  shippedQuantity: decimal('shipped_quantity', { precision: 15, scale: 3 }).default('0').notNull(),
+  unitPrice: decimal('unit_price', { precision: 15, scale: 2 }).notNull(),
+  discountPercentage: decimal('discount_percentage', { precision: 5, scale: 2 }).default('0'),
+  taxPercentage: decimal('tax_percentage', { precision: 5, scale: 2 }).default('0'),
+  lineTotal: decimal('line_total', { precision: 15, scale: 2 }).notNull(),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
 },
   (t) => [
+    uniqueIndex('sales_order_items_unique_idx').on(t.tenantId, t.salesOrderId, t.lineNumber),
     index('sales_order_items_tenant_idx').on(t.tenantId),
-    index('sales_order_items_so_idx').on(t.salesOrderId),
+    index('sales_order_items_order_idx').on(t.salesOrderId),
     index('sales_order_items_product_idx').on(t.productId),
   ]
 );
 
 export const salesOrderAllocations = pgTable('sales_order_allocations', {
   id: uuid('id').primaryKey().defaultRandom(),
-  soItemId: uuid('so_item_id')
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenant.id),
+  salesOrderItemId: uuid('sales_order_item_id')
     .notNull()
     .references(() => salesOrderItems.id, { onDelete: 'cascade' }),
   inventoryItemId: uuid('inventory_item_id')
     .notNull()
     .references(() => inventoryItems.id),
-  tenantId: uuid('tenant_id')
-    .notNull()
-    .references(() => tenant.id),
-  allocatedQuantity: integer('allocated_quantity').notNull(),
+  allocatedQuantity: decimal('allocated_quantity', { precision: 15, scale: 3 }).notNull(),
   allocationDate: timestamp('allocation_date').defaultNow().notNull(),
   allocatedBy: uuid('allocated_by')
     .references(() => user.id),
-  status: varchar('status', { length: 20 }).default('allocated').notNull(),
-  notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
 },
   (t) => [
-    index('so_allocations_tenant_idx').on(t.tenantId),
-    index('so_allocations_so_item_idx').on(t.soItemId),
-    index('so_allocations_inventory_idx').on(t.inventoryItemId),
-    index('so_allocations_status_idx').on(t.status),
+    index('sales_order_allocations_tenant_idx').on(t.tenantId),
+    index('sales_order_allocations_item_idx').on(t.salesOrderItemId),
+    index('sales_order_allocations_inventory_idx').on(t.inventoryItemId),
   ]
 );
 

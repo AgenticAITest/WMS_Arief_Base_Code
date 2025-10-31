@@ -17,6 +17,14 @@ import documentNumberHistoryRoutes from '../modules/document-numbering/server/ro
 import documentNumberTrackerRoutes from '../modules/document-numbering/server/routes/documentNumberTrackerRoutes';
 import generatedDocumentsRoutes from '../modules/document-numbering/server/routes/generatedDocumentsRoutes';
 import purchaseOrderRoutes from '../modules/purchase-order/server/routes/purchaseOrderRoutes';
+import {
+  transporterRoutes,
+  shippingMethodRoutes,
+  salesOrderRoutes,
+  allocationRoutes,
+  pickRoutes,
+  shipmentRoutes,
+} from '../modules/sales-order/server/routes';
 import workflowRoutes from '../modules/workflow/server/routes/workflowRoutes';
 import reportsRoutes from '../modules/reports/server/routes/reportsRoutes';
 import ViteExpress from "vite-express";
@@ -137,6 +145,14 @@ app.use('/api/modules/document-numbering', generatedDocumentsRoutes);
 
 // purchase-order routes
 app.use('/api/modules/purchase-order', purchaseOrderRoutes);
+
+// sales-order routes
+app.use('/api/modules/sales-order', transporterRoutes);
+app.use('/api/modules/sales-order', shippingMethodRoutes);
+app.use('/api/modules/sales-order', salesOrderRoutes);
+app.use('/api/modules/sales-order', allocationRoutes);
+app.use('/api/modules/sales-order', pickRoutes);
+app.use('/api/modules/sales-order', shipmentRoutes);
 
 // workflow routes
 app.use('/api/modules/workflow', workflowRoutes);
