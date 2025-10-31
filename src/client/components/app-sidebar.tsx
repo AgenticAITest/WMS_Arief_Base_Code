@@ -21,7 +21,8 @@ import { sampleModuleSidebarMenus } from "../../modules/sample-module/client/men
 import { masterDataSidebarMenus } from "../../modules/master-data/client/menus/sideBarMenus"
 import { warehouseSetupSidebarMenus } from "../../modules/warehouse-setup/client/menus/sideBarMenus"
 import { inventoryItemsSidebarMenus } from "../../modules/inventory-items/client/menus/sideBarMenus"
-import { purchaseOrderSidebarMenus } from "../../modules/purchase-order/client/menus/sideBarMenus"
+import { purchaseOrderSidebarMenus, createPurchaseOrderSidebarMenus } from "../../modules/purchase-order/client/menus/sideBarMenus"
+import { usePurchaseOrderWorkflowSteps } from "../../modules/purchase-order/client/hooks/usePurchaseOrderWorkflowSteps"
 import { salesOrderSidebarMenus, createSalesOrderSidebarMenus } from "../../modules/sales-order/client/menus/sideBarMenus"
 import { useSalesOrderWorkflowSteps } from "../../modules/sales-order/client/hooks/useSalesOrderWorkflowSteps"
 import { workflowSidebarMenus } from "../../modules/workflow/client/menus/sideBarMenus"
@@ -169,29 +170,38 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { steps, loading } = useSalesOrderWorkflowSteps();
+  const { steps: salesOrderSteps, loading: salesOrderLoading } = useSalesOrderWorkflowSteps();
+  const { steps: purchaseOrderSteps, loading: purchaseOrderLoading } = usePurchaseOrderWorkflowSteps();
 
   const dynamicSalesOrderMenu = React.useMemo(() => {
-    if (loading || steps.length === 0) {
+    if (salesOrderLoading || salesOrderSteps.length === 0) {
       return salesOrderSidebarMenus;
     }
-    return createSalesOrderSidebarMenus(steps);
-  }, [steps, loading]);
+    return createSalesOrderSidebarMenus(salesOrderSteps);
+  }, [salesOrderSteps, salesOrderLoading]);
+
+  const dynamicPurchaseOrderMenu = React.useMemo(() => {
+    if (purchaseOrderLoading || purchaseOrderSteps.length === 0) {
+      return purchaseOrderSidebarMenus;
+    }
+    return createPurchaseOrderSidebarMenus(purchaseOrderSteps);
+  }, [purchaseOrderSteps, purchaseOrderLoading]);
 
   const navItems = React.useMemo(() => {
-    const staticItems = data.navMain.filter(item => item.id !== 'sales-order');
-    const purchaseOrderIndex = staticItems.findIndex(item => item.id === 'purchase-order');
+    const staticItems = data.navMain.filter(item => item.id !== 'sales-order' && item.id !== 'purchase-order');
+    const inventoryItemsIndex = staticItems.findIndex(item => item.id === 'inventory-items');
     
-    if (purchaseOrderIndex >= 0) {
+    if (inventoryItemsIndex >= 0) {
       return [
-        ...staticItems.slice(0, purchaseOrderIndex + 1),
+        ...staticItems.slice(0, inventoryItemsIndex + 1),
+        dynamicPurchaseOrderMenu,
         dynamicSalesOrderMenu,
-        ...staticItems.slice(purchaseOrderIndex + 1),
+        ...staticItems.slice(inventoryItemsIndex + 1),
       ];
     }
     
-    return [...staticItems, dynamicSalesOrderMenu];
-  }, [dynamicSalesOrderMenu]);
+    return [...staticItems, dynamicPurchaseOrderMenu, dynamicSalesOrderMenu];
+  }, [dynamicPurchaseOrderMenu, dynamicSalesOrderMenu]);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
