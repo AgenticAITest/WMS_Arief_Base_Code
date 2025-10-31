@@ -1,0 +1,83 @@
+{
+  "id": "sales-order",
+  "name": "Sales Order",
+  "owner": "Warehouse Management Team",
+  "description": "Comprehensive sales order management module with order processing, inventory allocation, picking, packing, and shipping workflows. Includes full lifecycle tracking from order creation to delivery.",
+  "version": "1.0.0",
+  "metadata": {
+    "category": "Operations",
+    "tags": ["sales", "orders", "shipping", "picking", "allocation", "delivery"],
+    "dependencies": {
+      "requires": [
+        "authentication",
+        "multi-tenant",
+        "master-data",
+        "warehouse-setup",
+        "inventory-items",
+        "document-numbering"
+      ],
+      "optional": ["workflow"]
+    },
+    "permissions": [
+      "sales-order.view",
+      "sales-order.create",
+      "sales-order.edit",
+      "sales-order.delete",
+      "sales-order.allocate",
+      "sales-order.pick",
+      "sales-order.pack",
+      "sales-order.ship"
+    ],
+    "routes": {
+      "api": "/api/modules/sales-order",
+      "client": "/console/modules/sales-order"
+    },
+    "database": {
+      "tables": [
+        "shipping_methods",
+        "sales_orders",
+        "sales_order_items",
+        "sales_order_allocations",
+        "sales_order_picks",
+        "sales_order_shipments",
+        "shipment_items"
+      ],
+      "relations": [
+        "tenant",
+        "user",
+        "customers",
+        "customer_locations",
+        "products",
+        "warehouses",
+        "inventory_items",
+        "generated_documents"
+      ]
+    },
+    "features": [
+      "Sales Order CRUD operations",
+      "Multi-item order management",
+      "Inventory allocation system",
+      "Pick list generation and tracking",
+      "Batch/Lot/Serial number tracking",
+      "Shipping method management",
+      "Shipment document generation",
+      "Delivery tracking",
+      "Multi-tenant support",
+      "Workflow state management",
+      "Audit trail integration"
+    ]
+  },
+  "author": {
+    "name": "Warehouse Management Team",
+    "email": "admin@example.com",
+    "url": "https://github.com/your-org/react-admin"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/react-admin.git",
+    "directory": "src/modules/sales-order"
+  },
+  "license": "MIT",
+  "createdAt": "2025-10-31T00:00:00Z",
+  "updatedAt": "2025-10-31T00:00:00Z"
+}

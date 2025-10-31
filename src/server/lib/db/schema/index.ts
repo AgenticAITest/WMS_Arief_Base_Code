@@ -8,5 +8,6 @@ export * from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 export * from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
 export * from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
 export * from '@modules/purchase-order/server/lib/db/schemas/purchaseOrder';
+export * from '@modules/sales-order/server/lib/db/schemas/salesOrder';
 export * from '@modules/workflow/server/lib/db/schemas/workflow';
 export * from '@modules/reports/server/lib/db/schemas/reports';
