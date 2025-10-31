@@ -6,6 +6,7 @@ import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/i
 import { warehouses, bins, zones, aisles, shelves } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { user } from '@server/lib/db/schema/system';
 import { documentNumberConfig, generatedDocuments, documentNumberHistory } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
+import { workflows, workflowSteps } from '../../../workflow/server/lib/db/schemas/workflow';
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, or, sql, sum, inArray, isNotNull } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
@@ -4042,6 +4043,50 @@ router.get('/putaway/:documentId/html', async (req, res) => {
       success: false,
       message: error.message || 'Internal server error',
     });
+  }
+});
+
+router.get('/workflow-steps', authorized('ADMIN', 'purchase-order.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    const workflowResults = await db
+      .select()
+      .from(workflows)
+      .where(
+        and(
+          eq(workflows.tenantId, tenantId),
+          eq(workflows.type, 'PURCHASE_ORDER'),
+          eq(workflows.isDefault, true),
+          eq(workflows.isActive, true)
+        )
+      )
+      .limit(1);
+
+    if (workflowResults.length === 0) {
+      return res.status(404).json({ error: 'No active Purchase Order workflow found' });
+    }
+
+    const workflow = workflowResults[0];
+
+    const steps = await db
+      .select()
+      .from(workflowSteps)
+      .where(
+        and(
+          eq(workflowSteps.workflowId, workflow.id),
+          eq(workflowSteps.isActive, true)
+        )
+      )
+      .orderBy(workflowSteps.stepOrder);
+
+    res.json({
+      workflow,
+      steps,
+    });
+  } catch (error) {
+    console.error('Error fetching workflow steps:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
