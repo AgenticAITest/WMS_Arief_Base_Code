@@ -312,17 +312,9 @@ export const salesOrdersRelations = relations(salesOrders, ({ one, many }) => ({
     fields: [salesOrders.customerId],
     references: [customers.id],
   }),
-  billingLocation: one(customerLocations, {
-    fields: [salesOrders.billingLocationId],
+  customerLocation: one(customerLocations, {
+    fields: [salesOrders.customerLocationId],
     references: [customerLocations.id],
-  }),
-  shippingLocation: one(customerLocations, {
-    fields: [salesOrders.shippingLocationId],
-    references: [customerLocations.id],
-  }),
-  shippingMethod: one(shippingMethods, {
-    fields: [salesOrders.shippingMethodId],
-    references: [shippingMethods.id],
   }),
   warehouse: one(warehouses, {
     fields: [salesOrders.warehouseId],
@@ -330,6 +322,10 @@ export const salesOrdersRelations = relations(salesOrders, ({ one, many }) => ({
   }),
   creator: one(user, {
     fields: [salesOrders.createdBy],
+    references: [user.id],
+  }),
+  updater: one(user, {
+    fields: [salesOrders.updatedBy],
     references: [user.id],
   }),
   items: many(salesOrderItems),
@@ -355,8 +351,8 @@ export const salesOrderItemsRelations = relations(salesOrderItems, ({ one, many 
 }));
 
 export const salesOrderAllocationsRelations = relations(salesOrderAllocations, ({ one, many }) => ({
-  soItem: one(salesOrderItems, {
-    fields: [salesOrderAllocations.soItemId],
+  salesOrderItem: one(salesOrderItems, {
+    fields: [salesOrderAllocations.salesOrderItemId],
     references: [salesOrderItems.id],
   }),
   inventoryItem: one(inventoryItems, {
@@ -471,3 +467,4 @@ export type NewPackage = typeof packages.$inferInsert;
 
 export type PackageItem = typeof packageItems.$inferSelect;
 export type NewPackageItem = typeof packageItems.$inferInsert;
+
