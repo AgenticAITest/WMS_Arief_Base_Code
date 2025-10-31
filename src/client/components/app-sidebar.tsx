@@ -22,6 +22,8 @@ import { masterDataSidebarMenus } from "../../modules/master-data/client/menus/s
 import { warehouseSetupSidebarMenus } from "../../modules/warehouse-setup/client/menus/sideBarMenus"
 import { inventoryItemsSidebarMenus } from "../../modules/inventory-items/client/menus/sideBarMenus"
 import { purchaseOrderSidebarMenus } from "../../modules/purchase-order/client/menus/sideBarMenus"
+import { salesOrderSidebarMenus, createSalesOrderSidebarMenus } from "../../modules/sales-order/client/menus/sideBarMenus"
+import { useSalesOrderWorkflowSteps } from "../../modules/sales-order/client/hooks/useSalesOrderWorkflowSteps"
 import { workflowSidebarMenus } from "../../modules/workflow/client/menus/sideBarMenus"
 import { reportsSidebarMenus } from "../../modules/reports/client/menus/sideBarMenus"
 // This is sample data.
@@ -167,13 +169,37 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { steps, loading } = useSalesOrderWorkflowSteps();
+
+  const dynamicSalesOrderMenu = React.useMemo(() => {
+    if (loading || steps.length === 0) {
+      return salesOrderSidebarMenus;
+    }
+    return createSalesOrderSidebarMenus(steps);
+  }, [steps, loading]);
+
+  const navItems = React.useMemo(() => {
+    const staticItems = data.navMain.filter(item => item.id !== 'sales-order');
+    const purchaseOrderIndex = staticItems.findIndex(item => item.id === 'purchase-order');
+    
+    if (purchaseOrderIndex >= 0) {
+      return [
+        ...staticItems.slice(0, purchaseOrderIndex + 1),
+        dynamicSalesOrderMenu,
+        ...staticItems.slice(purchaseOrderIndex + 1),
+      ];
+    }
+    
+    return [...staticItems, dynamicSalesOrderMenu];
+  }, [dynamicSalesOrderMenu]);
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
         <TeamSwitcher/>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={navItems} />
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>

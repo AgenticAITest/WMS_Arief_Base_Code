@@ -10,6 +10,7 @@ import {
   salesOrderAllocations,
   salesOrderPicks,
 } from '../lib/db/schemas/salesOrder';
+import { workflows, workflowSteps } from '../../../workflow/server/lib/db/schemas/workflow';
 
 const router = express.Router();
 router.use(authenticated());
@@ -40,7 +41,7 @@ router.get('/sales-orders', authorized('ADMIN', 'sales-order.view'), async (req,
     }
 
     if (status) {
-      query = query.where(eq(salesOrders.status, status));
+      query = query.where(eq(salesOrders.status, status as any));
     }
 
     const results = await query
@@ -129,37 +130,31 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       return res.status(400).json({ error: 'At least one item is required' });
     }
 
-    const orderId = uuidv4();
-
-    const newOrder = {
-      id: orderId,
-      tenantId,
-      orderNumber,
-      customerId,
-      customerLocationId,
-      warehouseId,
-      orderDate: new Date(orderDate),
-      expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
-      priority: priority || 'normal',
-      totalAmount: totalAmount || 0,
-      currency: currency || 'USD',
-      paymentTerms,
-      notes,
-      internalNotes,
-      status: 'draft',
-      createdBy: userId,
-      updatedBy: userId,
-    };
-
     const [createdOrder] = await db
       .insert(salesOrders)
-      .values(newOrder)
+      .values({
+        tenantId,
+        orderNumber,
+        customerId,
+        customerLocationId,
+        warehouseId,
+        orderDate: new Date(orderDate),
+        expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
+        priority: priority || 'normal',
+        totalAmount: totalAmount || 0,
+        currency: currency || 'USD',
+        paymentTerms,
+        notes,
+        internalNotes,
+        status: 'draft' as any,
+        createdBy: userId,
+        updatedBy: userId,
+      } as any)
       .returning();
 
     const orderItems = items.map((item: any, index: number) => ({
-      id: uuidv4(),
       tenantId,
-      salesOrderId: orderId,
+      salesOrderId: createdOrder.id,
       lineNumber: index + 1,
       productId: item.productId,
       quantity: item.quantity,
@@ -271,6 +266,50 @@ router.delete('/sales-orders/:id', authorized('ADMIN', 'sales-order.delete'), as
     res.status(204).send();
   } catch (error) {
     console.error('Error deleting sales order:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/workflow-steps', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    const workflowResults = await db
+      .select()
+      .from(workflows)
+      .where(
+        and(
+          eq(workflows.tenantId, tenantId),
+          eq(workflows.type, 'SALES_ORDER'),
+          eq(workflows.isDefault, true),
+          eq(workflows.isActive, true)
+        )
+      )
+      .limit(1);
+
+    if (workflowResults.length === 0) {
+      return res.status(404).json({ error: 'No active Sales Order workflow found' });
+    }
+
+    const workflow = workflowResults[0];
+
+    const steps = await db
+      .select()
+      .from(workflowSteps)
+      .where(
+        and(
+          eq(workflowSteps.workflowId, workflow.id),
+          eq(workflowSteps.isActive, true)
+        )
+      )
+      .orderBy(workflowSteps.stepOrder);
+
+    res.json({
+      workflow,
+      steps,
+    });
+  } catch (error) {
+    console.error('Error fetching workflow steps:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
