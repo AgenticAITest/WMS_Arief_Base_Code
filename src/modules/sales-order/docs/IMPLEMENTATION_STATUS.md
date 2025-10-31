@@ -103,21 +103,29 @@ src/modules/sales-order/
 └── module.json ✅
 ```
 
-## Pending ⏳
+## Database Migration - Completed ✅
 
-### Database Push
-**Action Required:** Push schema to database
+### Migration Executed
+**File:** `src/modules/sales-order/migrations/001_create_sales_order_tables.sql`
 
-```bash
-npm run db:push
-```
+**Method:** Native SQL migration (as requested - avoided `db:push --force`)
 
-Or if data-loss warning appears:
-```bash
-npm run db:push --force
-```
+**Execution Date:** October 31, 2025
 
-**Note:** The db:push command was attempted but timed out during the "Pulling schema from database" phase. This appears to be a connection/timing issue, not a schema error (LSP validation passed).
+**Result:** All 9 tables created successfully with proper constraints and indexes
+
+**Tables Verified:**
+- ✅ transporters
+- ✅ shipping_methods
+- ✅ sales_orders
+- ✅ sales_order_items
+- ✅ sales_order_allocations
+- ✅ sales_order_picks
+- ✅ shipments
+- ✅ packages
+- ✅ package_items
+
+**Note:** Migration file was updated to use correct table names (`sys_tenant` and `sys_user` instead of `tenant` and `user`).
 
 ### Next Steps (In Order):
 

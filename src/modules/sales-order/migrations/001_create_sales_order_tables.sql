@@ -5,7 +5,7 @@
 -- 1. Transporters Table (Third-party shipping carriers)
 CREATE TABLE IF NOT EXISTS transporters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     code VARCHAR(50) NOT NULL,
     contact_person VARCHAR(255),
@@ -17,8 +17,8 @@ CREATE TABLE IF NOT EXISTS transporters (
     notes TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
-    updated_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
     UNIQUE(tenant_id, code)
 );
 
@@ -29,7 +29,7 @@ CREATE INDEX idx_transporters_code ON transporters(tenant_id, code);
 -- 2. Shipping Methods Table
 CREATE TABLE IF NOT EXISTS shipping_methods (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     code VARCHAR(50) NOT NULL,
     type VARCHAR(50) NOT NULL CHECK (type IN ('internal', 'third_party')),
@@ -41,8 +41,8 @@ CREATE TABLE IF NOT EXISTS shipping_methods (
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
-    updated_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
     UNIQUE(tenant_id, code),
     CHECK (
         (type = 'internal' AND transporter_id IS NULL) OR
@@ -58,7 +58,7 @@ CREATE INDEX idx_shipping_methods_transporter ON shipping_methods(transporter_id
 -- 3. Sales Orders Table
 CREATE TABLE IF NOT EXISTS sales_orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     order_number VARCHAR(100) NOT NULL,
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
     customer_location_id UUID REFERENCES customer_locations(id) ON DELETE RESTRICT,
@@ -75,8 +75,8 @@ CREATE TABLE IF NOT EXISTS sales_orders (
     internal_notes TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
-    updated_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
     UNIQUE(tenant_id, order_number)
 );
 
@@ -90,7 +90,7 @@ CREATE INDEX idx_sales_orders_number ON sales_orders(tenant_id, order_number);
 -- 4. Sales Order Items Table
 CREATE TABLE IF NOT EXISTS sales_order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     sales_order_id UUID NOT NULL REFERENCES sales_orders(id) ON DELETE CASCADE,
     line_number INTEGER NOT NULL,
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
@@ -115,12 +115,12 @@ CREATE INDEX idx_sales_order_items_product ON sales_order_items(product_id);
 -- 5. Sales Order Allocations Table
 CREATE TABLE IF NOT EXISTS sales_order_allocations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     sales_order_item_id UUID NOT NULL REFERENCES sales_order_items(id) ON DELETE CASCADE,
     inventory_item_id UUID NOT NULL REFERENCES inventory_items(id) ON DELETE RESTRICT,
     allocated_quantity NUMERIC(15, 3) NOT NULL,
     allocation_date TIMESTAMP NOT NULL DEFAULT NOW(),
-    allocated_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
+    allocated_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -132,7 +132,7 @@ CREATE INDEX idx_sales_order_allocations_inventory ON sales_order_allocations(in
 -- 6. Sales Order Picks Table
 CREATE TABLE IF NOT EXISTS sales_order_picks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     sales_order_item_id UUID NOT NULL REFERENCES sales_order_items(id) ON DELETE CASCADE,
     inventory_item_id UUID NOT NULL REFERENCES inventory_items(id) ON DELETE RESTRICT,
     picked_quantity NUMERIC(15, 3) NOT NULL,
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS sales_order_picks (
     lot_number VARCHAR(100),
     serial_number VARCHAR(100),
     pick_date TIMESTAMP NOT NULL DEFAULT NOW(),
-    picked_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
+    picked_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -155,7 +155,7 @@ CREATE INDEX idx_sales_order_picks_serial ON sales_order_picks(serial_number);
 -- 7. Shipments Table
 CREATE TABLE IF NOT EXISTS shipments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     sales_order_id UUID NOT NULL REFERENCES sales_orders(id) ON DELETE CASCADE,
     shipment_number VARCHAR(100) NOT NULL,
     shipping_method_id UUID REFERENCES shipping_methods(id) ON DELETE SET NULL,
@@ -172,8 +172,8 @@ CREATE TABLE IF NOT EXISTS shipments (
     notes TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
-    updated_by UUID REFERENCES "user"(id) ON DELETE SET NULL,
+    created_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
+    updated_by UUID REFERENCES sys_user(id) ON DELETE SET NULL,
     UNIQUE(tenant_id, sales_order_id),
     UNIQUE(tenant_id, shipment_number)
 );
@@ -187,7 +187,7 @@ CREATE INDEX idx_shipments_number ON shipments(tenant_id, shipment_number);
 -- 8. Packages Table
 CREATE TABLE IF NOT EXISTS packages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     shipment_id UUID NOT NULL REFERENCES shipments(id) ON DELETE CASCADE,
     package_number VARCHAR(100) NOT NULL,
     barcode VARCHAR(255),
@@ -209,7 +209,7 @@ CREATE INDEX idx_packages_barcode ON packages(barcode);
 -- 9. Package Items Table
 CREATE TABLE IF NOT EXISTS package_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    tenant_id UUID NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+    tenant_id UUID NOT NULL REFERENCES sys_tenant(id) ON DELETE CASCADE,
     package_id UUID NOT NULL REFERENCES packages(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
     quantity NUMERIC(15, 3) NOT NULL,
