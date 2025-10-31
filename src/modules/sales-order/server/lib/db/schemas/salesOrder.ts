@@ -146,6 +146,29 @@ export const salesOrderItems = pgTable('sales_order_items', {
   ]
 );
 
+export const salesOrderItemLocations = pgTable('sales_order_item_locations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenant.id),
+  salesOrderItemId: uuid('sales_order_item_id')
+    .notNull()
+    .references(() => salesOrderItems.id, { onDelete: 'cascade' }),
+  customerLocationId: uuid('customer_location_id')
+    .notNull()
+    .references(() => customerLocations.id),
+  quantity: decimal('quantity', { precision: 15, scale: 3 }).notNull(),
+  deliveryNotes: text('delivery_notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
+},
+  (t) => [
+    index('so_item_locations_tenant_idx').on(t.tenantId),
+    index('so_item_locations_item_idx').on(t.salesOrderItemId),
+    index('so_item_locations_location_idx').on(t.customerLocationId),
+  ]
+);
+
 export const salesOrderAllocations = pgTable('sales_order_allocations', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id')
@@ -348,6 +371,22 @@ export const salesOrderItemsRelations = relations(salesOrderItems, ({ one, many 
   }),
   allocations: many(salesOrderAllocations),
   packageItems: many(packageItems),
+  locations: many(salesOrderItemLocations),
+}));
+
+export const salesOrderItemLocationsRelations = relations(salesOrderItemLocations, ({ one }) => ({
+  salesOrderItem: one(salesOrderItems, {
+    fields: [salesOrderItemLocations.salesOrderItemId],
+    references: [salesOrderItems.id],
+  }),
+  customerLocation: one(customerLocations, {
+    fields: [salesOrderItemLocations.customerLocationId],
+    references: [customerLocations.id],
+  }),
+  tenant: one(tenant, {
+    fields: [salesOrderItemLocations.tenantId],
+    references: [tenant.id],
+  }),
 }));
 
 export const salesOrderAllocationsRelations = relations(salesOrderAllocations, ({ one, many }) => ({
@@ -452,6 +491,9 @@ export type NewSalesOrder = typeof salesOrders.$inferInsert;
 
 export type SalesOrderItem = typeof salesOrderItems.$inferSelect;
 export type NewSalesOrderItem = typeof salesOrderItems.$inferInsert;
+
+export type SalesOrderItemLocation = typeof salesOrderItemLocations.$inferSelect;
+export type NewSalesOrderItemLocation = typeof salesOrderItemLocations.$inferInsert;
 
 export type SalesOrderAllocation = typeof salesOrderAllocations.$inferSelect;
 export type NewSalesOrderAllocation = typeof salesOrderAllocations.$inferInsert;
