@@ -26,6 +26,7 @@ None specified yet
 - Stock Information: Aggregated inventory view by product with location breakdowns.
 - Workflow Configuration: Tenant-specific customizable workflows for Purchase Orders (PO) and Sales Orders (SO).
 - Purchase Order Putaway: Accordion-based interface for POs in 'putaway' state, featuring cascading location selectors and a "Smart Allocation" algorithm for optimal bin suggestions.
+- Sales Order Multi-Location Delivery: SO creation with support for splitting order items across multiple customer delivery locations, with expandable distribution UI and quantity validation.
 - Audit Logging: Comprehensive audit trail for user actions, state changes, and data modifications, with queryable REST APIs.
 
 ### System Design Choices
@@ -44,6 +45,7 @@ None specified yet
 - **Confirm Putaway Flow**: GRN-based transactional workflow for bin assignments, `inventory_items` creation, PUTAWAY document generation, `putawayStatus` updates, and audit logging.
 - **Audit Logging**: Simple system using `audit_logs` table for critical operations, internal `logAudit()` service, and REST APIs for querying. Includes `document_path` field for tracking generated HTML documents (PO, GRN, PUTAWAY).
 - **Document Viewer Integration**: Audit Log UI includes a "View Document" button (FileText icon) that appears when `documentPath` exists. Clicking opens a `DocumentViewerModal` component which fetches and displays the HTML document in a modal, supporting PO, GRN, and PUTAWAY document types.
+- **Sales Order Multi-Location Delivery**: Built using native SQL for schema changes to avoid data loss. `sales_order_item_locations` table tracks per-item delivery locations. Backend uses `db.transaction()` for atomicity, validates location quantity sums, and generates SO numbers via document numbering API. Status filtering uses "draft" for incomplete orders.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.
