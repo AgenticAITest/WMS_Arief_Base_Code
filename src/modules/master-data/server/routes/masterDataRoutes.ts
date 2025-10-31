@@ -2268,4 +2268,106 @@ router.delete('/customers/:id', authorized('ADMIN', 'master-data.delete'), async
   }
 });
 
+// ================================================================================
+// CUSTOMER LOCATIONS ROUTES
+// ================================================================================
+
+router.get('/customer-locations', authorized('ADMIN', 'master-data.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const customerId = req.query.customerId as string;
+
+    if (!customerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'customerId is required',
+      });
+    }
+
+    const locations = await db
+      .select()
+      .from(customerLocations)
+      .where(and(eq(customerLocations.customerId, customerId), eq(customerLocations.tenantId, tenantId)))
+      .orderBy(desc(customerLocations.createdAt));
+
+    res.json({
+      success: true,
+      data: locations,
+    });
+  } catch (error) {
+    console.error('Error fetching customer locations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+// ================================================================================
+// PRODUCTS WITH STOCK ROUTES
+// ================================================================================
+
+router.get('/products-with-stock', authorized('ADMIN', 'master-data.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const search = req.query.search as string;
+    const offset = (page - 1) * limit;
+
+    let whereConditions = [eq(products.tenantId, tenantId)];
+    
+    if (search) {
+      whereConditions.push(
+        ilike(products.name, `%${search}%`)
+      );
+    }
+
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(products)
+      .where(and(...whereConditions));
+
+    // Query products with stock calculation
+    const productsData = await db.execute(`
+      SELECT 
+        p.id,
+        p.sku,
+        p.name,
+        p.description,
+        p.unit_of_measure,
+        p.min_stock_level,
+        COALESCE(SUM(ii.quantity), 0) as available_stock
+      FROM products p
+      LEFT JOIN inventory_items ii ON ii.product_id = p.id AND ii.tenant_id = p.tenant_id
+      WHERE p.tenant_id = $1
+      ${search ? `AND p.name ILIKE $3` : ''}
+      GROUP BY p.id, p.sku, p.name, p.description, p.unit_of_measure, p.min_stock_level
+      ORDER BY p.created_at DESC
+      LIMIT $2 OFFSET ${offset}
+    `, search ? [tenantId, limit, `%${search}%`] : [tenantId, limit]);
+
+    const totalPages = Math.ceil(totalResult.count / limit);
+
+    res.json({
+      success: true,
+      data: productsData.rows,
+      pagination: {
+        page,
+        limit,
+        total: totalResult.count,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching products with stock:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 export default router;
