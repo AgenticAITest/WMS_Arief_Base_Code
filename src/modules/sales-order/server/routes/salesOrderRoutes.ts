@@ -31,13 +31,13 @@ router.get('/sales-orders', authorized('ADMIN', 'sales-order.view'), async (req,
 
     const whereConditions = [
       eq(salesOrders.tenantId, tenantId),
-      eq(salesOrders.status, 'draft' as any),
+      eq(salesOrders.status, 'created'),
     ];
 
     if (workflowState) {
       whereConditions.push(eq(salesOrders.workflowState, workflowState));
     } else {
-      whereConditions.push(ne(salesOrders.workflowState, 'completed'));
+      whereConditions.push(ne(salesOrders.workflowState, 'complete'));
     }
 
     if (search) {
@@ -54,9 +54,8 @@ router.get('/sales-orders', authorized('ADMIN', 'sales-order.view'), async (req,
         id: salesOrders.id,
         orderNumber: salesOrders.orderNumber,
         orderDate: salesOrders.orderDate,
-        expectedDeliveryDate: salesOrders.expectedDeliveryDate,
+        requestedDeliveryDate: salesOrders.requestedDeliveryDate,
         totalAmount: salesOrders.totalAmount,
-        currency: salesOrders.currency,
         notes: salesOrders.notes,
         workflowState: salesOrders.workflowState,
         status: salesOrders.status,
@@ -117,11 +116,11 @@ router.get('/sales-orders/:id', authorized('ADMIN', 'sales-order.view'), async (
         soi.id,
         soi.line_number as "lineNumber",
         soi.product_id as "productId",
-        soi.quantity,
+        soi.ordered_quantity as "orderedQuantity",
+        soi.allocated_quantity as "allocatedQuantity",
+        soi.picked_quantity as "pickedQuantity",
         soi.unit_price as "unitPrice",
-        soi.discount_percentage as "discountPercentage",
-        soi.tax_percentage as "taxPercentage",
-        soi.line_total as "lineTotal",
+        soi.total_price as "totalPrice",
         soi.notes,
         p.name as "productName",
         p.sku,
@@ -141,8 +140,8 @@ router.get('/sales-orders/:id', authorized('ADMIN', 'sales-order.view'), async (
       LEFT JOIN products p ON p.id = soi.product_id
       LEFT JOIN sales_order_item_locations soil ON soil.sales_order_item_id = soi.id
       WHERE soi.sales_order_id = ${id}
-      GROUP BY soi.id, soi.line_number, soi.product_id, soi.quantity, soi.unit_price, 
-               soi.discount_percentage, soi.tax_percentage, soi.line_total, soi.notes,
+      GROUP BY soi.id, soi.line_number, soi.product_id, soi.ordered_quantity, soi.allocated_quantity,
+               soi.picked_quantity, soi.unit_price, soi.total_price, soi.notes,
                p.name, p.sku
       ORDER BY soi.line_number
     `);
@@ -164,18 +163,19 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
   try {
     const {
       customerId,
-      warehouseId,
+      shippingLocationId,
+      shippingMethodId,
       orderDate,
-      expectedDeliveryDate,
-      currency = 'USD',
+      requestedDeliveryDate,
+      trackingNumber,
+      deliveryInstructions,
       notes,
-      internalNotes,
       items = [],
     } = req.body;
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
 
-    if (!customerId || !warehouseId || !orderDate) {
+    if (!customerId || !orderDate) {
       return res.status(400).json({ success: false, message: 'Required fields missing' });
     }
 
@@ -193,10 +193,10 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       }
       
       const totalLocationQty = item.locations.reduce((sum: number, loc: any) => sum + Number(loc.quantity), 0);
-      if (Math.abs(totalLocationQty - Number(item.quantity)) > 0.001) {
+      if (Math.abs(totalLocationQty - Number(item.orderedQuantity)) > 0.001) {
         return res.status(400).json({ 
           success: false, 
-          message: `Location quantities for ${item.productName} must sum to ${item.quantity}` 
+          message: `Location quantities for ${item.productName} must sum to ${item.orderedQuantity}` 
         });
       }
     }
@@ -227,15 +227,11 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       .orderBy(workflowSteps.stepOrder)
       .limit(1);
 
-    const initialWorkflowState = workflowResults[0]?.stepKey || 'draft';
+    const initialWorkflowState = workflowResults[0]?.stepKey || 'create';
 
-    // Calculate total amount
+    // Calculate total amount (simple: quantity * unitPrice)
     const totalAmount = items.reduce((sum: number, item: any) => {
-      const lineTotal = item.quantity * item.unitPrice;
-      const discount = lineTotal * (item.discountPercentage || 0) / 100;
-      const afterDiscount = lineTotal - discount;
-      const tax = afterDiscount * (item.taxPercentage || 0) / 100;
-      return sum + afterDiscount + tax;
+      return sum + (item.orderedQuantity * item.unitPrice);
     }, 0);
 
     // Use transaction to ensure atomicity
@@ -247,14 +243,15 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
           tenantId,
           orderNumber,
           customerId,
-          warehouseId,
+          shippingLocationId: shippingLocationId || null,
+          shippingMethodId: shippingMethodId || null,
           orderDate,
-          expectedDeliveryDate: expectedDeliveryDate || null,
-          currency,
+          requestedDeliveryDate: requestedDeliveryDate || null,
+          trackingNumber: trackingNumber || null,
+          deliveryInstructions: deliveryInstructions || null,
           totalAmount: totalAmount.toFixed(2),
           notes: notes || null,
-          internalNotes: internalNotes || null,
-          status: 'draft',
+          status: 'created',
           workflowState: initialWorkflowState,
           createdBy: userId,
           updatedBy: userId,
@@ -277,11 +274,7 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       const createdItems = [];
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        const lineTotal = item.quantity * item.unitPrice;
-        const discount = lineTotal * (item.discountPercentage || 0) / 100;
-        const afterDiscount = lineTotal - discount;
-        const tax = afterDiscount * (item.taxPercentage || 0) / 100;
-        const finalLineTotal = afterDiscount + tax;
+        const totalPrice = item.orderedQuantity * item.unitPrice;
 
         const [createdItem] = await tx
           .insert(salesOrderItems)
@@ -290,11 +283,9 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
             salesOrderId: newOrder.id,
             lineNumber: i + 1,
             productId: item.productId,
-            quantity: item.quantity,
+            orderedQuantity: item.orderedQuantity,
             unitPrice: item.unitPrice,
-            discountPercentage: item.discountPercentage || 0,
-            taxPercentage: item.taxPercentage || 0,
-            lineTotal: finalLineTotal.toFixed(2),
+            totalPrice: totalPrice.toFixed(2),
             notes: item.notes || null,
           })
           .returning();
@@ -342,11 +333,13 @@ router.put('/sales-orders/:id', authorized('ADMIN', 'sales-order.edit'), async (
     const { id } = req.params;
     const {
       customerId,
+      shippingLocationId,
+      shippingMethodId,
       orderDate,
-      expectedDeliveryDate,
-      currency,
+      requestedDeliveryDate,
+      trackingNumber,
+      deliveryInstructions,
       notes,
-      internalNotes,
       items,
     } = req.body;
     const tenantId = req.user!.activeTenantId;
@@ -363,10 +356,10 @@ router.put('/sales-orders/:id', authorized('ADMIN', 'sales-order.edit'), async (
       return res.status(404).json({ success: false, message: 'Sales order not found' });
     }
 
-    if (existing.status !== 'draft') {
+    if (existing.status !== 'created') {
       return res.status(400).json({ 
         success: false, 
-        message: 'Only orders with status "draft" can be edited' 
+        message: 'Only orders with status "created" can be edited' 
       });
     }
 
@@ -381,10 +374,10 @@ router.put('/sales-orders/:id', authorized('ADMIN', 'sales-order.edit'), async (
         }
         
         const totalLocationQty = item.locations.reduce((sum: number, loc: any) => sum + Number(loc.quantity), 0);
-        if (Math.abs(totalLocationQty - Number(item.quantity)) > 0.001) {
+        if (Math.abs(totalLocationQty - Number(item.orderedQuantity)) > 0.001) {
           return res.status(400).json({ 
             success: false, 
-            message: `Location quantities for ${item.productName} must sum to ${item.quantity}` 
+            message: `Location quantities for ${item.productName} must sum to ${item.orderedQuantity}` 
           });
         }
       }
@@ -395,11 +388,7 @@ router.put('/sales-orders/:id', authorized('ADMIN', 'sales-order.edit'), async (
       if (items) {
         // Calculate new total
         const totalAmount = items.reduce((sum: number, item: any) => {
-          const lineTotal = item.quantity * item.unitPrice;
-          const discount = lineTotal * (item.discountPercentage || 0) / 100;
-          const afterDiscount = lineTotal - discount;
-          const tax = afterDiscount * (item.taxPercentage || 0) / 100;
-          return sum + afterDiscount + tax;
+          return sum + (item.orderedQuantity * item.unitPrice);
         }, 0);
 
         // Delete existing locations and items
@@ -419,12 +408,14 @@ router.put('/sales-orders/:id', authorized('ADMIN', 'sales-order.edit'), async (
           .update(salesOrders)
           .set({
             customerId,
+            shippingLocationId: shippingLocationId || null,
+            shippingMethodId: shippingMethodId || null,
             orderDate,
-            expectedDeliveryDate: expectedDeliveryDate || null,
-            currency,
+            requestedDeliveryDate: requestedDeliveryDate || null,
+            trackingNumber: trackingNumber || null,
+            deliveryInstructions: deliveryInstructions || null,
             totalAmount: totalAmount.toFixed(2),
             notes: notes || null,
-            internalNotes: internalNotes || null,
             updatedBy: userId,
             updatedAt: new Date(),
           })
@@ -433,11 +424,7 @@ router.put('/sales-orders/:id', authorized('ADMIN', 'sales-order.edit'), async (
         // Create new items and locations
         for (let i = 0; i < items.length; i++) {
           const item = items[i];
-          const lineTotal = item.quantity * item.unitPrice;
-          const discount = lineTotal * (item.discountPercentage || 0) / 100;
-          const afterDiscount = lineTotal - discount;
-          const tax = afterDiscount * (item.taxPercentage || 0) / 100;
-          const finalLineTotal = afterDiscount + tax;
+          const totalPrice = item.orderedQuantity * item.unitPrice;
 
           const [createdItem] = await tx
             .insert(salesOrderItems)
@@ -446,11 +433,9 @@ router.put('/sales-orders/:id', authorized('ADMIN', 'sales-order.edit'), async (
               salesOrderId: id,
               lineNumber: i + 1,
               productId: item.productId,
-              quantity: item.quantity,
+              orderedQuantity: item.orderedQuantity,
               unitPrice: item.unitPrice,
-              discountPercentage: item.discountPercentage || 0,
-              taxPercentage: item.taxPercentage || 0,
-              lineTotal: finalLineTotal.toFixed(2),
+              totalPrice: totalPrice.toFixed(2),
               notes: item.notes || null,
             })
             .returning();
@@ -472,11 +457,13 @@ router.put('/sales-orders/:id', authorized('ADMIN', 'sales-order.edit'), async (
           .update(salesOrders)
           .set({
             customerId: customerId || existing.customerId,
+            shippingLocationId: shippingLocationId !== undefined ? shippingLocationId : existing.shippingLocationId,
+            shippingMethodId: shippingMethodId !== undefined ? shippingMethodId : existing.shippingMethodId,
             orderDate: orderDate || existing.orderDate,
-            expectedDeliveryDate: expectedDeliveryDate !== undefined ? expectedDeliveryDate : existing.expectedDeliveryDate,
-            currency: currency || existing.currency,
+            requestedDeliveryDate: requestedDeliveryDate !== undefined ? requestedDeliveryDate : existing.requestedDeliveryDate,
+            trackingNumber: trackingNumber !== undefined ? trackingNumber : existing.trackingNumber,
+            deliveryInstructions: deliveryInstructions !== undefined ? deliveryInstructions : existing.deliveryInstructions,
             notes: notes !== undefined ? notes : existing.notes,
-            internalNotes: internalNotes !== undefined ? internalNotes : existing.internalNotes,
             updatedBy: userId,
             updatedAt: new Date(),
           })
@@ -517,10 +504,10 @@ router.delete('/sales-orders/:id', authorized('ADMIN', 'sales-order.delete'), as
       return res.status(404).json({ success: false, message: 'Sales order not found' });
     }
 
-    if (existing.status !== 'draft') {
+    if (existing.status !== 'created') {
       return res.status(400).json({ 
         success: false, 
-        message: 'Only orders with status "draft" can be deleted' 
+        message: 'Only orders with status "created" can be deleted' 
       });
     }
 
