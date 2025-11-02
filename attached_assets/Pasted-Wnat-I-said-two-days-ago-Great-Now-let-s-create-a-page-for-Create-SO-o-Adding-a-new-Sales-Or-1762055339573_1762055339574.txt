@@ -1,0 +1,102 @@
+Wnat I said two days ago:
+Great!! Now let's create a page for Create SO.
+
+o Adding a new Sales Order, will ask for the following:
+ Customer: a drop down from supplier table
+ Items of purchase: a list of all master item: SKU, name, available stock, a warning icon is shown when available stock <= minimum stock quantity, a text box for the user to enter the quantity of sales, sales price, and calculated total for that record
+ A running total at the bottom of the list is also calculated based on the total of each item selected to be sold.
+ Users cannot enter value greater than available stock for each item.
+ The items listing to be sold is a multipage listing with maximum of 20 items shown at one time. Consequently, a search field based on name and sku should be avaialable for faster searching.
+o A Create Sales Order button will provide a confirmation modal, with generated SO number (look at document_number_config for format), customer name and address, list of items with the quantity and subtotal, and a total purchase value at the bottom. A cancel button should be provided in the modal.
+o Confirming the creation of a PO in the modal will create a record in the database (sales order), set the status to complete, and the next step in the flow is properly setup
+
+Give me your plan. Make sure the UI is consistent with create PO in terms of layout, width and height of modals, etc.
+
+Then you created a plan: 
+Planned sales order page components (5 seconds)
+📋 Plan for Sales Order Create Page
+Perfect! I'll create a comprehensive Sales Order Create page matching the Purchase Order design. Let me outline the approach:
+
+🎯 Architecture Overview
+The page will follow the same pattern as Purchase Order Create, consisting of:
+
+Main Page Component (SalesOrderCreate.tsx) - List view + orchestration
+Create SO Modal (CreateSOModal.tsx) - Form for creating new sales orders
+SO Confirmation Modal (SOConfirmationModal.tsx) - Preview before creation
+SO Print View (SOPrintView.tsx) - Post-creation view
+📐 Component Structure
+1. SalesOrderCreate.tsx (Main Page)
+Top Section: "Create New Sales Order" button (primary action)
+Table Section: List of incomplete sales orders (status ≠ 'completed')
+Table Columns: SO Number, Customer, Order Date, Total Amount, Status, Actions
+Actions: View 👁️, Edit ✏️, Delete 🗑️
+Loading States: Skeleton loaders matching PO design
+2. CreateSOModal.tsx (Form Modal)
+Modal Size: Match PO modal dimensions (likely max-w-6xl)
+
+Form Sections:
+
+A. Customer Information
+Customer Dropdown: Fetches from customers table (Note: You mentioned "supplier table" but I'll use customer table based on schema)
+Customer Location Dropdown: Auto-populated based on selected customer
+Warehouse Dropdown: Destination warehouse
+
+B. Order Details
+Order Date (date picker, default: today)
+Requested Delivery Date (optional)
+Notes (textarea)
+
+C. Items Selection Table
+Search Bar: Filter by SKU or Name (debounced search)
+Pagination: 20 items per page
+Table Columns:
+SKU - Product SKU
+Name - Product name
+Available Stock - Current inventory level with warning icon (⚠️) when stock ≤ minimum quantity
+Quantity - Input field (validates: cannot exceed available stock)
+Unit Price - Sales price input
+Total - Auto-calculated (quantity × unit price)
+Action - Add/Remove button
+D. Running Total Section
+
+Subtotal: Sum of all item totals
+Grand Total: Bottom-right, prominent display
+Item Count: "X items selected"
+Validation Rules:
+
+✅ Customer required
+✅ At least one item required
+✅ Quantity must be > 0 and ≤ available stock
+✅ Unit price must be > 0
+Modal Actions:
+
+Cancel - Close without saving
+Proceed to Confirm - Opens confirmation modal
+
+3. SOConfirmationModal.tsx (Preview Modal)
+Modal Size: Same as PO confirmation modal
+
+Content Sections:
+Header: "Confirm Sales Order Creation"
+Generated SO Number: Display auto-generated number
+Customer Information:
+Customer Name
+Customer Address (from customer location)
+Contact details
+Items Table:
+Columns: SKU, Name, Quantity, Unit Price, Subtotal
+Each row shows formatted currency values
+Total Section:
+Subtotal
+Grand Total (highlighted)
+Actions:
+Cancel - Go back to edit
+Confirm & Create - Save to database
+
+4. SOPrintView.tsx (Success View)
+Similar to PO Print View:
+Display created SO in print-friendly format
+Show all details (SO number, customer, items, totals)
+Actions:
+Print button
+Close button (returns to list)
