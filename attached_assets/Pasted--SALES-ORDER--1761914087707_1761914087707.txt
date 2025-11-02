@@ -1,0 +1,132 @@
+// ================================================================================
+// SALES ORDER MANAGEMENT
+// ================================================================================
+Table sales_orders {
+  id serial [pk, increment]
+  tenant_id integer [ref: > tenants.id, not null]
+  order_number varchar(100) [unique, not null]
+  customer_id integer [ref: > customers.id, not null]
+  billing_location_id integer [ref: > customer_locations.id]
+  shipping_location_id integer [ref: > customer_locations.id]
+  shipping_method_id integer [ref: > shipping_methods.id]
+  status varchar(50) [not null, note: "pending, allocated, picked, packed, shipped, delivered"]
+  workflow_state varchar(50) [note: "create, allocate, pick, pack, ship, deliver, complete"]
+  order_date date [not null]
+  requested_delivery_date date
+  total_amount decimal(15,2)
+  tracking_number varchar(100)
+  delivery_instructions text
+  notes text
+  created_by integer [ref: > users.id]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    order_number
+    tenant_id
+  }
+}
+Table sales_order_items {
+  id serial [pk, increment]
+  sales_order_id integer [ref: > sales_orders.id, not null]
+  product_id integer [ref: > products.id, not null]
+  tenant_id integer [ref: > tenants.id, not null]
+  ordered_quantity integer [not null]
+  allocated_quantity integer [default: 0]
+  picked_quantity integer [default: 0]
+  unit_price decimal(10,2)
+  total_price decimal(15,2)
+  notes text
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    tenant_id
+  }
+}
+
+
+// ================================================================================
+// SHIPPING & TRANSPORTATION
+// ================================================================================
+Table transporters {
+  id serial [pk, increment]
+  tenant_id integer [ref: > tenants.id, not null]
+  name varchar(255) [not null]
+  contact_person varchar(255)
+  phone varchar(50)
+  email varchar(255)
+  service_areas jsonb [note: "Geographic coverage as JSON"]
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    tenant_id
+  }
+}
+Table shipping_methods {
+  id serial [pk, increment]
+  tenant_id integer [ref: > tenants.id, not null]
+  method_type varchar(20) [not null, note: "internal, third_party"]
+  transporter_id integer [ref: > transporters.id, note: "NULL for internal"]
+  name varchar(255) [not null, note: "Internal Delivery, DHL Express, etc."]
+  estimated_days integer
+  cost_calculation varchar(50) [note: "fixed, weight_based, volumetric_based"]
+  is_active boolean [default: true]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    tenant_id
+  }
+}
+Table shipments {
+  id serial [pk, increment]
+  tenant_id integer [ref: > tenants.id, not null]
+  sales_order_id integer [ref: > sales_orders.id, not null]
+  shipment_number varchar(100) [unique, not null]
+  transporter_id integer [ref: > transporters.id]
+  shipping_method_id integer [ref: > shipping_methods.id]
+  tracking_number varchar(100)
+  status varchar(50) [not null, note: "ready, in_transit, delivered, failed"]
+  shipping_date timestamp
+  delivery_date timestamp
+  total_weight decimal(10,3)
+  total_volume decimal(10,3)
+  total_cost decimal(15,2)
+  notes text
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    (tenant_id, sales_order_id) [unique]
+    shipment_number
+    tracking_number
+  }
+}
+Table packages {
+  id serial [pk, increment]
+  tenant_id integer [ref: > tenants.id, not null]
+  shipment_id integer [ref: > shipments.id, not null]
+  package_number varchar(100) [not null]
+  barcode varchar(100) [unique]
+  dimensions varchar(100)
+  weight decimal(10,3)
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    tenant_id
+  }
+}
+Table package_items {
+  id serial [pk, increment]
+  package_id integer [ref: > packages.id, not null]
+  product_id integer [ref: > products.id, not null]
+  tenant_id integer [ref: > tenants.id, not null]
+  quantity integer [not null]
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    tenant_id
+  }
+}
