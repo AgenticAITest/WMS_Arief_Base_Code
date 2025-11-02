@@ -77,27 +77,21 @@ export const salesOrders = pgTable('sales_orders', {
   customerId: uuid('customer_id')
     .notNull()
     .references(() => customers.id),
-  customerLocationId: uuid('customer_location_id')
+  shippingLocationId: uuid('shipping_location_id')
     .references(() => customerLocations.id),
-  warehouseId: uuid('warehouse_id')
-    .notNull()
-    .references(() => warehouses.id),
+  shippingMethodId: uuid('shipping_method_id')
+    .references(() => shippingMethods.id),
   orderDate: date('order_date').notNull(),
-  expectedDeliveryDate: date('expected_delivery_date'),
+  requestedDeliveryDate: date('requested_delivery_date'),
   status: varchar('status', { 
     length: 50, 
-    enum: ['draft', 'confirmed', 'allocated', 'picking', 'picked', 'shipped', 'delivered', 'cancelled'] 
-  }).notNull().default('draft'),
+    enum: ['created', 'allocated', 'picked', 'packed', 'shipped', 'delivered'] 
+  }).notNull().default('created'),
   workflowState: varchar('workflow_state', { length: 50 }),
-  priority: varchar('priority', { 
-    length: 50,
-    enum: ['low', 'normal', 'high', 'urgent']
-  }).default('normal'),
   totalAmount: decimal('total_amount', { precision: 15, scale: 2 }).notNull().default('0'),
-  currency: varchar('currency', { length: 3 }).notNull().default('USD'),
-  paymentTerms: varchar('payment_terms', { length: 100 }),
+  trackingNumber: varchar('tracking_number', { length: 100 }),
+  deliveryInstructions: text('delivery_instructions'),
   notes: text('notes'),
-  internalNotes: text('internal_notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
   createdBy: uuid('created_by').references(() => user.id),
@@ -107,7 +101,8 @@ export const salesOrders = pgTable('sales_orders', {
     orderNumberUnique: uniqueIndex('sales_orders_order_number_unique_idx').on(t.tenantId, t.orderNumber),
     tenantIdx: index('sales_orders_tenant_idx').on(t.tenantId),
     customerIdx: index('sales_orders_customer_idx').on(t.customerId),
-    warehouseIdx: index('sales_orders_warehouse_idx').on(t.warehouseId),
+    shippingLocationIdx: index('sales_orders_shipping_location_idx').on(t.shippingLocationId),
+    shippingMethodIdx: index('sales_orders_shipping_method_idx').on(t.shippingMethodId),
     statusIdx: index('sales_orders_status_idx').on(t.tenantId, t.status),
     dateIdx: index('sales_orders_date_idx').on(t.tenantId, t.orderDate),
     numberIdx: index('sales_orders_number_idx').on(t.tenantId, t.orderNumber),
@@ -126,14 +121,11 @@ export const salesOrderItems = pgTable('sales_order_items', {
   productId: uuid('product_id')
     .notNull()
     .references(() => products.id),
-  quantity: decimal('quantity', { precision: 15, scale: 3 }).notNull(),
+  orderedQuantity: decimal('ordered_quantity', { precision: 15, scale: 3 }).notNull(),
   allocatedQuantity: decimal('allocated_quantity', { precision: 15, scale: 3 }).default('0').notNull(),
   pickedQuantity: decimal('picked_quantity', { precision: 15, scale: 3 }).default('0').notNull(),
-  shippedQuantity: decimal('shipped_quantity', { precision: 15, scale: 3 }).default('0').notNull(),
   unitPrice: decimal('unit_price', { precision: 15, scale: 2 }).notNull(),
-  discountPercentage: decimal('discount_percentage', { precision: 5, scale: 2 }).default('0'),
-  taxPercentage: decimal('tax_percentage', { precision: 5, scale: 2 }).default('0'),
-  lineTotal: decimal('line_total', { precision: 15, scale: 2 }).notNull(),
+  totalPrice: decimal('total_price', { precision: 15, scale: 2 }).notNull(),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
@@ -335,13 +327,13 @@ export const salesOrdersRelations = relations(salesOrders, ({ one, many }) => ({
     fields: [salesOrders.customerId],
     references: [customers.id],
   }),
-  customerLocation: one(customerLocations, {
-    fields: [salesOrders.customerLocationId],
+  shippingLocation: one(customerLocations, {
+    fields: [salesOrders.shippingLocationId],
     references: [customerLocations.id],
   }),
-  warehouse: one(warehouses, {
-    fields: [salesOrders.warehouseId],
-    references: [warehouses.id],
+  shippingMethod: one(shippingMethods, {
+    fields: [salesOrders.shippingMethodId],
+    references: [shippingMethods.id],
   }),
   creator: one(user, {
     fields: [salesOrders.createdBy],
