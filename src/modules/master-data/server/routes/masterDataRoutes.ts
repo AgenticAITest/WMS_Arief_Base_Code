@@ -1580,11 +1580,11 @@ router.post('/suppliers', authorized('ADMIN', 'master-data.create'), async (req,
       },
       message: 'Supplier created successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating supplier:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create supplier',
     });
   }
 });
@@ -1688,11 +1688,11 @@ router.put('/suppliers/:id', authorized('ADMIN', 'master-data.edit'), async (req
       },
       message: 'Supplier updated successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating supplier:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to update supplier',
     });
   }
 });
@@ -2098,11 +2098,11 @@ router.post('/customers', authorized('ADMIN', 'master-data.create'), async (req,
       },
       message: 'Customer created successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating customer:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create customer',
     });
   }
 });
@@ -2206,11 +2206,11 @@ router.put('/customers/:id', authorized('ADMIN', 'master-data.edit'), async (req
       },
       message: 'Customer updated successfully',
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating customer:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to update customer',
     });
   }
 });
