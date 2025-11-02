@@ -1635,64 +1635,111 @@ router.put('/suppliers/:id', authorized('ADMIN', 'master-data.edit'), async (req
     const { id } = req.params;
     const { name, contactPerson, email, phone, taxId, locations = [] } = req.body;
 
-    const [updated] = await db
-      .update(suppliers)
-      .set({ name, contactPerson, email, phone, taxId })
-      .where(and(eq(suppliers.id, id), eq(suppliers.tenantId, tenantId)))
-      .returning();
-
-    if (!updated) {
-      return res.status(404).json({
-        success: false,
-        message: 'Supplier not found',
-      });
-    }
-
-    await db
-      .delete(supplierLocations)
-      .where(and(eq(supplierLocations.supplierId, id), eq(supplierLocations.tenantId, tenantId)));
-
-    const newLocations = [];
-    if (locations.length > 0) {
-      const locationValues = locations.map((loc: any) => ({
-        id: loc.id || crypto.randomUUID(),
-        supplierId: id,
-        tenantId,
-        locationType: loc.locationType || 'pickup',
-        address: loc.address,
-        city: loc.city,
-        state: loc.state,
-        postalCode: loc.postalCode,
-        country: loc.country,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        contactPerson: loc.contactPerson,
-        phone: loc.phone,
-        email: loc.email,
-        isActive: loc.isActive ?? true,
-      }));
-
-      const insertedLocations = await db
-        .insert(supplierLocations)
-        .values(locationValues)
+    const result = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(suppliers)
+        .set({ name, contactPerson, email, phone, taxId })
+        .where(and(eq(suppliers.id, id), eq(suppliers.tenantId, tenantId)))
         .returning();
+
+      if (!updated) {
+        throw new Error('Supplier not found');
+      }
+
+      const existingLocations = await tx
+        .select()
+        .from(supplierLocations)
+        .where(and(eq(supplierLocations.supplierId, id), eq(supplierLocations.tenantId, tenantId)));
       
-      newLocations.push(...insertedLocations);
-    }
+      const incomingLocationIds = new Set(locations.filter((loc: any) => loc.id).map((loc: any) => loc.id));
+      const locationsToDelete = existingLocations.filter(loc => !incomingLocationIds.has(loc.id));
+      
+      for (const locToDelete of locationsToDelete) {
+        try {
+          await tx
+            .delete(supplierLocations)
+            .where(and(
+              eq(supplierLocations.id, locToDelete.id),
+              eq(supplierLocations.supplierId, id),
+              eq(supplierLocations.tenantId, tenantId)
+            ));
+        } catch (deleteError: any) {
+          const errorCode = deleteError.code || deleteError.cause?.code;
+          if (errorCode === '23503') {
+            throw new Error(`Cannot remove location "${locToDelete.locationType}" - it is being used by existing purchase orders. Please update those orders first or keep the location.`);
+          }
+          throw deleteError;
+        }
+      }
+
+      const newLocations = [];
+      if (locations.length > 0) {
+        for (const loc of locations) {
+          const locationData = {
+            supplierId: id,
+            tenantId,
+            locationType: loc.locationType || 'pickup',
+            address: loc.address,
+            city: loc.city,
+            state: loc.state,
+            postalCode: loc.postalCode,
+            country: loc.country,
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            contactPerson: loc.contactPerson,
+            phone: loc.phone,
+            email: loc.email,
+            isActive: loc.isActive ?? true,
+          };
+
+          if (loc.id) {
+            const [updatedLocation] = await tx
+              .update(supplierLocations)
+              .set(locationData)
+              .where(and(
+                eq(supplierLocations.id, loc.id),
+                eq(supplierLocations.supplierId, id),
+                eq(supplierLocations.tenantId, tenantId)
+              ))
+              .returning();
+            
+            if (updatedLocation) {
+              newLocations.push(updatedLocation);
+            }
+          } else {
+            const [insertedLocation] = await tx
+              .insert(supplierLocations)
+              .values({
+                id: crypto.randomUUID(),
+                ...locationData,
+              })
+              .returning();
+            
+            newLocations.push(insertedLocation);
+          }
+        }
+      }
+
+      return { updated, locations: newLocations };
+    });
 
     res.json({
       success: true,
       data: {
-        ...updated,
-        locations: newLocations,
+        ...result.updated,
+        locations: result.locations,
       },
       message: 'Supplier updated successfully',
     });
   } catch (error: any) {
     console.error('Error updating supplier:', error);
-    res.status(500).json({
+    const errorMessage = error.message || 'Failed to update supplier';
+    const statusCode = error.message?.includes('Cannot remove location') ? 400 : 
+                       error.message === 'Supplier not found' ? 404 : 500;
+    res.status(statusCode).json({
       success: false,
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to update supplier',
+      message: process.env.NODE_ENV === 'development' ? errorMessage : 
+               statusCode === 400 ? errorMessage : 'Failed to update supplier',
     });
   }
 });
@@ -2153,64 +2200,111 @@ router.put('/customers/:id', authorized('ADMIN', 'master-data.edit'), async (req
     const { id } = req.params;
     const { name, contactPerson, email, phone, taxId, locations = [] } = req.body;
 
-    const [updated] = await db
-      .update(customers)
-      .set({ name, contactPerson, email, phone, taxId })
-      .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
-      .returning();
-
-    if (!updated) {
-      return res.status(404).json({
-        success: false,
-        message: 'Customer not found',
-      });
-    }
-
-    await db
-      .delete(customerLocations)
-      .where(and(eq(customerLocations.customerId, id), eq(customerLocations.tenantId, tenantId)));
-
-    const newLocations = [];
-    if (locations.length > 0) {
-      const locationValues = locations.map((loc: any) => ({
-        id: loc.id || crypto.randomUUID(),
-        customerId: id,
-        tenantId,
-        locationType: loc.locationType,
-        address: loc.address,
-        city: loc.city,
-        state: loc.state,
-        postalCode: loc.postalCode,
-        country: loc.country,
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        contactPerson: loc.contactPerson,
-        phone: loc.phone,
-        email: loc.email,
-        isActive: loc.isActive ?? true,
-      }));
-
-      const insertedLocations = await db
-        .insert(customerLocations)
-        .values(locationValues)
+    const result = await db.transaction(async (tx) => {
+      const [updated] = await tx
+        .update(customers)
+        .set({ name, contactPerson, email, phone, taxId })
+        .where(and(eq(customers.id, id), eq(customers.tenantId, tenantId)))
         .returning();
+
+      if (!updated) {
+        throw new Error('Customer not found');
+      }
+
+      const existingLocations = await tx
+        .select()
+        .from(customerLocations)
+        .where(and(eq(customerLocations.customerId, id), eq(customerLocations.tenantId, tenantId)));
       
-      newLocations.push(...insertedLocations);
-    }
+      const incomingLocationIds = new Set(locations.filter((loc: any) => loc.id).map((loc: any) => loc.id));
+      const locationsToDelete = existingLocations.filter(loc => !incomingLocationIds.has(loc.id));
+      
+      for (const locToDelete of locationsToDelete) {
+        try {
+          await tx
+            .delete(customerLocations)
+            .where(and(
+              eq(customerLocations.id, locToDelete.id),
+              eq(customerLocations.customerId, id),
+              eq(customerLocations.tenantId, tenantId)
+            ));
+        } catch (deleteError: any) {
+          const errorCode = deleteError.code || deleteError.cause?.code;
+          if (errorCode === '23503') {
+            throw new Error(`Cannot remove location "${locToDelete.locationType}" - it is being used by existing sales orders. Please update those orders first or keep the location.`);
+          }
+          throw deleteError;
+        }
+      }
+
+      const newLocations = [];
+      if (locations.length > 0) {
+        for (const loc of locations) {
+          const locationData = {
+            customerId: id,
+            tenantId,
+            locationType: loc.locationType,
+            address: loc.address,
+            city: loc.city,
+            state: loc.state,
+            postalCode: loc.postalCode,
+            country: loc.country,
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            contactPerson: loc.contactPerson,
+            phone: loc.phone,
+            email: loc.email,
+            isActive: loc.isActive ?? true,
+          };
+
+          if (loc.id) {
+            const [updatedLocation] = await tx
+              .update(customerLocations)
+              .set(locationData)
+              .where(and(
+                eq(customerLocations.id, loc.id),
+                eq(customerLocations.customerId, id),
+                eq(customerLocations.tenantId, tenantId)
+              ))
+              .returning();
+            
+            if (updatedLocation) {
+              newLocations.push(updatedLocation);
+            }
+          } else {
+            const [insertedLocation] = await tx
+              .insert(customerLocations)
+              .values({
+                id: crypto.randomUUID(),
+                ...locationData,
+              })
+              .returning();
+            
+            newLocations.push(insertedLocation);
+          }
+        }
+      }
+
+      return { updated, locations: newLocations };
+    });
 
     res.json({
       success: true,
       data: {
-        ...updated,
-        locations: newLocations,
+        ...result.updated,
+        locations: result.locations,
       },
       message: 'Customer updated successfully',
     });
   } catch (error: any) {
     console.error('Error updating customer:', error);
-    res.status(500).json({
+    const errorMessage = error.message || 'Failed to update customer';
+    const statusCode = error.message?.includes('Cannot remove location') ? 400 : 
+                       error.message === 'Customer not found' ? 404 : 500;
+    res.status(statusCode).json({
       success: false,
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to update customer',
+      message: process.env.NODE_ENV === 'development' ? errorMessage : 
+               statusCode === 400 ? errorMessage : 'Failed to update customer',
     });
   }
 });
