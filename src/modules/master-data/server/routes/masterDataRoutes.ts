@@ -2370,4 +2370,74 @@ router.get('/products-with-stock', authorized('ADMIN', 'master-data.view'), asyn
   }
 });
 
+// ================================================================================
+// SHIPPING METHODS ROUTES
+// ================================================================================
+
+router.get('/shipping-methods', authorized('ADMIN', 'master-data.view'), async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const offset = (page - 1) * limit;
+    const search = req.query.search as string;
+    const tenantId = req.user!.activeTenantId;
+
+    let query = db.query.shippingMethods
+      ? db.query.shippingMethods.findMany({
+          where: and(
+            eq(db.query.shippingMethods.tenantId, tenantId),
+            search ? ilike(db.query.shippingMethods.name, `%${search}%`) : undefined
+          ),
+          limit,
+          offset,
+          orderBy: [desc(db.query.shippingMethods.createdAt)],
+        })
+      : [];
+
+    const result = await db.execute(sql`
+      SELECT 
+        id,
+        name,
+        code,
+        type,
+        estimated_days as "estimatedDays",
+        is_active as "isActive",
+        description
+      FROM shipping_methods
+      WHERE tenant_id = ${tenantId}
+        ${search ? sql`AND name ILIKE ${'%' + search + '%'}` : sql``}
+        AND is_active = true
+      ORDER BY name
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+
+    const [totalResult] = await db.execute(sql`
+      SELECT COUNT(*) as count
+      FROM shipping_methods
+      WHERE tenant_id = ${tenantId}
+        ${search ? sql`AND name ILIKE ${'%' + search + '%'}` : sql``}
+        AND is_active = true
+    `);
+
+    const total = Number(totalResult.count) || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      success: true,
+      data: result,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching shipping methods:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 export default router;

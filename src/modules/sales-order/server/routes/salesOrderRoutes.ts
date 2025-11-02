@@ -522,6 +522,70 @@ router.delete('/sales-orders/:id', authorized('ADMIN', 'sales-order.delete'), as
   }
 });
 
+router.get('/products-with-stock', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = (page - 1) * limit;
+    const search = req.query.search as string;
+    const tenantId = req.user!.activeTenantId;
+
+    const searchCondition = search
+      ? or(
+          ilike(products.sku, `%${search}%`),
+          ilike(products.name, `%${search}%`)
+        )
+      : undefined;
+
+    const whereConditions = [eq(products.tenantId, tenantId)];
+    if (searchCondition) {
+      whereConditions.push(searchCondition);
+    }
+
+    const result = await db.execute(sql`
+      SELECT 
+        p.id as "productId",
+        p.sku,
+        p.name,
+        p.minimum_stock_level as "minimumStockLevel",
+        COALESCE(SUM(ii.quantity), 0) as "availableStock"
+      FROM products p
+      LEFT JOIN inventory_items ii ON ii.product_id = p.id AND ii.tenant_id = p.tenant_id
+      WHERE p.tenant_id = ${tenantId}
+        ${search ? sql`AND (p.sku ILIKE ${'%' + search + '%'} OR p.name ILIKE ${'%' + search + '%'})` : sql``}
+      GROUP BY p.id, p.sku, p.name, p.minimum_stock_level
+      ORDER BY p.name
+      LIMIT ${limit} OFFSET ${offset}
+    `);
+
+    const [totalResult] = await db.execute(sql`
+      SELECT COUNT(DISTINCT p.id) as count
+      FROM products p
+      WHERE p.tenant_id = ${tenantId}
+        ${search ? sql`AND (p.sku ILIKE ${'%' + search + '%'} OR p.name ILIKE ${'%' + search + '%'})` : sql``}
+    `);
+
+    const total = Number(totalResult.count) || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    res.json({
+      success: true,
+      data: result,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching products with stock:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
 router.get('/workflow-steps', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
