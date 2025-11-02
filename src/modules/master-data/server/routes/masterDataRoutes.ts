@@ -2,7 +2,7 @@ import express from 'express';
 import { db } from '@server/lib/db';
 import { productTypes, packageTypes, products, suppliers, supplierLocations, customers, customerLocations } from '../lib/db/schemas/masterData';
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
-import { eq, and, desc, count, ilike } from 'drizzle-orm';
+import { eq, and, desc, count, ilike, sql } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 import crypto from 'crypto';
 
@@ -2381,18 +2381,6 @@ router.get('/shipping-methods', authorized('ADMIN', 'master-data.view'), async (
     const offset = (page - 1) * limit;
     const search = req.query.search as string;
     const tenantId = req.user!.activeTenantId;
-
-    let query = db.query.shippingMethods
-      ? db.query.shippingMethods.findMany({
-          where: and(
-            eq(db.query.shippingMethods.tenantId, tenantId),
-            search ? ilike(db.query.shippingMethods.name, `%${search}%`) : undefined
-          ),
-          limit,
-          offset,
-          orderBy: [desc(db.query.shippingMethods.createdAt)],
-        })
-      : [];
 
     const result = await db.execute(sql`
       SELECT 
