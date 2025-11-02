@@ -33,8 +33,8 @@ const locationSchema = z.object({
   state: z.string().min(1, 'State is required'),
   postalCode: z.string().min(1, 'Postal code is required'),
   country: z.string().min(1, 'Country is required'),
-  latitude: z.number().optional().or(z.nan().transform(() => undefined)),
-  longitude: z.number().optional().or(z.nan().transform(() => undefined)),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
@@ -100,7 +100,11 @@ const SupplierDialog = ({
         email: editingItem.email || '',
         phone: editingItem.phone || '',
         taxId: editingItem.taxId || '',
-        locations: editingItem.locations || [],
+        locations: (editingItem.locations || []).map((loc: any) => ({
+          ...loc,
+          latitude: loc.latitude ? parseFloat(loc.latitude) : undefined,
+          longitude: loc.longitude ? parseFloat(loc.longitude) : undefined,
+        })),
       });
     } else {
       reset({
