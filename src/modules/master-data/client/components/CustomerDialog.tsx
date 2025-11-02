@@ -157,6 +157,33 @@ const CustomerDialog = ({
     }
   };
 
+  const getFirstErrorMessage = (errors: any): string | null => {
+    if (!errors || typeof errors !== 'object') return null;
+    
+    if (errors.message && typeof errors.message === 'string') {
+      return errors.message;
+    }
+    
+    for (const key in errors) {
+      if (errors.hasOwnProperty(key)) {
+        const nestedError = getFirstErrorMessage(errors[key]);
+        if (nestedError) return nestedError;
+      }
+    }
+    
+    return null;
+  };
+
+  const onInvalid = (errors: any) => {
+    console.log('Form validation errors:', errors);
+    const errorMessage = getFirstErrorMessage(errors);
+    if (errorMessage) {
+      toast.error(errorMessage);
+    } else {
+      toast.error('Please check all required fields');
+    }
+  };
+
   const addLocation = () => {
     append({
       locationType: 'shipping',
@@ -183,7 +210,7 @@ const CustomerDialog = ({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-6">
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">Customer Information</h3>
             
