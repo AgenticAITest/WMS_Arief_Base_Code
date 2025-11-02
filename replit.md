@@ -32,6 +32,7 @@ None specified yet
 ### System Design Choices
 - **UI/UX**: Utilizes shadcn/ui and Radix UI for consistent components. Critical fixes for Radix UI Dialogs implemented for pointer-event cleanup and boolean field validation.
 - **Backend**: Modular structure for features (system, master-data, warehouse-setup, document-numbering), clear API naming, multi-tenant isolation, and database transactions for atomicity.
+- **Location Update Pattern**: Supplier and customer location updates use transaction-wrapped delete-update-insert pattern. Removed locations are deleted first with FK constraint detection; updates preserve existing IDs; new locations are inserted. FK violations (SQLSTATE 23503) return HTTP 400 with user-friendly messages. All operations atomic via `db.transaction()`.
 - **Document Numbering**: Period-based numbering scheme (e.g., PO-2510-WH1-LOCAL-0001) with mandatory components and optional prefixes; each unique combination maintains its own sequence.
 - **Database Schema**: Designed with clear separation and multi-tenancy support. Geolocation is included. **REPLIT AGENT IS NOT AUTHORIZED TO CHANGE DATABASE SCHEMA WITHOUT EXPLICIT USER PERMISSION.**
 - **Authentication**: JWT-based with separate tokens for access, refresh, and password reset.
