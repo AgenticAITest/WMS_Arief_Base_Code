@@ -45,7 +45,10 @@ None specified yet
 - **Confirm Putaway Flow**: GRN-based transactional workflow for bin assignments, `inventory_items` creation, PUTAWAY document generation, `putawayStatus` updates, and audit logging.
 - **Audit Logging**: Simple system using `audit_logs` table for critical operations, internal `logAudit()` service, and REST APIs for querying. Includes `document_path` field for tracking generated HTML documents (PO, GRN, PUTAWAY).
 - **Document Viewer Integration**: Audit Log UI includes a "View Document" button (FileText icon) that appears when `documentPath` exists. Clicking opens a `DocumentViewerModal` component which fetches and displays the HTML document in a modal, supporting PO, GRN, and PUTAWAY document types.
-- **Sales Order Multi-Location Delivery**: Built using native SQL for schema changes to avoid data loss. `sales_order_item_locations` table tracks per-item delivery locations. Backend uses `db.transaction()` for atomicity, validates location quantity sums, and generates SO numbers via document numbering API. Status filtering uses "draft" for incomplete orders.
+- **Sales Order Multi-Location Delivery**: Built using native SQL for schema changes to avoid data loss. `sales_order_item_locations` table tracks per-item delivery locations. Backend uses `db.transaction()` for atomicity, validates location quantity sums, and generates SO numbers via document numbering API.
+  - **Schema**: `sales_orders` table includes: `customer_id`, `shipping_location_id`, `shipping_method_id`, `order_date`, `requested_delivery_date`, `tracking_number`, `delivery_instructions`, `total_amount`, `notes`, `status` (enum: created, allocated, picked, packed, shipped, delivered), and `workflow_state`.
+  - **Items Schema**: `sales_order_items` table includes: `ordered_quantity`, `allocated_quantity`, `picked_quantity`, `unit_price`, `total_price` (simple quantity × unit_price calculation, no discount/tax at item level).
+  - **Status Design**: Uses "created" status for new orders (not "draft" or "pending"), aligning with WMS workflow states where orders are actionable immediately upon creation.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.
