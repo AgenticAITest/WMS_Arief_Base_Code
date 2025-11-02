@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@client/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@client/components/ui/card';
 import { Input } from '@client/components/ui/input';
@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '@client/components/ui/table';
-import { Search, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, AlertTriangle } from 'lucide-react';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 import { SOConfirmationModal } from '../components/SOConfirmationModal';
 import { SOPrintView } from '../components/SOPrintView';
@@ -29,12 +29,10 @@ import { toast } from 'sonner';
 const SalesOrderCreate: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
-  const [customerLocations, setCustomerLocations] = useState<any[]>([]);
+  const [allCustomerLocations, setAllCustomerLocations] = useState<Map<string, any[]>>(new Map());
   const [selectedShippingLocation, setSelectedShippingLocation] = useState<string>('');
-  const [products, setProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [selectedItems, setSelectedItems] = useState<Map<string, any>>(new Map());
   const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
   const [requestedDeliveryDate, setRequestedDeliveryDate] = useState('');
@@ -44,23 +42,32 @@ const SalesOrderCreate: React.FC = () => {
   const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
   const [selectedSOData, setSelectedSOData] = useState<any>(null);
   const [createdSO, setCreatedSO] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchCustomers();
-    fetchProducts();
+    initializeData();
   }, []);
 
   useEffect(() => {
     if (selectedCustomer) {
       setSelectedShippingLocation('');
-      setCustomerLocations([]);
-      fetchCustomerLocations(selectedCustomer);
+      fetchCustomerLocationsLazy(selectedCustomer);
     }
   }, [selectedCustomer]);
 
-  useEffect(() => {
-    fetchProducts();
-  }, [currentPage, searchTerm]);
+  const initializeData = async () => {
+    setIsLoading(true);
+    try {
+      await Promise.all([
+        fetchCustomers(),
+        fetchAllProducts(),
+      ]);
+    } catch (error) {
+      console.error('Error initializing data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -74,36 +81,61 @@ const SalesOrderCreate: React.FC = () => {
     }
   };
 
-  const fetchCustomerLocations = async (customerId: string) => {
+  const fetchCustomerLocationsLazy = async (customerId: string) => {
+    if (allCustomerLocations.has(customerId)) {
+      return;
+    }
+
     try {
       const response = await axios.get(`/api/modules/master-data/customers/${customerId}`);
       if (response.data.success) {
-        setCustomerLocations(response.data.data.locations || []);
+        setAllCustomerLocations(prev => {
+          const copy = new Map(prev);
+          copy.set(customerId, response.data.data.locations || []);
+          return copy;
+        });
       }
     } catch (error) {
-      console.error('Error fetching customer locations:', error);
+      console.error(`Error fetching locations for customer ${customerId}:`, error);
+      setAllCustomerLocations(prev => {
+        const copy = new Map(prev);
+        copy.set(customerId, []);
+        return copy;
+      });
     }
   };
 
-  const fetchProducts = async () => {
+  const fetchAllProducts = async () => {
     try {
       const response = await axios.get('/api/modules/sales-order/products-with-stock', {
         params: {
-          page: currentPage,
-          limit: 20,
-          search: searchTerm || undefined,
+          page: 1,
+          limit: 10000,
         },
       });
-      setProducts(response.data.data || []);
-      setTotalPages(response.data.pagination?.totalPages || 1);
+      setAllProducts(response.data.data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
       toast.error('Failed to fetch products');
     }
   };
 
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm) return allProducts;
+    const lowerSearch = searchTerm.toLowerCase();
+    return allProducts.filter(
+      (product) =>
+        product.sku?.toLowerCase().includes(lowerSearch) ||
+        product.name?.toLowerCase().includes(lowerSearch)
+    );
+  }, [allProducts, searchTerm]);
+
+  const customerLocations = useMemo(() => {
+    return allCustomerLocations.get(selectedCustomer) || [];
+  }, [allCustomerLocations, selectedCustomer]);
+
   const handleQuantityChange = (productId: string, quantity: string) => {
-    const product = products.find(p => p.productId === productId);
+    const product = allProducts.find(p => p.productId === productId);
     if (!product) return;
 
     const qty = parseInt(quantity) || 0;
@@ -228,7 +260,6 @@ const SalesOrderCreate: React.FC = () => {
     setNotes('');
     setSelectedItems(new Map());
     setSearchTerm('');
-    setCurrentPage(1);
   };
 
   const handlePrintViewClose = () => {
@@ -247,7 +278,16 @@ const SalesOrderCreate: React.FC = () => {
     }, 0);
   };
 
-  const selectedCustomerData = customers.find(c => c.id === selectedCustomer);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="text-lg font-medium">Loading...</div>
+          <div className="text-sm text-muted-foreground">Please wait while we load the data</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -352,7 +392,7 @@ const SalesOrderCreate: React.FC = () => {
           <div className="flex items-center justify-between">
             <CardTitle>Select Items</CardTitle>
             <span className="text-sm text-muted-foreground">
-              ({selectedItems.size} items selected)
+              ({selectedItems.size} items selected, {filteredProducts.length} products available)
             </span>
           </div>
         </CardHeader>
@@ -363,18 +403,15 @@ const SalesOrderCreate: React.FC = () => {
               <Input
                 placeholder="Search by SKU or name..."
                 value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-8"
               />
             </div>
           </div>
 
-          <div className="border rounded-md">
+          <div className="border rounded-md max-h-[500px] overflow-y-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
                   <TableHead className="w-[100px]">SKU</TableHead>
                   <TableHead>Name</TableHead>
@@ -385,7 +422,7 @@ const SalesOrderCreate: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map(product => {
+                {filteredProducts.map(product => {
                   const selectedItem = selectedItems.get(product.productId);
                   const isLowStock = (product.availableStock || 0) <= (product.minimumStockLevel || 0);
                   
@@ -436,31 +473,7 @@ const SalesOrderCreate: React.FC = () => {
             </Table>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                disabled={currentPage === totalPages}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
+          <div className="flex items-center justify-end">
             <div className="text-right">
               <div className="text-sm text-muted-foreground">Total Amount</div>
               <div className="text-2xl font-bold">${calculateTotal().toFixed(2)}</div>
