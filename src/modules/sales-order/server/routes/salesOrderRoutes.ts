@@ -548,7 +548,7 @@ router.get('/products-with-stock', authorized('ADMIN', 'sales-order.view'), asyn
         p.sku,
         p.name,
         p.minimum_stock_level as "minimumStockLevel",
-        COALESCE(SUM(ii.quantity), 0) as "availableStock"
+        COALESCE(SUM(ii.available_quantity), 0) as "availableStock"
       FROM products p
       LEFT JOIN inventory_items ii ON ii.product_id = p.id AND ii.tenant_id = p.tenant_id
       WHERE p.tenant_id = ${tenantId}
