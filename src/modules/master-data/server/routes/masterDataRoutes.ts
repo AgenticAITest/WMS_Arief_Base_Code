@@ -1905,6 +1905,7 @@ router.get('/customers', authorized('ADMIN', 'master-data.view'), async (req, re
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string;
+    const includeLocations = req.query.includeLocations === 'true';
     const offset = (page - 1) * limit;
 
     const whereConditions = [eq(customers.tenantId, tenantId)];
@@ -1928,15 +1929,28 @@ router.get('/customers', authorized('ADMIN', 'master-data.view'), async (req, re
 
     const data = await Promise.all(
       customersList.map(async (customer) => {
-        const [locationCount] = await db
-          .select({ count: count() })
-          .from(customerLocations)
-          .where(eq(customerLocations.customerId, customer.id));
-        
-        return {
-          ...customer,
-          locationCount: Number(locationCount?.count) || 0,
-        };
+        if (includeLocations) {
+          const locations = await db
+            .select()
+            .from(customerLocations)
+            .where(eq(customerLocations.customerId, customer.id));
+          
+          return {
+            ...customer,
+            locations,
+            locationCount: locations.length,
+          };
+        } else {
+          const [locationCount] = await db
+            .select({ count: count() })
+            .from(customerLocations)
+            .where(eq(customerLocations.customerId, customer.id));
+          
+          return {
+            ...customer,
+            locationCount: Number(locationCount?.count) || 0,
+          };
+        }
       })
     );
 

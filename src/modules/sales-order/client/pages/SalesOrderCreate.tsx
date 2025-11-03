@@ -59,7 +59,7 @@ const SalesOrderCreate: React.FC = () => {
     setIsLoading(true);
     try {
       await Promise.all([
-        fetchCustomers(),
+        fetchCustomersWithLocations(),
         fetchAllProducts(),
       ]);
     } catch (error) {
@@ -69,14 +69,25 @@ const SalesOrderCreate: React.FC = () => {
     }
   };
 
-  const fetchCustomers = async () => {
+  const fetchCustomersWithLocations = async () => {
     try {
       const response = await axios.get('/api/modules/master-data/customers', {
-        params: { page: 1, limit: 1000 },
+        params: { 
+          page: 1, 
+          limit: 1000,
+          includeLocations: true,
+        },
       });
-      setCustomers(response.data.data || []);
+      const customersData = response.data.data || [];
+      setCustomers(customersData);
+      
+      const locationsMap = new Map();
+      customersData.forEach((customer: any) => {
+        locationsMap.set(customer.id, customer.locations || []);
+      });
+      setAllCustomerLocations(locationsMap);
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error('Error fetching customers with locations:', error);
       toast.error('Failed to fetch customers');
     }
   };
@@ -333,7 +344,8 @@ const SalesOrderCreate: React.FC = () => {
                 <SelectContent>
                   {customerLocations.map(location => (
                     <SelectItem key={location.id} value={location.id}>
-                      {location.addressLine1}, {location.city}
+                      {location.address || location.city || 'No address'}
+                      {location.city && location.address ? `, ${location.city}` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
