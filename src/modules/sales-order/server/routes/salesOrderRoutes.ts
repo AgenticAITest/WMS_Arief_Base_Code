@@ -554,15 +554,22 @@ router.get('/products-with-stock', authorized('ADMIN', 'sales-order.view'), asyn
       WHERE p.tenant_id = ${tenantId}
         ${search ? sql`AND (p.sku ILIKE ${'%' + search + '%'} OR p.name ILIKE ${'%' + search + '%'})` : sql``}
       GROUP BY p.id, p.sku, p.name, p.minimum_stock_level
+      HAVING COALESCE(SUM(ii.available_quantity), 0) > 0
       ORDER BY p.name
       LIMIT ${limit} OFFSET ${offset}
     `);
 
     const [totalResult] = await db.execute(sql`
-      SELECT COUNT(DISTINCT p.id) as count
-      FROM products p
-      WHERE p.tenant_id = ${tenantId}
-        ${search ? sql`AND (p.sku ILIKE ${'%' + search + '%'} OR p.name ILIKE ${'%' + search + '%'})` : sql``}
+      SELECT COUNT(*) as count
+      FROM (
+        SELECT p.id
+        FROM products p
+        LEFT JOIN inventory_items ii ON ii.product_id = p.id AND ii.tenant_id = p.tenant_id
+        WHERE p.tenant_id = ${tenantId}
+          ${search ? sql`AND (p.sku ILIKE ${'%' + search + '%'} OR p.name ILIKE ${'%' + search + '%'})` : sql``}
+        GROUP BY p.id
+        HAVING COALESCE(SUM(ii.available_quantity), 0) > 0
+      ) as filtered_products
     `);
 
     const total = Number(totalResult.count) || 0;
