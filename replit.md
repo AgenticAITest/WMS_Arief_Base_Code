@@ -50,6 +50,7 @@ None specified yet
   - **Schema**: `sales_orders` table includes: `customer_id`, `shipping_location_id`, `shipping_method_id`, `order_date`, `requested_delivery_date`, `tracking_number`, `delivery_instructions`, `total_amount`, `notes`, `status` (enum: created, allocated, picked, packed, shipped, delivered), and `workflow_state`.
   - **Items Schema**: `sales_order_items` table includes: `ordered_quantity`, `allocated_quantity`, `picked_quantity`, `unit_price`, `total_price` (simple quantity × unit_price calculation, no discount/tax at item level).
   - **Status Design**: Uses "created" status for new orders (not "draft" or "pending"), aligning with WMS workflow states where orders are actionable immediately upon creation.
+  - **SO Create Page Optimizations**: Products with 0 available stock are filtered at database level (HAVING clause). Customer locations preloaded via `includeLocations` query parameter for instant access. Address display uses correct `address` field from schema with city as fallback.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.
