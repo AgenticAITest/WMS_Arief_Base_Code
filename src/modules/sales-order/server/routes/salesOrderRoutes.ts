@@ -17,6 +17,7 @@ import { products } from '../../../master-data/server/lib/db/schemas/masterData'
 import { user } from '../../../system/server/lib/db/schemas/auth';
 import axios from 'axios';
 import { SODocumentGenerator } from '../services/soDocumentGenerator';
+import { logAudit, getClientIp } from '@server/services/auditService';
 
 const router = express.Router();
 router.use(authenticated());
@@ -484,6 +485,31 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
     } catch (docError) {
       console.error('Error generating SO document:', docError);
       // Don't fail the entire request if document generation fails
+    }
+
+    // Log audit trail
+    try {
+      await logAudit({
+        tenantId,
+        userId,
+        action: 'CREATE',
+        resourceType: 'sales_order',
+        resourceId: result.order.id,
+        details: {
+          orderNumber: result.order.orderNumber,
+          customerId: result.order.customerId,
+          customerName: customerData?.name || 'N/A',
+          totalAmount: result.order.totalAmount,
+          status: result.order.status,
+          workflowState: result.order.workflowState,
+          itemCount: result.items.length,
+        },
+        documentPath,
+        ipAddress: getClientIp(req),
+      });
+    } catch (auditError) {
+      console.error('Error logging audit:', auditError);
+      // Don't fail the request if audit logging fails
     }
 
     res.status(201).json({
