@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@client/components/ui/
 import { Input } from '@client/components/ui/input';
 import { Label } from '@client/components/ui/label';
 import { Textarea } from '@client/components/ui/textarea';
+import { Checkbox } from '@client/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -19,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@client/components/ui/table';
-import { Search, AlertTriangle } from 'lucide-react';
+import { Search, AlertTriangle, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 import { SOConfirmationModal } from '../components/SOConfirmationModal';
 import { SOPrintView } from '../components/SOPrintView';
@@ -30,7 +31,9 @@ const SalesOrderCreate: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<string>('');
   const [allCustomerLocations, setAllCustomerLocations] = useState<Map<string, any[]>>(new Map());
-  const [selectedShippingLocation, setSelectedShippingLocation] = useState<string>('');
+  const [selectedLocationIds, setSelectedLocationIds] = useState<string[]>([]);
+  const [itemAllocations, setItemAllocations] = useState<Map<string, Map<string, number>>>(new Map());
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItems, setSelectedItems] = useState<Map<string, any>>(new Map());
@@ -50,7 +53,8 @@ const SalesOrderCreate: React.FC = () => {
 
   useEffect(() => {
     if (selectedCustomer) {
-      setSelectedShippingLocation('');
+      setSelectedLocationIds([]);
+      setItemAllocations(new Map());
       fetchCustomerLocationsLazy(selectedCustomer);
     }
   }, [selectedCustomer]);
@@ -190,6 +194,103 @@ const SalesOrderCreate: React.FC = () => {
     })));
   };
 
+  const handleLocationToggle = (locationId: string) => {
+    const newSelected = selectedLocationIds.includes(locationId)
+      ? selectedLocationIds.filter(id => id !== locationId)
+      : [...selectedLocationIds, locationId];
+    
+    setSelectedLocationIds(newSelected);
+
+    if (!newSelected.includes(locationId)) {
+      const newAllocations = new Map(itemAllocations);
+      newAllocations.forEach((locationMap) => {
+        locationMap.delete(locationId);
+      });
+      setItemAllocations(newAllocations);
+    }
+  };
+
+  const handleSelectAllLocations = () => {
+    if (selectedLocationIds.length === customerLocations.length) {
+      setSelectedLocationIds([]);
+      setItemAllocations(new Map());
+    } else {
+      setSelectedLocationIds(customerLocations.map((loc: any) => loc.id));
+    }
+  };
+
+  const handleAllocationChange = (productId: string, locationId: string, quantity: string) => {
+    const qty = parseInt(quantity) || 0;
+    const item = selectedItems.get(productId);
+    
+    if (!item) return;
+
+    const newAllocations = new Map(itemAllocations);
+    if (!newAllocations.has(productId)) {
+      newAllocations.set(productId, new Map());
+    }
+    
+    const productAllocations = newAllocations.get(productId)!;
+    
+    if (qty > 0) {
+      productAllocations.set(locationId, qty);
+    } else {
+      productAllocations.delete(locationId);
+    }
+    
+    setItemAllocations(newAllocations);
+  };
+
+  const handleSplitEvenly = (productId: string) => {
+    const item = selectedItems.get(productId);
+    if (!item || selectedLocationIds.length === 0) return;
+
+    const totalQty = item.orderedQuantity;
+    const numLocations = selectedLocationIds.length;
+    const baseQty = Math.floor(totalQty / numLocations);
+    const remainder = totalQty % numLocations;
+
+    const newAllocations = new Map(itemAllocations);
+    const productAllocations = new Map<string, number>();
+
+    selectedLocationIds.forEach((locationId, index) => {
+      const qty = baseQty + (index < remainder ? 1 : 0);
+      if (qty > 0) {
+        productAllocations.set(locationId, qty);
+      }
+    });
+
+    newAllocations.set(productId, productAllocations);
+    setItemAllocations(newAllocations);
+  };
+
+  const toggleItemExpansion = (productId: string) => {
+    const newExpanded = new Set(expandedItems);
+    if (newExpanded.has(productId)) {
+      newExpanded.delete(productId);
+    } else {
+      newExpanded.add(productId);
+    }
+    setExpandedItems(newExpanded);
+  };
+
+  const getAllocatedQuantity = (productId: string): number => {
+    const productAllocations = itemAllocations.get(productId);
+    if (!productAllocations) return 0;
+    
+    return Array.from(productAllocations.values()).reduce((sum, qty) => sum + qty, 0);
+  };
+
+  const isAllocationValid = (productId: string): boolean => {
+    if (selectedLocationIds.length === 0) return true;
+    
+    const item = selectedItems.get(productId);
+    if (!item) return true;
+    
+    const allocated = getAllocatedQuantity(productId);
+    return allocated === item.orderedQuantity;
+  };
+
   const handleCreateSO = () => {
     if (!selectedCustomer) {
       toast.error('Please select a customer');
@@ -198,6 +299,11 @@ const SalesOrderCreate: React.FC = () => {
 
     if (!orderDate) {
       toast.error('Please select an order date');
+      return;
+    }
+
+    if (selectedLocationIds.length === 0) {
+      toast.error('Please select at least one shipping location');
       return;
     }
 
@@ -213,22 +319,48 @@ const SalesOrderCreate: React.FC = () => {
       return;
     }
 
+    for (const item of items) {
+      if (!isAllocationValid(item.productId)) {
+        const allocated = getAllocatedQuantity(item.productId);
+        toast.error(`Invalid allocation for ${item.name}: ${allocated} allocated, ${item.orderedQuantity} ordered`);
+        return;
+      }
+    }
+
     const customer = customers.find(c => c.id === selectedCustomer);
+    const itemsWithAllocations = items.map(item => {
+      const productAllocations = itemAllocations.get(item.productId) || new Map();
+      const locations = Array.from(productAllocations.entries()).map(([locationId, quantity]) => ({
+        customerLocationId: locationId,
+        quantity,
+      }));
+
+      return {
+        productId: item.productId,
+        sku: item.sku,
+        name: item.name,
+        productName: item.name,
+        orderedQuantity: item.orderedQuantity,
+        unitPrice: item.unitPrice,
+        locations,
+      };
+    });
+
     const soData = {
       customerId: selectedCustomer,
-      shippingLocationId: selectedShippingLocation || null,
       orderDate,
       requestedDeliveryDate: requestedDeliveryDate || null,
       deliveryInstructions: deliveryInstructions || null,
       notes: notes || null,
-      items: items.map(item => ({
-        productId: item.productId,
-        sku: item.sku,
-        name: item.name,
-        orderedQuantity: item.orderedQuantity,
-        unitPrice: item.unitPrice,
-      })),
+      items: itemsWithAllocations,
       customerName: customer?.name || 'N/A',
+      selectedLocations: selectedLocationIds.map(id => {
+        const location = customerLocations.find((loc: any) => loc.id === id);
+        return {
+          id,
+          address: location?.address || location?.city || 'No address',
+        };
+      }),
     };
 
     setSelectedSOData(soData);
@@ -264,7 +396,9 @@ const SalesOrderCreate: React.FC = () => {
 
   const resetForm = () => {
     setSelectedCustomer('');
-    setSelectedShippingLocation('');
+    setSelectedLocationIds([]);
+    setItemAllocations(new Map());
+    setExpandedItems(new Set());
     setOrderDate(new Date().toISOString().split('T')[0]);
     setRequestedDeliveryDate('');
     setDeliveryInstructions('');
@@ -314,43 +448,20 @@ const SalesOrderCreate: React.FC = () => {
           <CardTitle>Sales Order Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="customer">Customer *</Label>
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map(customer => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="shippingLocation">Shipping Location</Label>
-              <Select 
-                value={selectedShippingLocation} 
-                onValueChange={setSelectedShippingLocation}
-                disabled={!selectedCustomer}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select shipping location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customerLocations.map(location => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {location.address || location.city || 'No address'}
-                      {location.city && location.address ? `, ${location.city}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="customer">Customer *</Label>
+            <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select customer" />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map(customer => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -399,6 +510,65 @@ const SalesOrderCreate: React.FC = () => {
         </CardContent>
       </Card>
 
+      {selectedCustomer && customerLocations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Shipping Locations *
+              </CardTitle>
+              {customerLocations.length >= 4 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSelectAllLocations}
+                >
+                  {selectedLocationIds.length === customerLocations.length ? 'Deselect All' : 'Select All'}
+                </Button>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Select one or more delivery locations ({selectedLocationIds.length} selected)
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {customerLocations.map((location: any) => (
+                <div
+                  key={location.id}
+                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                    selectedLocationIds.includes(location.id)
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-primary/50'
+                  }`}
+                  onClick={() => handleLocationToggle(location.id)}
+                >
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={selectedLocationIds.includes(location.id)}
+                      onCheckedChange={() => handleLocationToggle(location.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm mb-1">
+                        {location.address || location.city || 'No address'}
+                      </div>
+                      {location.city && location.address && (
+                        <div className="text-xs text-muted-foreground">{location.city}</div>
+                      )}
+                      {location.state && (
+                        <div className="text-xs text-muted-foreground">{location.state}</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -421,15 +591,19 @@ const SalesOrderCreate: React.FC = () => {
             </div>
           </div>
 
-          <div className="border rounded-md max-h-[500px] overflow-y-auto">
+          <div className="border rounded-md max-h-[600px] overflow-y-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
+                  <TableHead className="w-[50px]"></TableHead>
                   <TableHead className="w-[100px]">SKU</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead className="w-[120px]">Available Stock</TableHead>
                   <TableHead className="w-[100px]">Quantity</TableHead>
                   <TableHead className="w-[120px]">Unit Price</TableHead>
+                  {selectedLocationIds.length > 0 && (
+                    <TableHead className="w-[200px]">Allocation</TableHead>
+                  )}
                   <TableHead className="w-[120px] text-right">Total</TableHead>
                 </TableRow>
               </TableHeader>
@@ -437,48 +611,141 @@ const SalesOrderCreate: React.FC = () => {
                 {filteredProducts.map(product => {
                   const selectedItem = selectedItems.get(product.productId);
                   const isLowStock = (product.availableStock || 0) <= (product.minimumStockLevel || 0);
+                  const isExpanded = expandedItems.has(product.productId);
+                  const hasQuantity = selectedItem && selectedItem.orderedQuantity > 0;
+                  const allocated = getAllocatedQuantity(product.productId);
+                  const isValid = isAllocationValid(product.productId);
                   
                   return (
-                    <TableRow key={product.productId}>
-                      <TableCell className="font-mono text-sm">{product.sku}</TableCell>
-                      <TableCell>{product.name}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {isLowStock && (
-                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                    <React.Fragment key={product.productId}>
+                      <TableRow>
+                        <TableCell>
+                          {hasQuantity && selectedLocationIds.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => toggleItemExpansion(product.productId)}
+                            >
+                              {isExpanded ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </Button>
                           )}
-                          <span className={isLowStock ? 'text-yellow-600 font-medium' : ''}>
-                            {product.availableStock || 0}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          max={product.availableStock || 0}
-                          value={selectedItem?.orderedQuantity || ''}
-                          onChange={(e) => handleQuantityChange(product.productId, e.target.value)}
-                          placeholder="0"
-                          className="w-20"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={selectedItem?.unitPrice || ''}
-                          onChange={(e) => handleUnitPriceChange(product.productId, e.target.value)}
-                          placeholder="0.00"
-                          className="w-24"
-                          disabled={!selectedItem?.orderedQuantity}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        ${((selectedItem?.orderedQuantity || 0) * (selectedItem?.unitPrice || 0)).toFixed(2)}
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{product.sku}</TableCell>
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {isLowStock && (
+                              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                            )}
+                            <span className={isLowStock ? 'text-yellow-600 font-medium' : ''}>
+                              {product.availableStock || 0}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={product.availableStock || 0}
+                            value={selectedItem?.orderedQuantity || ''}
+                            onChange={(e) => handleQuantityChange(product.productId, e.target.value)}
+                            placeholder="0"
+                            className="w-20"
+                            disabled={selectedLocationIds.length === 0}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={selectedItem?.unitPrice || ''}
+                            onChange={(e) => handleUnitPriceChange(product.productId, e.target.value)}
+                            placeholder="0.00"
+                            className="w-24"
+                            disabled={!selectedItem?.orderedQuantity}
+                          />
+                        </TableCell>
+                        {selectedLocationIds.length > 0 && (
+                          <TableCell>
+                            {hasQuantity && (
+                              <div className="space-y-1">
+                                <div className={`text-sm font-medium ${isValid ? 'text-green-600' : 'text-red-600'}`}>
+                                  {allocated} / {selectedItem.orderedQuantity}
+                                </div>
+                                {!isValid && (
+                                  <div className="text-xs text-red-600">
+                                    {allocated > selectedItem.orderedQuantity ? 'Over-allocated' : 'Under-allocated'}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right font-medium">
+                          ${((selectedItem?.orderedQuantity || 0) * (selectedItem?.unitPrice || 0)).toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && hasQuantity && selectedLocationIds.length > 0 && (
+                        <TableRow>
+                          <TableCell colSpan={8} className="bg-muted/50 p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium text-sm">Allocate to Locations</h4>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSplitEvenly(product.productId)}
+                                >
+                                  Split Evenly
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {selectedLocationIds.map(locationId => {
+                                  const location = customerLocations.find((loc: any) => loc.id === locationId);
+                                  const productAllocations = itemAllocations.get(product.productId) || new Map();
+                                  const qty = productAllocations.get(locationId) || 0;
+                                  
+                                  return (
+                                    <div key={locationId} className="border rounded-lg p-3 space-y-2">
+                                      <div className="text-sm font-medium truncate">
+                                        {location?.address || location?.city || 'No address'}
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Label className="text-xs">Quantity:</Label>
+                                        <Input
+                                          type="number"
+                                          min="0"
+                                          max={selectedItem.orderedQuantity}
+                                          value={qty || ''}
+                                          onChange={(e) => handleAllocationChange(product.productId, locationId, e.target.value)}
+                                          placeholder="0"
+                                          className="w-20 h-8"
+                                        />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="pt-2 border-t">
+                                <div className="flex items-center justify-between text-sm">
+                                  <span className="text-muted-foreground">Ordered: {selectedItem.orderedQuantity}</span>
+                                  <span className="text-muted-foreground">Allocated: {allocated}</span>
+                                  <span className={`font-medium ${isValid ? 'text-green-600' : 'text-red-600'}`}>
+                                    Remaining: {selectedItem.orderedQuantity - allocated}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </TableBody>

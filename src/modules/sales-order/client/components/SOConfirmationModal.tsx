@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@client/components/ui/table';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 
 interface SOConfirmationModalProps {
   open: boolean;
@@ -66,18 +66,6 @@ export const SOConfirmationModal: React.FC<SOConfirmationModalProps> = ({
                 <div className="text-sm text-muted-foreground">Customer</div>
                 <div className="font-medium">{soData.customerName || 'N/A'}</div>
               </div>
-              {soData.shippingLocationName && (
-                <div>
-                  <div className="text-sm text-muted-foreground">Shipping Location</div>
-                  <div className="font-medium">{soData.shippingLocationName}</div>
-                </div>
-              )}
-              {soData.shippingMethodName && (
-                <div>
-                  <div className="text-sm text-muted-foreground">Shipping Method</div>
-                  <div className="font-medium">{soData.shippingMethodName}</div>
-                </div>
-              )}
               <div>
                 <div className="text-sm text-muted-foreground">Order Date</div>
                 <div className="font-medium">{new Date(soData.orderDate).toLocaleDateString()}</div>
@@ -86,12 +74,6 @@ export const SOConfirmationModal: React.FC<SOConfirmationModalProps> = ({
                 <div>
                   <div className="text-sm text-muted-foreground">Requested Delivery Date</div>
                   <div className="font-medium">{new Date(soData.requestedDeliveryDate).toLocaleDateString()}</div>
-                </div>
-              )}
-              {soData.trackingNumber && (
-                <div>
-                  <div className="text-sm text-muted-foreground">Tracking Number</div>
-                  <div className="font-medium">{soData.trackingNumber}</div>
                 </div>
               )}
             </div>
@@ -109,6 +91,27 @@ export const SOConfirmationModal: React.FC<SOConfirmationModalProps> = ({
             )}
           </div>
 
+          {soData.selectedLocations && soData.selectedLocations.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Shipping Locations ({soData.selectedLocations.length})
+              </h3>
+              <div className="bg-muted/30 p-3 rounded-lg">
+                <div className="flex flex-wrap gap-2">
+                  {soData.selectedLocations.map((location: any, index: number) => (
+                    <div 
+                      key={index}
+                      className="bg-background border rounded px-3 py-1.5 text-sm"
+                    >
+                      {location.address}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <h3 className="font-semibold mb-2">Order Items</h3>
             <div className="border rounded-md">
@@ -124,15 +127,40 @@ export const SOConfirmationModal: React.FC<SOConfirmationModalProps> = ({
                 </TableHeader>
                 <TableBody>
                   {(soData.items || []).map((item: any, index: number) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                      <TableCell>{item.name}</TableCell>
-                      <TableCell className="text-right">{item.orderedQuantity}</TableCell>
-                      <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-medium">
-                        ${(item.orderedQuantity * item.unitPrice).toFixed(2)}
-                      </TableCell>
-                    </TableRow>
+                    <React.Fragment key={index}>
+                      <TableRow>
+                        <TableCell className="font-mono text-sm">{item.sku}</TableCell>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell className="text-right">{item.orderedQuantity}</TableCell>
+                        <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${(item.orderedQuantity * item.unitPrice).toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                      {item.locations && item.locations.length > 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="bg-muted/30 py-2 px-4">
+                            <div className="text-xs text-muted-foreground mb-1 font-medium">
+                              Location Allocation:
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                              {item.locations.map((loc: any, locIndex: number) => {
+                                const location = soData.selectedLocations?.find((sl: any) => sl.id === (loc.customerLocationId || loc.locationId));
+                                return (
+                                  <div 
+                                    key={locIndex}
+                                    className="bg-background border rounded px-2 py-1 text-xs flex items-center justify-between"
+                                  >
+                                    <span className="truncate mr-2">{location?.address || 'Unknown'}</span>
+                                    <span className="font-medium whitespace-nowrap">× {loc.quantity}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
