@@ -51,6 +51,10 @@ None specified yet
   - **Items Schema**: `sales_order_items` table includes: `ordered_quantity`, `allocated_quantity`, `picked_quantity`, `unit_price`, `total_price` (simple quantity × unit_price calculation, no discount/tax at item level).
   - **Status Design**: Uses "created" status for new orders (not "draft" or "pending"), aligning with WMS workflow states where orders are actionable immediately upon creation.
   - **SO Create Page Optimizations**: Products with 0 available stock are filtered at database level (HAVING clause). Customer locations preloaded via `includeLocations` query parameter for instant access. Address display uses correct `address` field from schema with city as fallback.
+  - **Multi-Location Selection UI**: Checkbox-based location selector displays all customer shipping locations in a grid layout with "Select All" helper (for 4+ locations). Items table is disabled until at least one location is selected, preventing invalid allocations.
+  - **Line-Item Allocation Editor**: Expandable table rows with chevron indicators allow per-item quantity distribution across selected locations. Each item shows allocation status (X/Y allocated) with green (valid) or red (invalid) highlighting. Expansion reveals location-specific quantity inputs in a grid layout with "Split Evenly" helper button for automatic distribution.
+  - **Allocation Validation**: Real-time validation ensures allocated quantities sum exactly to ordered quantity. Visual feedback includes color-coded status indicators, remaining quantity display, and error messages for over/under allocation. Frontend blocks submission until all items have valid allocations.
+  - **Confirmation Modal Enhancement**: Shows selected shipping locations as chips at the top, followed by items table with nested location breakdown rows displaying quantity distribution per location.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.
