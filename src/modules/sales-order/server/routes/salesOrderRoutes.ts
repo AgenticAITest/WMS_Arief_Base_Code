@@ -161,6 +161,83 @@ router.get('/sales-orders/:id', authorized('ADMIN', 'sales-order.view'), async (
   }
 });
 
+router.get('/sales-orders/:id/html', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { id } = req.params;
+
+    // Fetch sales order to verify access and get order number
+    const [so] = await db
+      .select({
+        id: salesOrders.id,
+        orderNumber: salesOrders.orderNumber,
+        tenantId: salesOrders.tenantId,
+      })
+      .from(salesOrders)
+      .where(and(
+        eq(salesOrders.id, id),
+        eq(salesOrders.tenantId, tenantId)
+      ));
+
+    if (!so) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sales order not found',
+      });
+    }
+
+    // Fetch the generated document metadata
+    const { generatedDocuments } = await import('../../../document-numbering/server/lib/db/schemas/documentNumbering');
+    const [document] = await db
+      .select()
+      .from(generatedDocuments)
+      .where(and(
+        eq(generatedDocuments.referenceType, 'sales_order'),
+        eq(generatedDocuments.referenceId, id),
+        eq(generatedDocuments.tenantId, tenantId)
+      ))
+      .orderBy(desc(generatedDocuments.createdAt))
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: 'HTML document not found for this sales order',
+      });
+    }
+
+    // Read HTML file from storage
+    const { promises: fs } = await import('fs');
+    const path = await import('path');
+    const htmlFilePath = path.join(process.cwd(), (document.files as any).html.path);
+    
+    try {
+      const htmlContent = await fs.readFile(htmlFilePath, 'utf-8');
+      
+      res.json({
+        success: true,
+        html: htmlContent,
+        documentInfo: {
+          version: document.version,
+          generatedAt: document.createdAt,
+        },
+      });
+    } catch (fileError) {
+      console.error('Error reading HTML file:', fileError);
+      return res.status(404).json({
+        success: false,
+        message: 'HTML file not found on disk',
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching HTML preview:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (req, res) => {
   try {
     const {
