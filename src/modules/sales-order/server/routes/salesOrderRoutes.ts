@@ -14,7 +14,7 @@ import { workflows, workflowSteps } from '../../../workflow/server/lib/db/schema
 import { documentNumberConfig } from '../../../document-numbering/server/lib/db/schemas/documentNumbering';
 import { customers, customerLocations } from '../../../master-data/server/lib/db/schemas/masterData';
 import { products } from '../../../master-data/server/lib/db/schemas/masterData';
-import { user } from '../../../system/server/lib/db/schemas/auth';
+import { user } from '@server/lib/db/schema/system';
 import axios from 'axios';
 import { SODocumentGenerator } from '../services/soDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
