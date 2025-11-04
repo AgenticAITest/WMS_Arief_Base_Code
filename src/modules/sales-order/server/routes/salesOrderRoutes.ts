@@ -12,9 +12,11 @@ import {
 } from '../lib/db/schemas/salesOrder';
 import { workflows, workflowSteps } from '../../../workflow/server/lib/db/schemas/workflow';
 import { documentNumberConfig } from '../../../document-numbering/server/lib/db/schemas/documentNumbering';
-import { customers } from '../../../master-data/server/lib/db/schemas/masterData';
+import { customers, customerLocations } from '../../../master-data/server/lib/db/schemas/masterData';
 import { products } from '../../../master-data/server/lib/db/schemas/masterData';
+import { user } from '../../../system/server/lib/db/schemas/auth';
 import axios from 'axios';
+import { SODocumentGenerator } from '../services/soDocumentGenerator';
 
 const router = express.Router();
 router.use(authenticated());
@@ -312,11 +314,107 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       return { order: newOrder, items: createdItems };
     });
 
+    // Fetch additional data for document generation
+    const [customerData] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, customerId))
+      .limit(1);
+
+    const [userData] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    // Fetch product details for items
+    const productIds = items.map((item: any) => item.productId);
+    const productDetails = await db
+      .select()
+      .from(products)
+      .where(and(
+        eq(products.tenantId, tenantId),
+        sql`${products.id} = ANY(${productIds})`
+      ));
+
+    const productMap = new Map(productDetails.map(p => [p.id, p]));
+
+    // Fetch customer locations for items
+    const locationIds = items.flatMap((item: any) => 
+      item.locations.map((loc: any) => loc.customerLocationId)
+    );
+    const locationDetails = await db
+      .select()
+      .from(customerLocations)
+      .where(and(
+        eq(customerLocations.tenantId, tenantId),
+        sql`${customerLocations.id} = ANY(${locationIds})`
+      ));
+
+    const locationMap = new Map(locationDetails.map(l => [l.id, l]));
+
+    // Build item data with locations for document
+    const itemsWithLocations = result.items.map((item: any) => {
+      const product = productMap.get(item.productId);
+      const itemLocations = item.locations.map((loc: any) => {
+        const locationData = locationMap.get(loc.customerLocationId);
+        const locationAddress = [
+          locationData?.address,
+          locationData?.city,
+          locationData?.state,
+          locationData?.postalCode,
+          locationData?.country
+        ].filter(Boolean).join(', ') || 'N/A';
+
+        return {
+          locationAddress,
+          quantity: loc.quantity
+        };
+      });
+
+      return {
+        productSku: product?.sku || 'N/A',
+        productName: product?.name || 'Unknown Product',
+        orderedQuantity: item.orderedQuantity,
+        unitPrice: item.unitPrice.toString(),
+        totalPrice: item.totalPrice.toString(),
+        locations: itemLocations
+      };
+    });
+
+    // Generate and save HTML document
+    let documentPath = null;
+    try {
+      const soDocumentData = {
+        id: result.order.id,
+        tenantId,
+        orderNumber: result.order.orderNumber,
+        orderDate: result.order.orderDate,
+        requestedDeliveryDate: result.order.requestedDeliveryDate,
+        totalAmount: result.order.totalAmount,
+        notes: result.order.notes,
+        deliveryInstructions: result.order.deliveryInstructions,
+        customerName: customerData?.name || 'N/A',
+        customerEmail: customerData?.email || null,
+        customerPhone: customerData?.phone || null,
+        createdByName: userData?.name || null,
+        status: result.order.status,
+        items: itemsWithLocations
+      };
+
+      const docResult = await SODocumentGenerator.generateAndSave(soDocumentData, userId);
+      documentPath = docResult.filePath;
+    } catch (docError) {
+      console.error('Error generating SO document:', docError);
+      // Don't fail the entire request if document generation fails
+    }
+
     res.status(201).json({
       success: true,
       data: {
         ...result.order,
         items: result.items,
+        documentPath,
       },
     });
   } catch (error: any) {
