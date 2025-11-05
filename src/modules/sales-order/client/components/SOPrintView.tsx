@@ -6,7 +6,7 @@ import {
   DialogTitle,
 } from '@client/components/ui/dialog';
 import { Button } from '@client/components/ui/button';
-import { Printer, X } from 'lucide-react';
+import { Printer, X, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 
@@ -21,50 +21,44 @@ export const SOPrintView: React.FC<SOPrintViewProps> = ({
   onOpenChange,
   soData,
 }) => {
-  // COMMENTED OUT OLD API APPROACH - Preserved for rollback
-  // const [htmlContent, setHtmlContent] = useState<string>('');
-  // const [loading, setLoading] = useState(true);
-
-  // useEffect(() => {
-  //   if (open && soData?.id) {
-  //     fetchGeneratedDocument();
-  //   }
-  // }, [open, soData?.id]);
-
-  // const fetchGeneratedDocument = async () => {
-  //   try {
-  //     setLoading(true);
-  //     const htmlResponse = await axios.get(
-  //       `/api/modules/sales-order/sales-orders/${soData.id}/html`
-  //     );
-  //     
-  //     if (htmlResponse.data.success && htmlResponse.data.html) {
-  //       setHtmlContent(htmlResponse.data.html);
-  //     } else {
-  //       toast.error('No generated document found for this SO');
-  //     }
-  //   } catch (error: any) {
-  //     console.error('Error fetching generated document:', error);
-  //     const errorMsg = error.response?.data?.message || 'Failed to load SO document';
-  //     toast.error(errorMsg);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
-  // NEW STATIC FILE APPROACH
-  const [documentPath, setDocumentPath] = useState<string>('');
+  const [blobUrl, setBlobUrl] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (open && soData?.documentPath) {
-      // Document path is already in soData from backend response
-      setDocumentPath(soData.documentPath);
-      setLoading(false);
+      fetchDocument();
     } else {
       setLoading(false);
     }
+    
+    return () => {
+      // Cleanup blob URL to free memory
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
   }, [open, soData?.documentPath]);
+
+  const fetchDocument = async () => {
+    try {
+      setLoading(true);
+      // Fetch document via authenticated axios request
+      const response = await axios.get(`/api/audit-logs/document`, {
+        params: { path: soData.documentPath },
+        responseType: 'text', // Get HTML as text
+      });
+      
+      // Create a blob from the HTML content
+      const blob = new Blob([response.data], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      setBlobUrl(url);
+    } catch (error) {
+      console.error('Error fetching SO document:', error);
+      toast.error('Failed to load SO document');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handlePrint = () => {
     const iframe = document.getElementById('so-document-iframe') as HTMLIFrameElement;
@@ -82,18 +76,19 @@ export const SOPrintView: React.FC<SOPrintViewProps> = ({
           <DialogTitle>Sales Order Created Successfully - {soData.orderNumber}</DialogTitle>
         </DialogHeader>
 
-        {/* SECURE FILE SERVING - Uses authenticated endpoint to serve documents */}
+        {/* BLOB URL APPROACH - Fetches via authenticated axios, creates blob URL for iframe */}
         {loading ? (
           <div className="flex items-center justify-center h-[600px]">
             <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-2" />
               <div className="text-lg font-medium">Loading document...</div>
               <div className="text-sm text-muted-foreground">Please wait</div>
             </div>
           </div>
-        ) : documentPath ? (
+        ) : blobUrl ? (
           <iframe
             id="so-document-iframe"
-            src={`/api/audit-logs/document?path=${encodeURIComponent(documentPath)}`}
+            src={blobUrl}
             className="w-full h-[600px] border-0"
             title="Sales Order Document"
           />
@@ -129,7 +124,7 @@ export const SOPrintView: React.FC<SOPrintViewProps> = ({
         )} */}
 
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" onClick={handlePrint} disabled={!documentPath || loading}>
+          <Button variant="outline" onClick={handlePrint} disabled={!blobUrl || loading}>
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>
