@@ -15,6 +15,7 @@ interface SOItem {
   sku: string;
   orderedQuantity: string;
   allocatedQuantity: string;
+  availableQuantity: string;
   unitPrice: string;
   totalPrice: string;
 }
@@ -154,20 +155,32 @@ const SalesOrderAllocate: React.FC = () => {
                           <th className="px-4 py-2 text-left text-sm font-medium">SKU</th>
                           <th className="px-4 py-2 text-left text-sm font-medium">Product</th>
                           <th className="px-4 py-2 text-right text-sm font-medium">Ordered Qty</th>
+                          <th className="px-4 py-2 text-right text-sm font-medium">Available Qty</th>
                           <th className="px-4 py-2 text-right text-sm font-medium">Unit Price</th>
                           <th className="px-4 py-2 text-right text-sm font-medium">Total</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {order.items.map((item) => (
-                          <tr key={item.id} className="border-t">
-                            <td className="px-4 py-2 text-sm">{item.sku}</td>
-                            <td className="px-4 py-2 text-sm font-medium">{item.productName}</td>
-                            <td className="px-4 py-2 text-sm text-right">{item.orderedQuantity}</td>
-                            <td className="px-4 py-2 text-sm text-right">${parseFloat(item.unitPrice).toFixed(2)}</td>
-                            <td className="px-4 py-2 text-sm text-right font-medium">${parseFloat(item.totalPrice).toFixed(2)}</td>
-                          </tr>
-                        ))}
+                        {order.items.map((item) => {
+                          const availableQty = parseFloat(item.availableQuantity);
+                          const orderedQty = parseFloat(item.orderedQuantity);
+                          const isSufficient = availableQty >= orderedQty;
+                          
+                          return (
+                            <tr key={item.id} className="border-t">
+                              <td className="px-4 py-2 text-sm">{item.sku}</td>
+                              <td className="px-4 py-2 text-sm font-medium">{item.productName}</td>
+                              <td className="px-4 py-2 text-sm text-right">{item.orderedQuantity}</td>
+                              <td className="px-4 py-2 text-sm text-right">
+                                <span className={isSufficient ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>
+                                  {item.availableQuantity}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2 text-sm text-right">${parseFloat(item.unitPrice).toFixed(2)}</td>
+                              <td className="px-4 py-2 text-sm text-right font-medium">${parseFloat(item.totalPrice).toFixed(2)}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

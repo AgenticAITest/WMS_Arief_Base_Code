@@ -606,7 +606,15 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
             soi.unit_price as "unitPrice",
             soi.total_price as "totalPrice",
             p.name as "productName",
-            p.sku
+            p.sku,
+            COALESCE(
+              (SELECT SUM(ii.available_quantity) 
+               FROM inventory_items ii 
+               WHERE ii.product_id = soi.product_id 
+                 AND ii.tenant_id = ${tenantId}
+                 AND ii.available_quantity > 0
+              ), 0
+            ) as "availableQuantity"
           FROM sales_order_items soi
           LEFT JOIN products p ON p.id = soi.product_id
           WHERE soi.sales_order_id = ${order.id}
