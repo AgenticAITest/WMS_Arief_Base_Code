@@ -580,7 +580,7 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
         and(
           eq(auditLogs.resourceType, 'sales_order'),
           eq(auditLogs.action, 'create'),
-          eq(auditLogs.resourceId, salesOrders.id)
+          sql`${auditLogs.resourceId} = ${salesOrders.id}::text`
         )
       )
       .where(
