@@ -593,6 +593,11 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
       )
       .orderBy(desc(salesOrders.createdAt));
 
+    console.log('BACKEND - Raw query results:', results.length, 'orders');
+    if (results.length > 0) {
+      console.log('BACKEND - First order:', JSON.stringify(results[0], null, 2));
+    }
+
     // For each SO, fetch items
     const ordersWithItems = await Promise.all(
       results.map(async (order) => {
