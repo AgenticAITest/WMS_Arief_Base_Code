@@ -3,8 +3,9 @@ import axios from 'axios';
 import { Button } from '@client/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@client/components/ui/card';
 import { toast } from 'sonner';
-import { Package, RefreshCw } from 'lucide-react';
+import { Package, RefreshCw, FileText } from 'lucide-react';
 import AllocationConfirmationModal from '../components/AllocationConfirmationModal';
+import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 
 interface SOItem {
   id: string;
@@ -30,6 +31,7 @@ interface SalesOrder {
   createdAt: string;
   customerId: string;
   customerName: string;
+  documentPath: string | null;
   items: SOItem[];
 }
 
@@ -37,6 +39,8 @@ const SalesOrderAllocate: React.FC = () => {
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [confirmOrderId, setConfirmOrderId] = useState<string | null>(null);
+  const [viewDocumentPath, setViewDocumentPath] = useState<string | null>(null);
+  const [viewDocumentNumber, setViewDocumentNumber] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAllocatableOrders();
@@ -64,6 +68,16 @@ const SalesOrderAllocate: React.FC = () => {
     if (success) {
       fetchAllocatableOrders();
     }
+  };
+
+  const handleViewDocument = (documentPath: string, orderNumber: string) => {
+    setViewDocumentPath(documentPath);
+    setViewDocumentNumber(orderNumber);
+  };
+
+  const handleCloseDocumentViewer = () => {
+    setViewDocumentPath(null);
+    setViewDocumentNumber(null);
   };
 
   const confirmOrder = salesOrders.find(so => so.id === confirmOrderId);
@@ -108,9 +122,21 @@ const SalesOrderAllocate: React.FC = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="text-lg">
-                        SO: {order.orderNumber}
-                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">
+                          SO: {order.orderNumber}
+                        </CardTitle>
+                        {order.documentPath && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDocument(order.documentPath!, order.orderNumber)}
+                            title="View Sales Order Document"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         Customer: {order.customerName} | Order Date: {new Date(order.orderDate).toLocaleDateString()} | Total: ${parseFloat(order.totalAmount).toFixed(2)}
                       </p>
@@ -164,6 +190,15 @@ const SalesOrderAllocate: React.FC = () => {
           isOpen={confirmOrderId !== null}
           onClose={handleConfirmClose}
           salesOrder={confirmOrder}
+        />
+      )}
+
+      {viewDocumentPath && (
+        <DocumentViewerModal
+          isOpen={viewDocumentPath !== null}
+          onClose={handleCloseDocumentViewer}
+          documentPath={viewDocumentPath}
+          documentNumber={viewDocumentNumber || undefined}
         />
       )}
     </>

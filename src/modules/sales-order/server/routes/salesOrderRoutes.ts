@@ -16,6 +16,7 @@ import { documentNumberConfig } from '../../../document-numbering/server/lib/db/
 import { customers, customerLocations } from '../../../master-data/server/lib/db/schemas/masterData';
 import { products } from '../../../master-data/server/lib/db/schemas/masterData';
 import { user } from '@server/lib/db/schema/system';
+import { auditLogs } from '@server/lib/db/schema/audit';
 import axios from 'axios';
 import { SODocumentGenerator } from '../services/soDocumentGenerator';
 import { AllocationDocumentGenerator } from '../services/allocationDocumentGenerator';
@@ -570,9 +571,18 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
         createdAt: salesOrders.createdAt,
         customerId: salesOrders.customerId,
         customerName: customers.name,
+        documentPath: auditLogs.documentPath,
       })
       .from(salesOrders)
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
+      .leftJoin(
+        auditLogs,
+        and(
+          eq(auditLogs.resourceType, 'sales_order'),
+          eq(auditLogs.action, 'create'),
+          eq(auditLogs.resourceId, salesOrders.id)
+        )
+      )
       .where(
         and(
           eq(salesOrders.tenantId, tenantId),
