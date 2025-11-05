@@ -64,6 +64,14 @@ None specified yet
   - **Document Generation**: `AllocationDocumentGenerator` service creates HTML allocation documents in `/storage/sales-order/allocations/tenants/{tenantId}/` directory with detailed breakdowns by product, bin location, batch/lot numbers, and expiry dates.
   - **UI Components**: `SalesOrderAllocate` page displays allocatable orders in table format with "Allocate" action button. `AllocationConfirmationModal` shows SO details and confirms allocation action before executing transaction.
   - **Audit Integration**: Successful allocations logged to `audit_logs` table with action='allocate_sales_order', including generated document path for traceability.
+- **Sales Order Pick System**: Picking workflow that transitions SOs from 'allocated' to 'picked' status with guided location-based picking using FIFO/FEFO allocated inventory.
+  - **Pick API**: GET `/picks` endpoint fetches SOs with status='allocated' and workflow_state='pick', returning allocation records with complete warehouse location hierarchy (zone → aisle → shelf → bin). POST `/picks/:id/confirm` executes atomic transaction for pick confirmation.
+  - **FIFO/FEFO Display**: Allocation records are displayed in FIFO/FEFO order (matching allocation logic) with full location paths to guide warehouse pickers to optimal inventory locations.
+  - **Transaction Atomicity**: Single `db.transaction()` wraps all inventory updates (decrement `available_quantity` and `reserved_quantity`), pick record creation, SO item `picked_quantity` updates, SO status transition, workflow state advancement, and PICK document generation. Partial failures trigger full rollback.
+  - **Pick Records**: `sales_order_picks` table tracks individual pick operations with `sales_order_id`, `allocation_id`, `picked_quantity`, `picked_by`, batch/lot tracking, and timestamps.
+  - **Document Generation**: `PickDocumentGenerator` service creates HTML pick documents in `/storage/sales-order/picks/tenants/{tenantId}/{year}/` directory with year-based organization. Documents include product details, pick locations, quantities, batch/lot numbers, and expiry dates. Uses `generated_documents` table with JSONB `files` field for metadata storage.
+  - **UI Components**: `SalesOrderPick` page displays pickable orders with expandable item rows showing allocation locations and quantities. `PickConfirmationModal` presents SO details, customer info, and complete pick breakdown before confirming operation.
+  - **Audit Integration**: Successful picks logged to `audit_logs` table with action='pick_sales_order', including generated document path for full traceability.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.
