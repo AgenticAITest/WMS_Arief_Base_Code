@@ -50,8 +50,6 @@ const SalesOrderAllocate: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/modules/sales-order/allocations');
-      console.log('Frontend received orders:', response.data.data);
-      console.log('First order documentPath:', response.data.data?.[0]?.documentPath);
       setSalesOrders(response.data.data || []);
     } catch (error) {
       console.error('Error fetching allocatable orders:', error);
@@ -128,22 +126,16 @@ const SalesOrderAllocate: React.FC = () => {
                         <CardTitle className="text-lg">
                           SO: {order.orderNumber}
                         </CardTitle>
-                        {/* TEMP: Always show button to debug */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            console.log('Button clicked! documentPath:', order.documentPath);
-                            if (order.documentPath) {
-                              handleViewDocument(order.documentPath, order.orderNumber);
-                            } else {
-                              console.error('No documentPath available!');
-                            }
-                          }}
-                          title={`View Sales Order Document (path: ${order.documentPath || 'MISSING'})`}
-                        >
-                          <FileText className="w-4 h-4" />
-                        </Button>
+                        {order.documentPath && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewDocument(order.documentPath!, order.orderNumber)}
+                            title="View Sales Order Document"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         Customer: {order.customerName} | Order Date: {new Date(order.orderDate).toLocaleDateString()} | Total: ${parseFloat(order.totalAmount).toFixed(2)}

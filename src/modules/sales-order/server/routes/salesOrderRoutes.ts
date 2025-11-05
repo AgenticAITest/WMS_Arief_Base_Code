@@ -571,7 +571,7 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
         createdAt: salesOrders.createdAt,
         customerId: salesOrders.customerId,
         customerName: customers.name,
-        documentPath: auditLogs.documentPath,
+        documentPath: sql<string>`${auditLogs.documentPath}`,
       })
       .from(salesOrders)
       .leftJoin(customers, eq(salesOrders.customerId, customers.id))
@@ -592,11 +592,6 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
         )
       )
       .orderBy(desc(salesOrders.createdAt));
-
-    console.log('BACKEND - Raw query results:', results.length, 'orders');
-    if (results.length > 0) {
-      console.log('BACKEND - First order:', JSON.stringify(results[0], null, 2));
-    }
 
     // For each SO, fetch items
     const ordersWithItems = await Promise.all(
@@ -625,8 +620,6 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
       })
     );
 
-    console.log('Allocations API response sample:', JSON.stringify(ordersWithItems[0], null, 2));
-    
     res.json({
       success: true,
       data: ordersWithItems,
