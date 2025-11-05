@@ -10,6 +10,7 @@ import {
   salesOrderAllocations,
   salesOrderPicks,
 } from '../lib/db/schemas/salesOrder';
+import { inventoryItems } from '../../../inventory-items/server/lib/db/schemas/inventoryItems';
 import { workflows, workflowSteps } from '../../../workflow/server/lib/db/schemas/workflow';
 import { documentNumberConfig } from '../../../document-numbering/server/lib/db/schemas/documentNumbering';
 import { customers, customerLocations } from '../../../master-data/server/lib/db/schemas/masterData';
@@ -17,6 +18,7 @@ import { products } from '../../../master-data/server/lib/db/schemas/masterData'
 import { user } from '@server/lib/db/schema/system';
 import axios from 'axios';
 import { SODocumentGenerator } from '../services/soDocumentGenerator';
+import { AllocationDocumentGenerator } from '../services/allocationDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
 
 const router = express.Router();
@@ -548,6 +550,374 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       return res.status(400).json({ success: false, message: 'Order number already exists' });
     }
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    const results = await db
+      .select({
+        id: salesOrders.id,
+        orderNumber: salesOrders.orderNumber,
+        orderDate: salesOrders.orderDate,
+        requestedDeliveryDate: salesOrders.requestedDeliveryDate,
+        totalAmount: salesOrders.totalAmount,
+        notes: salesOrders.notes,
+        status: salesOrders.status,
+        workflowState: salesOrders.workflowState,
+        createdAt: salesOrders.createdAt,
+        customerId: salesOrders.customerId,
+        customerName: customers.name,
+      })
+      .from(salesOrders)
+      .leftJoin(customers, eq(salesOrders.customerId, customers.id))
+      .where(
+        and(
+          eq(salesOrders.tenantId, tenantId),
+          eq(salesOrders.status, 'created'),
+          eq(salesOrders.workflowState, 'allocate')
+        )
+      )
+      .orderBy(desc(salesOrders.createdAt));
+
+    // For each SO, fetch items
+    const ordersWithItems = await Promise.all(
+      results.map(async (order) => {
+        const itemsResult = await db.execute(sql`
+          SELECT 
+            soi.id,
+            soi.line_number as "lineNumber",
+            soi.product_id as "productId",
+            soi.ordered_quantity as "orderedQuantity",
+            soi.allocated_quantity as "allocatedQuantity",
+            soi.unit_price as "unitPrice",
+            soi.total_price as "totalPrice",
+            p.name as "productName",
+            p.sku
+          FROM sales_order_items soi
+          LEFT JOIN products p ON p.id = soi.product_id
+          WHERE soi.sales_order_id = ${order.id}
+          ORDER BY soi.line_number
+        `);
+
+        return {
+          ...order,
+          items: itemsResult || [],
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: ordersWithItems,
+    });
+  } catch (error) {
+    console.error('Error fetching allocations:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+router.post('/allocations/:id/confirm', authorized('ADMIN', 'sales-order.allocate'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+
+    // Verify SO exists and is allocatable
+    const [so] = await db
+      .select()
+      .from(salesOrders)
+      .where(
+        and(
+          eq(salesOrders.id, id),
+          eq(salesOrders.tenantId, tenantId),
+          eq(salesOrders.status, 'created'),
+          eq(salesOrders.workflowState, 'allocate')
+        )
+      )
+      .limit(1);
+
+    if (!so) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sales order not found or not ready for allocation',
+      });
+    }
+
+    // Fetch SO items
+    const soItems = await db
+      .select()
+      .from(salesOrderItems)
+      .where(eq(salesOrderItems.salesOrderId, id))
+      .orderBy(salesOrderItems.lineNumber);
+
+    if (soItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No items found for this sales order',
+      });
+    }
+
+    // Allocate in transaction
+    const result = await db.transaction(async (tx) => {
+      const allocationRecords = [];
+
+      for (const item of soItems) {
+        const orderedQty = Number(item.orderedQuantity);
+        let remainingQty = orderedQty;
+
+        // Check if product has expiry date capability
+        const productQuery = await tx
+          .select({ id: products.id })
+          .from(products)
+          .where(eq(products.id, item.productId))
+          .limit(1);
+
+        if (productQuery.length === 0) {
+          throw new Error(`Product not found: ${item.productId}`);
+        }
+
+        // Find available inventory using FIFO/FEFO logic
+        // FEFO: Items with expiry dates sorted by earliest expiry first
+        // FIFO: Items without expiry sorted by received date (oldest first)
+        const availableInventory = await tx.execute(sql`
+          SELECT 
+            id,
+            available_quantity as "availableQuantity",
+            reserved_quantity as "reservedQuantity",
+            expiry_date as "expiryDate",
+            batch_number as "batchNumber",
+            lot_number as "lotNumber",
+            received_date as "receivedDate",
+            cost_per_unit as "costPerUnit"
+          FROM inventory_items
+          WHERE tenant_id = ${tenantId}
+            AND product_id = ${item.productId}
+            AND available_quantity > 0
+          ORDER BY 
+            expiry_date ASC NULLS LAST,
+            received_date ASC NULLS LAST,
+            created_at ASC
+        `);
+
+        if (availableInventory.length === 0) {
+          throw new Error(`No available inventory for product: ${item.productId}`);
+        }
+
+        // Allocate from inventory items
+        for (const invItem of availableInventory as any[]) {
+          if (remainingQty <= 0) break;
+
+          const availableQty = Number(invItem.availableQuantity);
+          const allocateQty = Math.min(remainingQty, availableQty);
+
+          // Create allocation record
+          const [allocation] = await tx
+            .insert(salesOrderAllocations)
+            .values({
+              tenantId,
+              salesOrderItemId: item.id,
+              inventoryItemId: invItem.id,
+              allocatedQuantity: allocateQty.toString(),
+              allocatedBy: userId,
+            })
+            .returning();
+
+          allocationRecords.push({
+            ...allocation,
+            batchNumber: invItem.batchNumber,
+            lotNumber: invItem.lotNumber,
+            expiryDate: invItem.expiryDate,
+          });
+
+          // Update inventory quantities
+          await tx
+            .update(inventoryItems)
+            .set({
+              availableQuantity: sql`${inventoryItems.availableQuantity} - ${allocateQty}`,
+              reservedQuantity: sql`${inventoryItems.reservedQuantity} + ${allocateQty}`,
+            })
+            .where(eq(inventoryItems.id, invItem.id));
+
+          remainingQty -= allocateQty;
+        }
+
+        if (remainingQty > 0) {
+          throw new Error(
+            `Insufficient inventory for item ${item.lineNumber}. Needed ${orderedQty}, allocated ${orderedQty - remainingQty}`
+          );
+        }
+
+        // Update SO item allocated quantity
+        await tx
+          .update(salesOrderItems)
+          .set({
+            allocatedQuantity: orderedQty.toString(),
+          })
+          .where(eq(salesOrderItems.id, item.id));
+      }
+
+      // Get next workflow step
+      const workflowResults = await tx
+        .select({ stepKey: workflowSteps.stepKey, stepOrder: workflowSteps.stepOrder })
+        .from(workflows)
+        .leftJoin(workflowSteps, eq(workflowSteps.workflowId, workflows.id))
+        .where(
+          and(
+            eq(workflows.tenantId, tenantId),
+            eq(workflows.type, 'SALES_ORDER'),
+            eq(workflows.isDefault, true),
+            eq(workflows.isActive, true),
+            eq(workflowSteps.isActive, true)
+          )
+        )
+        .orderBy(workflowSteps.stepOrder);
+
+      // Find next step after 'allocate'
+      const currentStepIndex = workflowResults.findIndex(s => s.stepKey === 'allocate');
+      const nextStep = workflowResults[currentStepIndex + 1]?.stepKey || 'pick';
+
+      // Update SO status
+      await tx
+        .update(salesOrders)
+        .set({
+          status: 'allocated',
+          workflowState: nextStep,
+          updatedBy: userId,
+          updatedAt: new Date(),
+        })
+        .where(eq(salesOrders.id, id));
+
+      return { allocationRecords, nextWorkflowState: nextStep };
+    });
+
+    // Generate allocation document number
+    const allocationDocNumber = await axios.post(
+      `${req.protocol}://${req.get('host')}/api/modules/document-numbering/generate`,
+      { documentType: 'ALLOCATION', options: {} },
+      { headers: { Authorization: req.headers.authorization } }
+    );
+
+    const allocationNumber = allocationDocNumber.data.documentNumber;
+
+    // Fetch additional data for document generation
+    const [customerData] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, so.customerId))
+      .limit(1);
+
+    const [userData] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    // Fetch product and bin details for allocations
+    const productIds = soItems.map(item => item.productId);
+    const productDetails = await db
+      .select()
+      .from(products)
+      .where(and(
+        eq(products.tenantId, tenantId),
+        inArray(products.id, productIds)
+      ));
+    const productMap = new Map(productDetails.map(p => [p.id, p]));
+
+    // Fetch bin location paths for allocated items
+    const inventoryItemIds = result.allocationRecords.map((rec: any) => rec.inventoryItemId);
+    const binLocations = await db.execute(sql`
+      SELECT 
+        ii.id as inventory_item_id,
+        w.name || ' > ' || z.name || ' > ' || a.name || ' > ' || s.name || ' > ' || b.name as location_path
+      FROM inventory_items ii
+      JOIN bins b ON b.id = ii.bin_id
+      JOIN shelves s ON s.id = b.shelf_id
+      JOIN aisles a ON a.id = s.aisle_id
+      JOIN zones z ON z.id = a.zone_id
+      JOIN warehouses w ON w.id = z.warehouse_id
+      WHERE ii.id = ANY(${inventoryItemIds})
+    `);
+    const binLocationMap = new Map((binLocations as any[]).map(bl => [bl.inventory_item_id, bl.location_path]));
+
+    // Build item data with allocations for document
+    const itemsForDocument = soItems.map(item => {
+      const product = productMap.get(item.productId);
+      const itemAllocations = result.allocationRecords.filter((rec: any) => rec.salesOrderItemId === item.id);
+      
+      return {
+        productSku: product?.sku || 'N/A',
+        productName: product?.name || 'Unknown Product',
+        orderedQuantity: Number(item.orderedQuantity),
+        allocatedQuantity: Number(item.orderedQuantity),
+        allocations: itemAllocations.map((alloc: any) => ({
+          binLocation: binLocationMap.get(alloc.inventoryItemId) || 'Unknown Location',
+          quantity: Number(alloc.allocatedQuantity),
+          batchNumber: alloc.batchNumber,
+          lotNumber: alloc.lotNumber,
+          expiryDate: alloc.expiryDate,
+        })),
+      };
+    });
+
+    // Generate and save HTML allocation document
+    let documentPath = null;
+    try {
+      const allocationDocData = {
+        id: so.id,
+        tenantId,
+        allocationNumber,
+        orderNumber: so.orderNumber,
+        orderDate: so.orderDate,
+        customerName: customerData?.name || 'N/A',
+        totalAmount: so.totalAmount,
+        allocatedByName: userData?.fullname || null,
+        items: itemsForDocument,
+      };
+
+      const docResult = await AllocationDocumentGenerator.generateAndSave(allocationDocData, userId);
+      documentPath = docResult.filePath;
+    } catch (docError) {
+      console.error('Error generating allocation document:', docError);
+      documentPath = null;
+    }
+
+    // Log audit
+    await logAudit({
+      tenantId,
+      userId,
+      module: 'sales-order',
+      action: 'allocate',
+      resourceType: 'sales_order',
+      resourceId: id,
+      description: `Allocated inventory for sales order ${so.orderNumber}. Generated allocation ${allocationNumber}.`,
+      changedFields: {
+        orderNumber: so.orderNumber,
+        status: 'allocated',
+        workflowState: result.nextWorkflowState,
+        allocationNumber,
+        allocatedItems: result.allocationRecords.length,
+      },
+      documentPath: documentPath || undefined,
+      ipAddress: getClientIp(req),
+    });
+
+    res.json({
+      success: true,
+      data: {
+        allocationNumber,
+        documentPath,
+        allocations: result.allocationRecords,
+      },
+    });
+  } catch (error: any) {
+    console.error('Error confirming allocation:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error',
+    });
   }
 });
 
