@@ -20,6 +20,7 @@ import { auditLogs } from '@server/lib/db/schema/audit';
 import axios from 'axios';
 import { SODocumentGenerator } from '../services/soDocumentGenerator';
 import { AllocationDocumentGenerator } from '../services/allocationDocumentGenerator';
+import { PickDocumentGenerator } from '../services/pickDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
 
 const router = express.Router();
@@ -635,6 +636,368 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
   } catch (error) {
     console.error('Error fetching allocations:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+router.get('/picks', authorized('ADMIN', 'sales-order.pick'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    const results = await db
+      .select({
+        id: salesOrders.id,
+        orderNumber: salesOrders.orderNumber,
+        orderDate: salesOrders.orderDate,
+        requestedDeliveryDate: salesOrders.requestedDeliveryDate,
+        totalAmount: salesOrders.totalAmount,
+        notes: salesOrders.notes,
+        status: salesOrders.status,
+        workflowState: salesOrders.workflowState,
+        createdAt: salesOrders.createdAt,
+        customerId: salesOrders.customerId,
+        customerName: customers.name,
+        documentPath: sql<string>`${auditLogs.documentPath}`,
+      })
+      .from(salesOrders)
+      .leftJoin(customers, eq(salesOrders.customerId, customers.id))
+      .leftJoin(
+        auditLogs,
+        and(
+          eq(auditLogs.resourceType, 'sales_order'),
+          eq(auditLogs.action, 'create'),
+          eq(auditLogs.tenantId, salesOrders.tenantId),
+          sql`${auditLogs.resourceId} = ${salesOrders.id}::text`
+        )
+      )
+      .where(
+        and(
+          eq(salesOrders.tenantId, tenantId),
+          eq(salesOrders.status, 'allocated'),
+          eq(salesOrders.workflowState, 'pick')
+        )
+      )
+      .orderBy(desc(salesOrders.createdAt));
+
+    // For each SO, fetch items with allocation details and bin locations
+    const ordersWithItems = await Promise.all(
+      results.map(async (order) => {
+        const itemsResult = await db.execute(sql`
+          SELECT 
+            soi.id,
+            soi.line_number as "lineNumber",
+            soi.product_id as "productId",
+            soi.ordered_quantity as "orderedQuantity",
+            soi.allocated_quantity as "allocatedQuantity",
+            soi.picked_quantity as "pickedQuantity",
+            soi.unit_price as "unitPrice",
+            soi.total_price as "totalPrice",
+            p.name as "productName",
+            p.sku,
+            p.has_expiry_date as "hasExpiryDate",
+            json_agg(
+              json_build_object(
+                'allocationId', soa.id,
+                'inventoryItemId', soa.inventory_item_id,
+                'allocatedQuantity', soa.allocated_quantity,
+                'batchNumber', ii.batch_number,
+                'lotNumber', ii.lot_number,
+                'expiryDate', ii.expiry_date,
+                'receivedDate', ii.received_date,
+                'binId', ii.bin_id,
+                'binCode', b.code,
+                'shelfId', s.id,
+                'shelfCode', s.code,
+                'aisleId', a.id,
+                'aisleCode', a.code,
+                'zoneId', z.id,
+                'zoneCode', z.code,
+                'warehouseId', w.id,
+                'warehouseName', w.name
+              ) ORDER BY 
+                CASE WHEN p.has_expiry_date THEN ii.expiry_date END ASC NULLS LAST,
+                ii.received_date ASC NULLS LAST,
+                ii.created_at ASC
+            ) as allocations
+          FROM sales_order_items soi
+          LEFT JOIN products p ON p.id = soi.product_id
+          LEFT JOIN sales_order_allocations soa ON soa.sales_order_item_id = soi.id
+          LEFT JOIN inventory_items ii ON ii.id = soa.inventory_item_id
+          LEFT JOIN bins b ON b.id = ii.bin_id
+          LEFT JOIN shelves s ON s.id = b.shelf_id
+          LEFT JOIN aisles a ON a.id = s.aisle_id
+          LEFT JOIN zones z ON z.id = a.zone_id
+          LEFT JOIN warehouses w ON w.id = z.warehouse_id
+          WHERE soi.sales_order_id = ${order.id}
+          GROUP BY soi.id, p.id, p.name, p.sku, p.has_expiry_date
+          ORDER BY soi.line_number
+        `);
+
+        return {
+          ...order,
+          items: itemsResult || [],
+        };
+      })
+    );
+
+    res.json({
+      success: true,
+      data: ordersWithItems,
+    });
+  } catch (error) {
+    console.error('Error fetching picks:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+
+    // Verify SO exists and is pickable
+    const [so] = await db
+      .select()
+      .from(salesOrders)
+      .where(
+        and(
+          eq(salesOrders.id, id),
+          eq(salesOrders.tenantId, tenantId),
+          eq(salesOrders.status, 'allocated'),
+          eq(salesOrders.workflowState, 'pick')
+        )
+      )
+      .limit(1);
+
+    if (!so) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sales order not found or not ready for picking',
+      });
+    }
+
+    // Fetch SO items with allocations
+    const soItems = await db
+      .select()
+      .from(salesOrderItems)
+      .where(eq(salesOrderItems.salesOrderId, id))
+      .orderBy(salesOrderItems.lineNumber);
+
+    if (soItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No items found for this sales order',
+      });
+    }
+
+    // Perform pick in transaction
+    const result = await db.transaction(async (tx) => {
+      const pickRecords = [];
+
+      for (const item of soItems) {
+        const allocatedQty = Number(item.allocatedQuantity);
+
+        // Fetch allocations for this item
+        const allocations = await tx
+          .select()
+          .from(salesOrderAllocations)
+          .where(eq(salesOrderAllocations.salesOrderItemId, item.id));
+
+        for (const allocation of allocations) {
+          const allocQty = Number(allocation.allocatedQuantity);
+
+          // Fetch inventory item details
+          const [invItem] = await tx.execute(sql`
+            SELECT 
+              ii.id,
+              ii.bin_id,
+              ii.batch_number,
+              ii.lot_number,
+              ii.expiry_date,
+              ii.reserved_quantity,
+              ii.available_quantity,
+              w.name || ' > ' || z.code || ' > ' || a.code || ' > ' || s.code || ' > ' || b.code as location_path
+            FROM inventory_items ii
+            LEFT JOIN bins b ON b.id = ii.bin_id
+            LEFT JOIN shelves s ON s.id = b.shelf_id
+            LEFT JOIN aisles a ON a.id = s.aisle_id
+            LEFT JOIN zones z ON z.id = a.zone_id
+            LEFT JOIN warehouses w ON w.id = z.warehouse_id
+            WHERE ii.id = ${allocation.inventoryItemId}
+          `);
+
+          if (!invItem) {
+            throw new Error(`Inventory item not found: ${allocation.inventoryItemId}`);
+          }
+
+          // Create pick record
+          const [pick] = await tx
+            .insert(salesOrderPicks)
+            .values({
+              salesOrderId: id,
+              allocationId: allocation.id,
+              tenantId,
+              pickedQuantity: Math.floor(allocQty),
+              pickedBy: userId,
+              batchNumber: invItem.batch_number || undefined,
+              lotNumber: invItem.lot_number || undefined,
+              expiryDate: invItem.expiry_date || undefined,
+            })
+            .returning();
+
+          pickRecords.push({
+            ...pick,
+            locationPath: invItem.location_path,
+          });
+
+          // Update inventory: reduce reserved, nothing else changes (available already reduced during allocation)
+          await tx
+            .update(inventoryItems)
+            .set({
+              reservedQuantity: sql`${inventoryItems.reservedQuantity} - ${allocQty}`,
+            })
+            .where(eq(inventoryItems.id, allocation.inventoryItemId));
+        }
+
+        // Update SO item picked quantity
+        await tx
+          .update(salesOrderItems)
+          .set({
+            pickedQuantity: allocatedQty.toString(),
+          })
+          .where(eq(salesOrderItems.id, item.id));
+      }
+
+      // Get next workflow step
+      const workflowResults = await tx
+        .select({ stepKey: workflowSteps.stepKey, stepOrder: workflowSteps.stepOrder })
+        .from(workflows)
+        .leftJoin(workflowSteps, eq(workflowSteps.workflowId, workflows.id))
+        .where(
+          and(
+            eq(workflows.tenantId, tenantId),
+            eq(workflows.type, 'SALES_ORDER'),
+            eq(workflows.isDefault, true),
+            eq(workflows.isActive, true),
+            eq(workflowSteps.isActive, true)
+          )
+        )
+        .orderBy(workflowSteps.stepOrder);
+
+      // Find next step after 'pick'
+      const currentStepIndex = workflowResults.findIndex(s => s.stepKey === 'pick');
+      const nextStep = workflowResults[currentStepIndex + 1]?.stepKey || 'pack';
+
+      // Update SO status
+      await tx
+        .update(salesOrders)
+        .set({
+          status: 'picked',
+          workflowState: nextStep,
+          updatedBy: userId,
+          updatedAt: new Date(),
+        })
+        .where(eq(salesOrders.id, id));
+
+      return { pickRecords, nextWorkflowState: nextStep };
+    });
+
+    // Generate pick document number
+    const pickDocNumber = await axios.post(
+      `${req.protocol}://${req.get('host')}/api/modules/document-numbering/generate`,
+      { documentType: 'PICK', options: {} },
+      { headers: { Authorization: req.headers.authorization } }
+    );
+
+    const pickNumber = pickDocNumber.data.documentNumber;
+
+    // Fetch additional data for document generation
+    const [customerData] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, so.customerId))
+      .limit(1);
+
+    const [userData] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    // Fetch product details
+    const productIds = soItems.map(item => item.productId);
+    const productDetails = await db
+      .select()
+      .from(products)
+      .where(and(
+        eq(products.tenantId, tenantId),
+        inArray(products.id, productIds)
+      ));
+    const productMap = new Map(productDetails.map(p => [p.id, p]));
+
+    // Build item data with picks for document
+    const itemDataForDoc = soItems.map(item => {
+      const product = productMap.get(item.productId);
+      const itemPicks = result.pickRecords.filter((pr: any) => 
+        soItems.find(si => si.id === pr.salesOrderItemId)?.productId === item.productId
+      );
+
+      return {
+        productSku: product?.sku || 'N/A',
+        productName: product?.name || 'Unknown Product',
+        allocatedQuantity: Number(item.allocatedQuantity),
+        pickedQuantity: Number(item.pickedQuantity),
+        picks: itemPicks.map((pr: any) => ({
+          binLocation: pr.locationPath || 'N/A',
+          quantity: Number(pr.pickedQuantity),
+          batchNumber: pr.batchNumber,
+          lotNumber: pr.lotNumber,
+          expiryDate: pr.expiryDate,
+        })),
+      };
+    });
+
+    // Generate pick document
+    const pickDocumentPath = await PickDocumentGenerator.save({
+      id: so.id,
+      tenantId,
+      pickNumber,
+      orderNumber: so.orderNumber,
+      orderDate: so.orderDate,
+      customerName: customerData?.name || 'Unknown Customer',
+      totalAmount: so.totalAmount,
+      pickedByName: userData?.fullname || null,
+      items: itemDataForDoc,
+    });
+
+    // Log audit trail
+    await logAudit({
+      tenantId,
+      userId,
+      action: 'pick_sales_order',
+      resourceType: 'sales_order',
+      resourceId: so.id,
+      ipAddress: getClientIp(req),
+      documentPath: pickDocumentPath,
+    });
+
+    res.json({
+      success: true,
+      message: 'Sales order picked successfully',
+      data: {
+        salesOrderId: so.id,
+        orderNumber: so.orderNumber,
+        pickNumber,
+        documentPath: pickDocumentPath,
+        nextWorkflowState: result.nextWorkflowState,
+      },
+    });
+  } catch (error) {
+    console.error('Error confirming pick:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Internal server error' 
+    });
   }
 });
 
