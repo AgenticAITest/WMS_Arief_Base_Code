@@ -580,6 +580,7 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
         and(
           eq(auditLogs.resourceType, 'sales_order'),
           eq(auditLogs.action, 'create'),
+          eq(auditLogs.tenantId, salesOrders.tenantId),
           sql`${auditLogs.resourceId} = ${salesOrders.id}::text`
         )
       )
@@ -619,6 +620,8 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
       })
     );
 
+    console.log('Allocations API response sample:', JSON.stringify(ordersWithItems[0], null, 2));
+    
     res.json({
       success: true,
       data: ordersWithItems,

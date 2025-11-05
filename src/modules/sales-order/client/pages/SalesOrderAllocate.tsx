@@ -50,6 +50,8 @@ const SalesOrderAllocate: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/modules/sales-order/allocations');
+      console.log('Frontend received orders:', response.data.data);
+      console.log('First order documentPath:', response.data.data?.[0]?.documentPath);
       setSalesOrders(response.data.data || []);
     } catch (error) {
       console.error('Error fetching allocatable orders:', error);
