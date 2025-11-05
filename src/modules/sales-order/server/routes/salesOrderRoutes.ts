@@ -968,7 +968,7 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
       totalAmount: so.totalAmount,
       pickedByName: userData?.fullname || null,
       items: itemDataForDoc,
-    });
+    }, userId);
 
     // Log audit trail
     await logAudit({

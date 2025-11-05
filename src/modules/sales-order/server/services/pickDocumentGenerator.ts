@@ -343,32 +343,28 @@ export class PickDocumentGenerator {
 </html>`;
   }
 
-  static async save(data: PickDocumentData): Promise<string> {
+  static async save(data: PickDocumentData, userId: string): Promise<string> {
+    const year = new Date().getFullYear();
     const dirPath = path.join(
       process.cwd(),
       'storage',
       'sales-order',
       'picks',
       'tenants',
-      data.tenantId
+      data.tenantId,
+      year.toString()
     );
 
     await fs.mkdir(dirPath, { recursive: true });
 
-    const fileName = `${data.pickNumber.replace(/\//g, '-')}_${Date.now()}.html`;
+    const fileName = `${data.pickNumber}.html`;
     const filePath = path.join(dirPath, fileName);
 
     const html = this.generateHTML(data);
     await fs.writeFile(filePath, html, 'utf-8');
 
-    const relativePath = path.join(
-      'storage',
-      'sales-order',
-      'picks',
-      'tenants',
-      data.tenantId,
-      fileName
-    );
+    const relativePath = `storage/sales-order/picks/tenants/${data.tenantId}/${year}/${fileName}`;
+    const fileStats = await fs.stat(filePath);
 
     await db.insert(generatedDocuments).values({
       tenantId: data.tenantId,
@@ -376,14 +372,15 @@ export class PickDocumentGenerator {
       documentNumber: data.pickNumber,
       referenceType: 'sales_order',
       referenceId: data.id,
-      storagePaths: {
-        html: relativePath,
+      files: {
+        html: {
+          path: relativePath,
+          size: fileStats.size,
+          generated_at: new Date().toISOString()
+        }
       },
-      metadata: {
-        orderNumber: data.orderNumber,
-        customerName: data.customerName,
-        itemCount: data.items.length,
-      },
+      version: 1,
+      generatedBy: userId
     });
 
     return relativePath;
