@@ -1,0 +1,31 @@
+[vite-express] Using Vite to resolve the config file
+Error creating sales order: DrizzleQueryError: Failed query: select "id", "tenant_id", "inventory_type_id", "package_type_id", "sku", "name", "description", "minimum_stock_level", "reorder_point", "required_temperature_min", "required_temperature_max", "weight", "dimensions", "active", "has_expiry_date", "created_at", "updated_at" from "products" where ("products"."tenant_id" = $1 and "products"."id" = ANY(($2)))
+params: 8e017478-2f5f-4be3-b8b6-e389436ca28a,f7e708fe-ca3a-41d1-954b-cad17ae4b534
+    at PostgresJsPreparedQuery.queryWithCache (/home/runner/workspace/node_modules/src/pg-core/session.ts:73:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async <anonymous> (/home/runner/workspace/node_modules/src/postgres-js/session.ts:58:17)
+    at async <anonymous> (/home/runner/workspace/src/modules/sales-order/server/routes/salesOrderRoutes.ts:410:28) {
+  query: 'select "id", "tenant_id", "inventory_type_id", "package_type_id", "sku", "name", "description", "minimum_stock_level", "reorder_point", "required_temperature_min", "required_temperature_max", "weight", "dimensions", "active", "has_expiry_date", "created_at", "updated_at" from "products" where ("products"."tenant_id" = $1 and "products"."id" = ANY(($2)))',
+  params: [
+    '8e017478-2f5f-4be3-b8b6-e389436ca28a',
+    'f7e708fe-ca3a-41d1-954b-cad17ae4b534'
+  ],
+  cause: PostgresError: malformed array literal: "f7e708fe-ca3a-41d1-954b-cad17ae4b534"
+      at ErrorResponse (file:///home/runner/workspace/node_modules/postgres/src/connection.js:794:26)
+      at handle (file:///home/runner/workspace/node_modules/postgres/src/connection.js:480:6)
+      at TLSSocket.data (file:///home/runner/workspace/node_modules/postgres/src/connection.js:315:9)
+      at TLSSocket.emit (node:events:524:28)
+      at addChunk (node:internal/streams/readable:561:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+      at Readable.push (node:internal/streams/readable:392:5)
+      at TLSWrap.onStreamRead (node:internal/stream_base_commons:191:23) {
+    severity_local: 'ERROR',
+    severity: 'ERROR',
+    code: '22P02',
+    detail: 'Array value must start with "{" or dimension information.',
+    where: "unnamed portal parameter $2 = '...'",
+    file: 'arrayfuncs.c',
+    line: '319',
+    routine: 'array_in'
+  }
+}

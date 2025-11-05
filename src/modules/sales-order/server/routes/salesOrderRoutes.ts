@@ -1,7 +1,7 @@
 import { db } from '@server/lib/db';
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
-import { and, desc, eq, ilike, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm';
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -412,7 +412,7 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       .from(products)
       .where(and(
         eq(products.tenantId, tenantId),
-        sql`${products.id} = ANY(${productIds})`
+        inArray(products.id, productIds)
       ));
 
     const productMap = new Map(productDetails.map(p => [p.id, p]));
@@ -426,7 +426,7 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       .from(customerLocations)
       .where(and(
         eq(customerLocations.tenantId, tenantId),
-        sql`${customerLocations.id} = ANY(${locationIds})`
+        inArray(customerLocations.id, locationIds)
       ));
 
     const locationMap = new Map(locationDetails.map(l => [l.id, l]));
@@ -475,7 +475,7 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
         customerName: customerData?.name || 'N/A',
         customerEmail: customerData?.email || null,
         customerPhone: customerData?.phone || null,
-        createdByName: userData?.name || null,
+        createdByName: userData?.fullname || null,
         status: result.order.status,
         items: itemsWithLocations
       };
@@ -492,10 +492,12 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       await logAudit({
         tenantId,
         userId,
-        action: 'CREATE',
+        module: 'sales-order',
+        action: 'create',
         resourceType: 'sales_order',
         resourceId: result.order.id,
-        details: {
+        description: `Created sales order ${result.order.orderNumber} for customer ${customerData?.name || 'N/A'} with ${result.items.length} item(s). Document generated.`,
+        changedFields: {
           orderNumber: result.order.orderNumber,
           customerId: result.order.customerId,
           customerName: customerData?.name || 'N/A',
@@ -504,7 +506,7 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
           workflowState: result.order.workflowState,
           itemCount: result.items.length,
         },
-        documentPath,
+        documentPath: documentPath || undefined,
         ipAddress: getClientIp(req),
       });
     } catch (auditError) {
