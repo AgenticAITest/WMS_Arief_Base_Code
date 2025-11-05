@@ -74,8 +74,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from public directory (for fonts, images, etc.)
-// Note: Documents are NOT stored here - they're in storage/ directory with authenticated access
 app.use(express.static(path.join(__dirname, '../../public')));
+
+// REVERTED: Do NOT serve storage as static files - security risk!
+// Documents must be served through authenticated endpoints only
+// app.use('/storage', express.static(path.join(__dirname, '../../storage')));
 
 const swaggerOptions = {
   definition: {

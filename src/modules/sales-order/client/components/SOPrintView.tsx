@@ -21,35 +21,50 @@ export const SOPrintView: React.FC<SOPrintViewProps> = ({
   onOpenChange,
   soData,
 }) => {
-  const [htmlContent, setHtmlContent] = useState<string>('');
+  // COMMENTED OUT OLD API APPROACH - Preserved for rollback
+  // const [htmlContent, setHtmlContent] = useState<string>('');
+  // const [loading, setLoading] = useState(true);
+
+  // useEffect(() => {
+  //   if (open && soData?.id) {
+  //     fetchGeneratedDocument();
+  //   }
+  // }, [open, soData?.id]);
+
+  // const fetchGeneratedDocument = async () => {
+  //   try {
+  //     setLoading(true);
+  //     const htmlResponse = await axios.get(
+  //       `/api/modules/sales-order/sales-orders/${soData.id}/html`
+  //     );
+  //     
+  //     if (htmlResponse.data.success && htmlResponse.data.html) {
+  //       setHtmlContent(htmlResponse.data.html);
+  //     } else {
+  //       toast.error('No generated document found for this SO');
+  //     }
+  //   } catch (error: any) {
+  //     console.error('Error fetching generated document:', error);
+  //     const errorMsg = error.response?.data?.message || 'Failed to load SO document';
+  //     toast.error(errorMsg);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  // NEW STATIC FILE APPROACH
+  const [documentPath, setDocumentPath] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (open && soData?.id) {
-      fetchGeneratedDocument();
-    }
-  }, [open, soData?.id]);
-
-  const fetchGeneratedDocument = async () => {
-    try {
-      setLoading(true);
-      const htmlResponse = await axios.get(
-        `/api/modules/sales-order/sales-orders/${soData.id}/html`
-      );
-      
-      if (htmlResponse.data.success && htmlResponse.data.html) {
-        setHtmlContent(htmlResponse.data.html);
-      } else {
-        toast.error('No generated document found for this SO');
-      }
-    } catch (error: any) {
-      console.error('Error fetching generated document:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to load SO document';
-      toast.error(errorMsg);
-    } finally {
+    if (open && soData?.documentPath) {
+      // Document path is already in soData from backend response
+      setDocumentPath(soData.documentPath);
+      setLoading(false);
+    } else {
       setLoading(false);
     }
-  };
+  }, [open, soData?.documentPath]);
 
   const handlePrint = () => {
     const iframe = document.getElementById('so-document-iframe') as HTMLIFrameElement;
@@ -67,7 +82,31 @@ export const SOPrintView: React.FC<SOPrintViewProps> = ({
           <DialogTitle>Sales Order Created Successfully - {soData.orderNumber}</DialogTitle>
         </DialogHeader>
 
+        {/* SECURE FILE SERVING - Uses authenticated endpoint to serve documents */}
         {loading ? (
+          <div className="flex items-center justify-center h-[600px]">
+            <div className="text-center">
+              <div className="text-lg font-medium">Loading document...</div>
+              <div className="text-sm text-muted-foreground">Please wait</div>
+            </div>
+          </div>
+        ) : documentPath ? (
+          <iframe
+            id="so-document-iframe"
+            src={`/api/audit-logs/document?path=${encodeURIComponent(documentPath)}`}
+            className="w-full h-[600px] border-0"
+            title="Sales Order Document"
+          />
+        ) : (
+          <div className="flex items-center justify-center h-[600px]">
+            <div className="text-center text-muted-foreground">
+              No document available
+            </div>
+          </div>
+        )}
+
+        {/* COMMENTED OUT OLD RENDERING LOGIC - Preserved for rollback */}
+        {/* {loading ? (
           <div className="flex items-center justify-center h-[600px]">
             <div className="text-center">
               <div className="text-lg font-medium">Loading document...</div>
@@ -87,10 +126,10 @@ export const SOPrintView: React.FC<SOPrintViewProps> = ({
               No document available
             </div>
           </div>
-        )}
+        )} */}
 
         <div className="flex gap-2 justify-end">
-          <Button variant="outline" onClick={handlePrint} disabled={!htmlContent || loading}>
+          <Button variant="outline" onClick={handlePrint} disabled={!documentPath || loading}>
             <Printer className="mr-2 h-4 w-4" />
             Print
           </Button>

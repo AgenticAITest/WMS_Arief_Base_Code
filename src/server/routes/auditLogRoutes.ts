@@ -3,6 +3,8 @@ import { db } from '../lib/db';
 import { auditLogs } from '../lib/db/schema';
 import { authenticated } from '../middleware/authMiddleware';
 import { and, eq, desc, gte, lte, sql } from 'drizzle-orm';
+import fs from 'fs/promises';
+import path from 'path';
 
 const router = express.Router();
 router.use(authenticated());
@@ -219,6 +221,90 @@ router.get('/resource/:type/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch resource audit history',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/audit-logs/document:
+ *   get:
+ *     summary: Securely serve generated HTML documents with authentication
+ *     tags: [Audit Logs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: path
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Document path from audit log (e.g., storage/sales-order/documents/...)
+ *     responses:
+ *       200:
+ *         description: HTML document
+ *         content:
+ *           text/html:
+ *             schema:
+ *               type: string
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Access denied - document belongs to different tenant
+ *       404:
+ *         description: Document not found
+ */
+router.get('/document', async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { path: documentPath } = req.query;
+
+    if (!documentPath || typeof documentPath !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Document path is required',
+      });
+    }
+
+    // Security: Verify the document path contains the user's tenant ID
+    // This prevents accessing documents from other tenants
+    if (!documentPath.includes(`/tenants/${tenantId}/`)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied - document belongs to different tenant',
+      });
+    }
+
+    // Security: Prevent path traversal attacks
+    if (documentPath.includes('..') || documentPath.includes('~')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid document path',
+      });
+    }
+
+    // Construct full file path
+    const fullPath = path.join(process.cwd(), documentPath);
+
+    // Check if file exists
+    try {
+      await fs.access(fullPath);
+    } catch {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found',
+      });
+    }
+
+    // Read and serve the HTML file
+    const htmlContent = await fs.readFile(fullPath, 'utf-8');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(htmlContent);
+  } catch (error) {
+    console.error('Error serving document:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to serve document',
     });
   }
 });

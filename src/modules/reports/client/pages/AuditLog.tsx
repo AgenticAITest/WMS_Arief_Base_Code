@@ -68,9 +68,12 @@ const AuditLog: React.FC = () => {
 
   // Document viewer modal state
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
-  const [documentType, setDocumentType] = useState<'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER'>('PO');
-  const [documentId, setDocumentId] = useState<string>('');
+  const [documentPath, setDocumentPath] = useState<string>('');
   const [documentNumber, setDocumentNumber] = useState<string>('');
+  
+  // COMMENTED OUT OLD STATE - Preserved for rollback
+  // const [documentType, setDocumentType] = useState<'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER'>('PO');
+  // const [documentId, setDocumentId] = useState<string>('');
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -278,69 +281,75 @@ const AuditLog: React.FC = () => {
     }
   };
 
-  const handleViewDocument = async (log: AuditLog) => {
-    try {
-      // 1. Determine document type based on audit log module and action
-      let docType: 'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER';
-      
-      // Check module first for Sales Order
-      if (log.module === 'sales-order' && log.action === 'create') {
-        docType = 'SALES_ORDER';
-      } else if (log.action === 'create') {
-        docType = 'PO';
-      } else if (log.action === 'receive') {
-        docType = 'GRN';
-      } else if (log.action === 'putaway_confirm') {
-        docType = 'PUTAWAY';
-      } else {
-        toast.error('Unable to determine document type from action: ' + log.action);
-        return;
-      }
+  // COMMENTED OUT OLD API-BASED APPROACH - Preserved for rollback
+  // const handleViewDocument = async (log: AuditLog) => {
+  //   try {
+  //     let docType: 'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER';
+  //     
+  //     if (log.module === 'sales-order' && log.action === 'create') {
+  //       docType = 'SALES_ORDER';
+  //     } else if (log.action === 'create') {
+  //       docType = 'PO';
+  //     } else if (log.action === 'receive') {
+  //       docType = 'GRN';
+  //     } else if (log.action === 'putaway_confirm') {
+  //       docType = 'PUTAWAY';
+  //     } else {
+  //       toast.error('Unable to determine document type from action: ' + log.action);
+  //       return;
+  //     }
+  //
+  //     if (!log.documentPath) {
+  //       toast.error('No document path available');
+  //       return;
+  //     }
+  //
+  //     const pathParts = log.documentPath.split('/');
+  //     const fileName = pathParts[pathParts.length - 1];
+  //     const docNumber = fileName.replace('.html', '');
+  //
+  //     let docId: string;
+  //     
+  //     if (docType === 'SALES_ORDER') {
+  //       docId = log.resourceId;
+  //     } else {
+  //       const response = await axios.get(
+  //         `/api/modules/document-numbering/documents/by-number/${encodeURIComponent(docNumber)}`
+  //       );
+  //       if (response.data && response.data.data && response.data.data.id) {
+  //         docId = response.data.data.id;
+  //       } else {
+  //         toast.error('Document not found in database');
+  //         return;
+  //       }
+  //     }
+  //
+  //     setDocumentType(docType);
+  //     setDocumentId(docId);
+  //     setDocumentNumber(docNumber);
+  //     setDocumentViewerOpen(true);
+  //   } catch (error: any) {
+  //     console.error('Error viewing document:', error);
+  //     toast.error(error.response?.data?.error || 'Failed to load document');
+  //   }
+  // };
 
-      // 2. Extract document number from documentPath
-      // Example path: "storage/purchase-order/documents/tenants/xxx/po/2025/PO-2510-WH-0001.html"
-      // or "storage/purchase-order/documents/tenants/xxx/grn/2025/GRN-2510-WH1-0002.html"
-      // or "storage/purchase-order/documents/tenants/xxx/putaway/2025/PUTAWAY-2510-WH1-0003.html"
-      // or "storage/sales-order/documents/tenants/xxx/so/2025/SO-2511-NORTH-0003.html"
-      if (!log.documentPath) {
-        toast.error('No document path available');
-        return;
-      }
-
-      const pathParts = log.documentPath.split('/');
-      const fileName = pathParts[pathParts.length - 1]; // e.g., "PO-2510-WH-0001.html" or "SO-2511-NORTH-0003.html"
-      const docNumber = fileName.replace('.html', ''); // Remove .html extension
-
-      // 3. For Sales Orders, use the resource ID directly from the audit log
-      // For other documents, look up via document numbering API
-      let docId: string;
-      
-      if (docType === 'SALES_ORDER') {
-        // For Sales Orders, use the resourceId directly
-        docId = log.resourceId;
-      } else {
-        // For PO/GRN/PUTAWAY, look up via document numbering API
-        const response = await axios.get(
-          `/api/modules/document-numbering/documents/by-number/${encodeURIComponent(docNumber)}`
-        );
-
-        if (response.data && response.data.data && response.data.data.id) {
-          docId = response.data.data.id;
-        } else {
-          toast.error('Document not found in database');
-          return;
-        }
-      }
-
-      // 4. Open modal to display the document
-      setDocumentType(docType);
-      setDocumentId(docId);
-      setDocumentNumber(docNumber);
-      setDocumentViewerOpen(true);
-    } catch (error: any) {
-      console.error('Error viewing document:', error);
-      toast.error(error.response?.data?.error || 'Failed to load document');
+  // NEW STATIC FILE APPROACH - Much simpler!
+  const handleViewDocument = (log: AuditLog) => {
+    if (!log.documentPath) {
+      toast.error('No document path available');
+      return;
     }
+
+    // Extract document number from path
+    const pathParts = log.documentPath.split('/');
+    const fileName = pathParts[pathParts.length - 1];
+    const docNumber = fileName.replace('.html', '');
+
+    // Open modal with direct file path
+    setDocumentPath(log.documentPath);
+    setDocumentNumber(docNumber);
+    setDocumentViewerOpen(true);
   };
 
   return (
@@ -741,10 +750,18 @@ const AuditLog: React.FC = () => {
       <DocumentViewerModal
         isOpen={documentViewerOpen}
         onClose={() => setDocumentViewerOpen(false)}
+        documentPath={documentPath}
+        documentNumber={documentNumber}
+      />
+      
+      {/* COMMENTED OUT OLD PROPS - Preserved for rollback */}
+      {/* <DocumentViewerModal
+        isOpen={documentViewerOpen}
+        onClose={() => setDocumentViewerOpen(false)}
         documentType={documentType}
         documentId={documentId}
         documentNumber={documentNumber}
-      />
+      /> */}
     </div>
   );
 };
