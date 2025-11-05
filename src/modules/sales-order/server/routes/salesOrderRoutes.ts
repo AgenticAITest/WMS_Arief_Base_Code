@@ -463,6 +463,15 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
     // Generate and save HTML document
     let documentPath = null;
     try {
+      // Validate that we have all required data for document generation
+      if (!customerData) {
+        throw new Error('Customer data not found for document generation');
+      }
+      
+      if (itemsWithLocations.some(item => item.locations.length === 0)) {
+        throw new Error('All items must have at least one delivery location');
+      }
+
       const soDocumentData = {
         id: result.order.id,
         tenantId,
@@ -472,9 +481,9 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
         totalAmount: result.order.totalAmount,
         notes: result.order.notes,
         deliveryInstructions: result.order.deliveryInstructions,
-        customerName: customerData?.name || 'N/A',
-        customerEmail: customerData?.email || null,
-        customerPhone: customerData?.phone || null,
+        customerName: customerData.name || 'N/A',
+        customerEmail: customerData.email || null,
+        customerPhone: customerData.phone || null,
         createdByName: userData?.fullname || null,
         status: result.order.status,
         items: itemsWithLocations
@@ -484,7 +493,16 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
       documentPath = docResult.filePath;
     } catch (docError) {
       console.error('Error generating SO document:', docError);
-      // Don't fail the entire request if document generation fails
+      // Log detailed error for debugging
+      console.error('Document generation failed with data:', {
+        orderId: result.order.id,
+        orderNumber: result.order.orderNumber,
+        itemCount: result.items.length,
+        hasCustomerData: !!customerData,
+        error: docError instanceof Error ? docError.message : 'Unknown error'
+      });
+      // Don't fail the entire request if document generation fails, but warn
+      documentPath = null;
     }
 
     // Log audit trail
