@@ -27,6 +27,7 @@ None specified yet
 - Workflow Configuration: Tenant-specific customizable workflows for Purchase Orders (PO) and Sales Orders (SO).
 - Purchase Order Putaway: Accordion-based interface for POs in 'putaway' state, featuring cascading location selectors and a "Smart Allocation" algorithm for optimal bin suggestions.
 - Sales Order Multi-Location Delivery: SO creation with support for splitting order items across multiple customer delivery locations, with expandable distribution UI and quantity validation.
+- Sales Order Allocation: FIFO/FEFO-based inventory allocation system with atomic transaction handling, document generation, and inventory reservation tracking.
 - Audit Logging: Comprehensive audit trail for user actions, state changes, and data modifications, with queryable REST APIs.
 
 ### System Design Choices
@@ -55,6 +56,14 @@ None specified yet
   - **Line-Item Allocation Editor**: Expandable table rows with chevron indicators allow per-item quantity distribution across selected locations. Each item shows allocation status (X/Y allocated) with green (valid) or red (invalid) highlighting. Expansion reveals location-specific quantity inputs in a grid layout with "Split Evenly" helper button for automatic distribution.
   - **Allocation Validation**: Real-time validation ensures allocated quantities sum exactly to ordered quantity. Visual feedback includes color-coded status indicators, remaining quantity display, and error messages for over/under allocation. Frontend blocks submission until all items have valid allocations.
   - **Confirmation Modal Enhancement**: Shows selected shipping locations as chips at the top, followed by items table with nested location breakdown rows displaying quantity distribution per location.
+- **Sales Order Allocation System**: Inventory reservation workflow that transitions SOs from 'created' to 'allocated' status using intelligent FIFO/FEFO logic.
+  - **Allocation API**: GET `/allocations` endpoint fetches SOs with status='created' and workflow_state='allocate'. POST `/allocations/:id/confirm` executes atomic transaction for inventory reservation.
+  - **FIFO/FEFO Logic**: Inventory selection query uses `ORDER BY expiry_date ASC NULLS LAST, received_date ASC NULLS LAST, created_at ASC` to prioritize items with earliest expiry dates (FEFO), then oldest received items (FIFO).
+  - **Transaction Atomicity**: Single `db.transaction()` wraps all inventory updates (`reserved_quantity` increments, `available_quantity` decrements), allocation record creation, SO status updates, and workflow state advancement. Partial failures trigger full rollback.
+  - **Allocation Records**: `allocations` table tracks inventory-to-SO-item mappings with `inventory_item_id`, `sales_order_item_id`, `quantity_allocated`, and `allocation_date`.
+  - **Document Generation**: `AllocationDocumentGenerator` service creates HTML allocation documents in `/storage/sales-order/allocations/tenants/{tenantId}/` directory with detailed breakdowns by product, bin location, batch/lot numbers, and expiry dates.
+  - **UI Components**: `SalesOrderAllocate` page displays allocatable orders in table format with "Allocate" action button. `AllocationConfirmationModal` shows SO details and confirms allocation action before executing transaction.
+  - **Audit Integration**: Successful allocations logged to `audit_logs` table with action='allocate_sales_order', including generated document path for traceability.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.
