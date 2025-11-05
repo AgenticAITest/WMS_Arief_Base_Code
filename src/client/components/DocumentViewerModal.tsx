@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 interface DocumentViewerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  documentType: 'PO' | 'GRN' | 'PUTAWAY';
+  documentType: 'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER';
   documentId: string;
   documentNumber?: string;
 }
@@ -43,6 +43,8 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         return `/api/modules/purchase-order/grn/${documentId}/html`;
       case 'PUTAWAY':
         return `/api/modules/purchase-order/putaway/${documentId}/html`;
+      case 'SALES_ORDER':
+        return `/api/modules/sales-order/sales-orders/${documentId}/html`;
       default:
         return '';
     }
@@ -50,7 +52,9 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
 
   const getTitle = () => {
     const prefix = documentType === 'PO' ? 'Purchase Order' : 
-                   documentType === 'GRN' ? 'GRN' : 'Putaway';
+                   documentType === 'GRN' ? 'GRN' : 
+                   documentType === 'PUTAWAY' ? 'Putaway' :
+                   documentType === 'SALES_ORDER' ? 'Sales Order' : 'Document';
     return documentNumber ? `${prefix} - ${documentNumber}` : `${prefix} Document`;
   };
 

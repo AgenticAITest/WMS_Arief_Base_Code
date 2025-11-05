@@ -68,7 +68,7 @@ const AuditLog: React.FC = () => {
 
   // Document viewer modal state
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
-  const [documentType, setDocumentType] = useState<'PO' | 'GRN' | 'PUTAWAY'>('PO');
+  const [documentType, setDocumentType] = useState<'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER'>('PO');
   const [documentId, setDocumentId] = useState<string>('');
   const [documentNumber, setDocumentNumber] = useState<string>('');
 
@@ -280,9 +280,13 @@ const AuditLog: React.FC = () => {
 
   const handleViewDocument = async (log: AuditLog) => {
     try {
-      // 1. Determine document type based on audit log action
-      let docType: 'PO' | 'GRN' | 'PUTAWAY';
-      if (log.action === 'create') {
+      // 1. Determine document type based on audit log module and action
+      let docType: 'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER';
+      
+      // Check module first for Sales Order
+      if (log.module === 'sales-order' && log.action === 'create') {
+        docType = 'SALES_ORDER';
+      } else if (log.action === 'create') {
         docType = 'PO';
       } else if (log.action === 'receive') {
         docType = 'GRN';
@@ -297,31 +301,42 @@ const AuditLog: React.FC = () => {
       // Example path: "storage/purchase-order/documents/tenants/xxx/po/2025/PO-2510-WH-0001.html"
       // or "storage/purchase-order/documents/tenants/xxx/grn/2025/GRN-2510-WH1-0002.html"
       // or "storage/purchase-order/documents/tenants/xxx/putaway/2025/PUTAWAY-2510-WH1-0003.html"
+      // or "storage/sales-order/documents/tenants/xxx/so/2025/SO-2511-NORTH-0003.html"
       if (!log.documentPath) {
         toast.error('No document path available');
         return;
       }
 
       const pathParts = log.documentPath.split('/');
-      const fileName = pathParts[pathParts.length - 1]; // e.g., "PO-2510-WH-0001.html"
+      const fileName = pathParts[pathParts.length - 1]; // e.g., "PO-2510-WH-0001.html" or "SO-2511-NORTH-0003.html"
       const docNumber = fileName.replace('.html', ''); // Remove .html extension
 
-      // 3. Make API call to get documentId based on document number
-      const response = await axios.get(
-        `/api/modules/document-numbering/documents/by-number/${encodeURIComponent(docNumber)}`
-      );
-
-      if (response.data && response.data.data && response.data.data.id) {
-        const docId = response.data.data.id;
-
-        // 4. Open modal to display the document
-        setDocumentType(docType);
-        setDocumentId(docId);
-        setDocumentNumber(docNumber);
-        setDocumentViewerOpen(true);
+      // 3. For Sales Orders, use the resource ID directly from the audit log
+      // For other documents, look up via document numbering API
+      let docId: string;
+      
+      if (docType === 'SALES_ORDER') {
+        // For Sales Orders, use the resourceId directly
+        docId = log.resourceId;
       } else {
-        toast.error('Document not found in database');
+        // For PO/GRN/PUTAWAY, look up via document numbering API
+        const response = await axios.get(
+          `/api/modules/document-numbering/documents/by-number/${encodeURIComponent(docNumber)}`
+        );
+
+        if (response.data && response.data.data && response.data.data.id) {
+          docId = response.data.data.id;
+        } else {
+          toast.error('Document not found in database');
+          return;
+        }
       }
+
+      // 4. Open modal to display the document
+      setDocumentType(docType);
+      setDocumentId(docId);
+      setDocumentNumber(docNumber);
+      setDocumentViewerOpen(true);
     } catch (error: any) {
       console.error('Error viewing document:', error);
       toast.error(error.response?.data?.error || 'Failed to load document');
