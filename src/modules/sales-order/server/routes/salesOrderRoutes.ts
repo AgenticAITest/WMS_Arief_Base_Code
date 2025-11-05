@@ -290,7 +290,8 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
     const orderNumber = docNumberResponse.data.documentNumber;
     const documentHistoryId = docNumberResponse.data.historyId;
 
-    // Get initial workflow state
+    // Get initial workflow state - should be the step AFTER 'create'
+    // Since SO is created with status='created', workflow_state should be the next step (allocate)
     const workflowResults = await db
       .select({ stepKey: workflowSteps.stepKey })
       .from(workflows)
@@ -305,9 +306,10 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
         )
       )
       .orderBy(workflowSteps.stepOrder)
-      .limit(1);
+      .limit(2); // Get first 2 steps
 
-    const initialWorkflowState = workflowResults[0]?.stepKey || 'create';
+    // Use the second step (after 'create') as initial workflow state
+    const initialWorkflowState = workflowResults[1]?.stepKey || workflowResults[0]?.stepKey || 'allocate';
 
     // Calculate total amount (simple: quantity * unitPrice)
     const totalAmount = items.reduce((sum: number, item: any) => {
