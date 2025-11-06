@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useReducer } from 'react';
 import axios from 'axios';
 import { Button } from '@client/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@client/components/ui/card';
+import { Input } from '@client/components/ui/input';
 import { toast } from 'sonner';
-import { Package, RefreshCw, FileText, MapPin } from 'lucide-react';
+import { Package, RefreshCw, FileText, MapPin, Check } from 'lucide-react';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import PickConfirmationModal from '../components/PickConfirmationModal';
 
@@ -58,12 +59,40 @@ interface SalesOrder {
   items: SOItem[];
 }
 
+interface PickQuantities {
+  [itemId: string]: {
+    [allocationId: string]: number;
+  };
+}
+
+type PickAction = 
+  | { type: 'SET_QUANTITY'; itemId: string; allocationId: string; quantity: number }
+  | { type: 'RESET' };
+
+function pickReducer(state: PickQuantities, action: PickAction): PickQuantities {
+  switch (action.type) {
+    case 'SET_QUANTITY':
+      return {
+        ...state,
+        [action.itemId]: {
+          ...state[action.itemId],
+          [action.allocationId]: action.quantity,
+        },
+      };
+    case 'RESET':
+      return {};
+    default:
+      return state;
+  }
+}
+
 const SalesOrderPick: React.FC = () => {
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewDocumentPath, setViewDocumentPath] = useState<string | null>(null);
   const [viewDocumentNumber, setViewDocumentNumber] = useState<string | null>(null);
   const [confirmOrderId, setConfirmOrderId] = useState<string | null>(null);
+  const [pickQuantities, dispatch] = useReducer(pickReducer, {});
 
   useEffect(() => {
     fetchPickableOrders();
@@ -74,6 +103,7 @@ const SalesOrderPick: React.FC = () => {
       setLoading(true);
       const response = await axios.get('/api/modules/sales-order/picks');
       setSalesOrders(response.data.data || []);
+      dispatch({ type: 'RESET' });
     } catch (error) {
       console.error('Error fetching pickable orders:', error);
       toast.error('Failed to fetch sales orders');
@@ -99,6 +129,22 @@ const SalesOrderPick: React.FC = () => {
   const handleConfirmClose = () => {
     setConfirmOrderId(null);
     fetchPickableOrders();
+  };
+
+  const handleQuantityChange = (itemId: string, allocationId: string, value: string) => {
+    const numValue = value === '' ? 0 : parseFloat(value);
+    if (!isNaN(numValue) && numValue >= 0) {
+      dispatch({ type: 'SET_QUANTITY', itemId, allocationId, quantity: numValue });
+    }
+  };
+
+  const getPickedTotal = (itemId: string): number => {
+    const itemPicks = pickQuantities[itemId] || {};
+    return Object.values(itemPicks).reduce((sum, qty) => sum + qty, 0);
+  };
+
+  const getLocationPath = (allocation: Allocation): string => {
+    return `${allocation.warehouseName} > ${allocation.zoneName} > ${allocation.aisleName} > ${allocation.shelfName} > ${allocation.binName}`;
   };
 
   const confirmOrder = confirmOrderId
@@ -168,70 +214,100 @@ const SalesOrderPick: React.FC = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-6">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="border rounded-md p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <p className="font-medium">{item.productName}</p>
-                            <p className="text-sm text-muted-foreground">SKU: {item.sku}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Allocated Qty</p>
-                            <p className="text-lg font-semibold">{item.allocatedQuantity}</p>
-                          </div>
-                        </div>
+                    {order.items.map((item) => {
+                      const pickedTotal = getPickedTotal(item.id);
+                      const orderedQty = parseFloat(item.orderedQuantity);
+                      const isComplete = pickedTotal === orderedQty;
+                      const isPartial = pickedTotal > 0 && pickedTotal < orderedQty;
+                      const isOver = pickedTotal > orderedQty;
 
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            <MapPin className="w-4 h-4" />
-                            <span>Pick Locations ({item.hasExpiryDate ? 'FEFO' : 'FIFO'} Order)</span>
+                      return (
+                        <div key={item.id} className="border rounded-lg overflow-hidden">
+                          <div className="bg-muted/30 px-4 py-3 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div>
+                                <p className="font-semibold text-lg">{item.productName}</p>
+                                <p className="text-sm text-muted-foreground">SKU: {item.sku}</p>
+                              </div>
+                              <div className={`flex items-center gap-2 px-3 py-1 rounded-md font-semibold ${
+                                isComplete ? 'bg-green-100 text-green-700' :
+                                isOver ? 'bg-red-100 text-red-700' :
+                                isPartial ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {isComplete && <Check className="w-4 h-4" />}
+                                <span>{pickedTotal}/{orderedQty}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <MapPin className="w-4 h-4" />
+                              <span>{item.hasExpiryDate ? 'FEFO Order' : 'FIFO Order'}</span>
+                            </div>
                           </div>
-                          <div className="border rounded-md">
-                            <table className="w-full">
-                              <thead className="bg-muted/50">
-                                <tr>
-                                  <th className="px-3 py-2 text-left text-xs font-medium">Warehouse</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium">Zone</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium">Aisle</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium">Shelf</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium">Bin</th>
-                                  <th className="px-3 py-2 text-left text-xs font-medium">Batch/Lot</th>
-                                  {item.hasExpiryDate && (
-                                    <th className="px-3 py-2 text-left text-xs font-medium">Expiry Date</th>
-                                  )}
-                                  <th className="px-3 py-2 text-right text-xs font-medium">Qty</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {item.allocations.map((allocation, idx) => (
-                                  <tr key={idx} className="border-t">
-                                    <td className="px-3 py-2 text-sm">{allocation.warehouseName}</td>
-                                    <td className="px-3 py-2 text-sm">{allocation.zoneName}</td>
-                                    <td className="px-3 py-2 text-sm">{allocation.aisleName}</td>
-                                    <td className="px-3 py-2 text-sm">{allocation.shelfName}</td>
-                                    <td className="px-3 py-2 text-sm font-medium">{allocation.binName}</td>
-                                    <td className="px-3 py-2 text-sm">
-                                      {allocation.batchNumber || allocation.lotNumber || '-'}
-                                    </td>
-                                    {item.hasExpiryDate && (
-                                      <td className="px-3 py-2 text-sm">
-                                        {allocation.expiryDate 
-                                          ? new Date(allocation.expiryDate).toLocaleDateString()
-                                          : '-'
-                                        }
-                                      </td>
-                                    )}
-                                    <td className="px-3 py-2 text-sm text-right font-medium">
-                                      {allocation.allocatedQuantity}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+
+                          <div className="divide-y">
+                            {item.allocations.map((allocation, idx) => {
+                              const currentPick = pickQuantities[item.id]?.[allocation.allocationId] || 0;
+                              const availableQty = parseFloat(allocation.allocatedQuantity);
+
+                              return (
+                                <div key={idx} className="px-4 py-3 hover:bg-muted/20 transition-colors">
+                                  <div className="grid grid-cols-12 gap-4 items-center">
+                                    <div className="col-span-5">
+                                      <p className="text-sm font-medium mb-1">
+                                        {getLocationPath(allocation)}
+                                      </p>
+                                      {(allocation.batchNumber || allocation.lotNumber) && (
+                                        <p className="text-xs text-muted-foreground">
+                                          {allocation.batchNumber ? `Batch: ${allocation.batchNumber}` : `Lot: ${allocation.lotNumber}`}
+                                        </p>
+                                      )}
+                                      {allocation.expiryDate && (
+                                        <p className="text-xs text-muted-foreground">
+                                          Expiry: {new Date(allocation.expiryDate).toLocaleDateString()}
+                                        </p>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="col-span-2 text-center">
+                                      <p className="text-xs text-muted-foreground mb-1">Available</p>
+                                      <p className="text-sm font-semibold">{availableQty}</p>
+                                    </div>
+
+                                    <div className="col-span-3">
+                                      <label className="text-xs text-muted-foreground block mb-1">Pick Qty</label>
+                                      <Input
+                                        type="number"
+                                        min="0"
+                                        max={availableQty}
+                                        step="0.01"
+                                        value={currentPick || ''}
+                                        onChange={(e) => handleQuantityChange(item.id, allocation.allocationId, e.target.value)}
+                                        placeholder="0"
+                                        className="h-9"
+                                      />
+                                    </div>
+
+                                    <div className="col-span-2 flex justify-end">
+                                      <Button
+                                        size="sm"
+                                        variant={currentPick > 0 ? "default" : "outline"}
+                                        disabled={currentPick <= 0 || currentPick > availableQty}
+                                        onClick={() => {
+                                          toast.success(`Picked ${currentPick} units from ${allocation.binName}`);
+                                        }}
+                                      >
+                                        Pick
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {order.notes && (
