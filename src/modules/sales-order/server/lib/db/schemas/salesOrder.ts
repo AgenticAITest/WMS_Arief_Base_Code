@@ -188,30 +188,30 @@ export const salesOrderAllocations = pgTable('sales_order_allocations', {
 
 export const salesOrderPicks = pgTable('sales_order_picks', {
   id: uuid('id').primaryKey().defaultRandom(),
-  salesOrderId: uuid('sales_order_id')
+  salesOrderItemId: uuid('sales_order_item_id')
     .notNull()
-    .references(() => salesOrders.id, { onDelete: 'cascade' }),
-  allocationId: uuid('allocation_id')
+    .references(() => salesOrderItems.id, { onDelete: 'cascade' }),
+  inventoryItemId: uuid('inventory_item_id')
     .notNull()
-    .references(() => salesOrderAllocations.id, { onDelete: 'cascade' }),
+    .references(() => inventoryItems.id, { onDelete: 'cascade' }),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenant.id),
-  pickedQuantity: integer('picked_quantity').notNull(),
+  pickedQuantity: decimal('picked_quantity', { precision: 15, scale: 3 }).notNull(),
   pickDate: timestamp('pick_date').defaultNow().notNull(),
   pickedBy: uuid('picked_by')
     .references(() => user.id),
   batchNumber: varchar('batch_number', { length: 100 }),
   lotNumber: varchar('lot_number', { length: 100 }),
   serialNumber: varchar('serial_number', { length: 100 }),
-  expiryDate: date('expiry_date'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
 },
   (t) => [
     index('so_picks_tenant_idx').on(t.tenantId),
-    index('so_picks_so_idx').on(t.salesOrderId),
-    index('so_picks_allocation_idx').on(t.allocationId),
+    index('so_picks_item_idx').on(t.salesOrderItemId),
+    index('so_picks_inventory_idx').on(t.inventoryItemId),
     index('so_picks_picked_by_idx').on(t.pickedBy),
   ]
 );
@@ -402,13 +402,13 @@ export const salesOrderAllocationsRelations = relations(salesOrderAllocations, (
 }));
 
 export const salesOrderPicksRelations = relations(salesOrderPicks, ({ one }) => ({
-  salesOrder: one(salesOrders, {
-    fields: [salesOrderPicks.salesOrderId],
-    references: [salesOrders.id],
+  salesOrderItem: one(salesOrderItems, {
+    fields: [salesOrderPicks.salesOrderItemId],
+    references: [salesOrderItems.id],
   }),
-  allocation: one(salesOrderAllocations, {
-    fields: [salesOrderPicks.allocationId],
-    references: [salesOrderAllocations.id],
+  inventoryItem: one(inventoryItems, {
+    fields: [salesOrderPicks.inventoryItemId],
+    references: [inventoryItems.id],
   }),
   tenant: one(tenant, {
     fields: [salesOrderPicks.tenantId],

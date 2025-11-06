@@ -834,14 +834,13 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
           const [pick] = await tx
             .insert(salesOrderPicks)
             .values({
-              salesOrderId: id,
-              allocationId: allocation.id,
+              salesOrderItemId: allocation.salesOrderItemId,
+              inventoryItemId: allocation.inventoryItemId,
               tenantId,
-              pickedQuantity: Math.floor(allocQty),
+              pickedQuantity: allocQty.toString(),
               pickedBy: userId,
               batchNumber: invItem.batch_number || undefined,
               lotNumber: invItem.lot_number || undefined,
-              expiryDate: invItem.expiry_date || undefined,
             })
             .returning();
 
