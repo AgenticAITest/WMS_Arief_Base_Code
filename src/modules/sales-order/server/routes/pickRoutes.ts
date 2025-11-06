@@ -15,20 +15,12 @@ router.get('/picks', authorized('ADMIN', 'sales-order.view'), async (req, res) =
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const offset = (page - 1) * limit;
-    const salesOrderId = req.query.salesOrderId as string;
     const tenantId = req.user!.activeTenantId;
 
-    let query = db
+    const results = await db
       .select()
       .from(salesOrderPicks)
       .where(eq(salesOrderPicks.tenantId, tenantId))
-      .$dynamic();
-
-    if (salesOrderId) {
-      query = query.where(eq(salesOrderPicks.salesOrderId, salesOrderId));
-    }
-
-    const results = await query
       .orderBy(desc(salesOrderPicks.createdAt))
       .limit(limit)
       .offset(offset);
@@ -81,33 +73,31 @@ router.get('/picks/:id', authorized('ADMIN', 'sales-order.view'), async (req, re
 router.post('/picks', authorized('ADMIN', 'sales-order.create'), async (req, res) => {
   try {
     const {
-      salesOrderId,
-      allocationId,
+      salesOrderItemId,
+      inventoryItemId,
       pickedQuantity,
       batchNumber,
       lotNumber,
       serialNumber,
-      expiryDate,
       notes,
     } = req.body;
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
 
-    if (!salesOrderId || !allocationId || !pickedQuantity) {
+    if (!salesOrderItemId || !inventoryItemId || !pickedQuantity) {
       return res.status(400).json({ error: 'Required fields missing' });
     }
 
     const newPick = {
       id: uuidv4(),
       tenantId,
-      salesOrderId,
-      allocationId,
+      salesOrderItemId,
+      inventoryItemId,
       pickedQuantity,
       pickedBy: userId,
       batchNumber,
       lotNumber,
       serialNumber,
-      expiryDate: expiryDate ? new Date(expiryDate) : null,
       notes,
     };
 
@@ -131,7 +121,6 @@ router.put('/picks/:id', authorized('ADMIN', 'sales-order.edit'), async (req, re
       batchNumber,
       lotNumber,
       serialNumber,
-      expiryDate,
       notes,
     } = req.body;
     const tenantId = req.user!.activeTenantId;
@@ -141,7 +130,6 @@ router.put('/picks/:id', authorized('ADMIN', 'sales-order.edit'), async (req, re
     if (batchNumber !== undefined) updateData.batchNumber = batchNumber;
     if (lotNumber !== undefined) updateData.lotNumber = lotNumber;
     if (serialNumber !== undefined) updateData.serialNumber = serialNumber;
-    if (expiryDate !== undefined) updateData.expiryDate = expiryDate ? new Date(expiryDate) : null;
     if (notes !== undefined) updateData.notes = notes;
 
     const [updated] = await db
