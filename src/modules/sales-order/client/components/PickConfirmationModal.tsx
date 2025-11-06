@@ -14,7 +14,7 @@ import { AlertCircle, Check } from 'lucide-react';
 interface Allocation {
   allocationId: string;
   allocatedQuantity: string;
-  binCode: string;
+  binName: string;
   batchNumber: string | null;
   lotNumber: string | null;
   expiryDate: string | null;
@@ -132,7 +132,7 @@ const PickConfirmationModal: React.FC<PickConfirmationModalProps> = ({
                     >
                       <div className="flex items-center gap-2">
                         <Check className="w-4 h-4 text-green-600" />
-                        <span className="font-medium">{allocation.binCode}</span>
+                        <span className="font-medium">{allocation.binName}</span>
                         {(allocation.batchNumber || allocation.lotNumber) && (
                           <span className="text-muted-foreground">
                             {allocation.batchNumber || allocation.lotNumber}

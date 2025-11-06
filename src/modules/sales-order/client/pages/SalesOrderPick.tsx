@@ -16,13 +16,13 @@ interface Allocation {
   expiryDate: string | null;
   receivedDate: string;
   binId: string;
-  binCode: string;
+  binName: string;
   shelfId: string;
-  shelfCode: string;
+  shelfName: string;
   aisleId: string;
-  aisleCode: string;
+  aisleName: string;
   zoneId: string;
-  zoneCode: string;
+  zoneName: string;
   warehouseId: string;
   warehouseName: string;
 }
@@ -206,10 +206,10 @@ const SalesOrderPick: React.FC = () => {
                                 {item.allocations.map((allocation, idx) => (
                                   <tr key={idx} className="border-t">
                                     <td className="px-3 py-2 text-sm">{allocation.warehouseName}</td>
-                                    <td className="px-3 py-2 text-sm">{allocation.zoneCode}</td>
-                                    <td className="px-3 py-2 text-sm">{allocation.aisleCode}</td>
-                                    <td className="px-3 py-2 text-sm">{allocation.shelfCode}</td>
-                                    <td className="px-3 py-2 text-sm font-medium">{allocation.binCode}</td>
+                                    <td className="px-3 py-2 text-sm">{allocation.zoneName}</td>
+                                    <td className="px-3 py-2 text-sm">{allocation.aisleName}</td>
+                                    <td className="px-3 py-2 text-sm">{allocation.shelfName}</td>
+                                    <td className="px-3 py-2 text-sm font-medium">{allocation.binName}</td>
                                     <td className="px-3 py-2 text-sm">
                                       {allocation.batchNumber || allocation.lotNumber || '-'}
                                     </td>

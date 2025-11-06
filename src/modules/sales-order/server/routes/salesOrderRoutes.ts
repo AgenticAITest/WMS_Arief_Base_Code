@@ -704,13 +704,13 @@ router.get('/picks', authorized('ADMIN', 'sales-order.pick'), async (req, res) =
                 'expiryDate', ii.expiry_date,
                 'receivedDate', ii.received_date,
                 'binId', ii.bin_id,
-                'binCode', b.code,
+                'binName', b.name,
                 'shelfId', s.id,
-                'shelfCode', s.code,
+                'shelfName', s.name,
                 'aisleId', a.id,
-                'aisleCode', a.code,
+                'aisleName', a.name,
                 'zoneId', z.id,
-                'zoneCode', z.code,
+                'zoneName', z.name,
                 'warehouseId', w.id,
                 'warehouseName', w.name
               ) ORDER BY 
@@ -816,7 +816,7 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
               ii.expiry_date,
               ii.reserved_quantity,
               ii.available_quantity,
-              w.name || ' > ' || z.code || ' > ' || a.code || ' > ' || s.code || ' > ' || b.code as location_path
+              w.name || ' > ' || z.name || ' > ' || a.name || ' > ' || s.name || ' > ' || b.name as location_path
             FROM inventory_items ii
             LEFT JOIN bins b ON b.id = ii.bin_id
             LEFT JOIN shelves s ON s.id = b.shelf_id
@@ -974,6 +974,7 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
     await logAudit({
       tenantId,
       userId,
+      module: 'sales-order',
       action: 'pick_sales_order',
       resourceType: 'sales_order',
       resourceId: so.id,
