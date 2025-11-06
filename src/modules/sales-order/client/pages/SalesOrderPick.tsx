@@ -67,7 +67,8 @@ interface PickQuantities {
 
 type PickAction = 
   | { type: 'SET_QUANTITY'; itemId: string; allocationId: string; quantity: number }
-  | { type: 'RESET' };
+  | { type: 'RESET' }
+  | { type: 'INITIALIZE'; salesOrders: SalesOrder[] };
 
 function pickReducer(state: PickQuantities, action: PickAction): PickQuantities {
   switch (action.type) {
@@ -81,6 +82,32 @@ function pickReducer(state: PickQuantities, action: PickAction): PickQuantities 
       };
     case 'RESET':
       return {};
+    case 'INITIALIZE': {
+      const initialQuantities: PickQuantities = {};
+      
+      // Auto-populate pick quantities for all orders
+      action.salesOrders.forEach(order => {
+        order.items.forEach(item => {
+          const orderedQty = parseFloat(item.orderedQuantity);
+          let remainingToPick = orderedQty;
+          
+          initialQuantities[item.id] = {};
+          
+          // Fill locations progressively in FIFO/FEFO order
+          item.allocations.forEach(allocation => {
+            if (remainingToPick > 0) {
+              const availableQty = parseFloat(allocation.allocatedQuantity);
+              const pickQty = Math.min(availableQty, remainingToPick);
+              
+              initialQuantities[item.id][allocation.allocationId] = pickQty;
+              remainingToPick -= pickQty;
+            }
+          });
+        });
+      });
+      
+      return initialQuantities;
+    }
     default:
       return state;
   }
@@ -102,8 +129,11 @@ const SalesOrderPick: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get('/api/modules/sales-order/picks');
-      setSalesOrders(response.data.data || []);
-      dispatch({ type: 'RESET' });
+      const orders = response.data.data || [];
+      setSalesOrders(orders);
+      
+      // Auto-populate pick quantities based on available inventory
+      dispatch({ type: 'INITIALIZE', salesOrders: orders });
     } catch (error) {
       console.error('Error fetching pickable orders:', error);
       toast.error('Failed to fetch sales orders');
