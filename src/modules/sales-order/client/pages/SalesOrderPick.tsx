@@ -245,37 +245,57 @@ const SalesOrderPick: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="divide-y">
+                          <div className="border-t">
+                            <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-muted/50 border-b">
+                              <div className="col-span-5 text-xs font-semibold text-muted-foreground uppercase">
+                                Location
+                              </div>
+                              <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase text-center">
+                                Available Qty
+                              </div>
+                              <div className="col-span-3 text-xs font-semibold text-muted-foreground uppercase">
+                                Pick Qty
+                              </div>
+                              <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase text-right">
+                                Action
+                              </div>
+                            </div>
+
                             {item.allocations.map((allocation, idx) => {
                               const currentPick = pickQuantities[item.id]?.[allocation.allocationId] || 0;
                               const availableQty = parseFloat(allocation.allocatedQuantity);
 
                               return (
-                                <div key={idx} className="px-4 py-3 hover:bg-muted/20 transition-colors">
+                                <div key={idx} className="px-4 py-3 hover:bg-muted/20 transition-colors border-b last:border-b-0">
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-5">
-                                      <p className="text-sm font-medium mb-1">
-                                        {getLocationPath(allocation)}
+                                      <p className="font-semibold text-base mb-1">
+                                        {allocation.binName}
                                       </p>
-                                      {(allocation.batchNumber || allocation.lotNumber) && (
-                                        <p className="text-xs text-muted-foreground">
-                                          {allocation.batchNumber ? `Batch: ${allocation.batchNumber}` : `Lot: ${allocation.lotNumber}`}
-                                        </p>
-                                      )}
-                                      {allocation.expiryDate && (
-                                        <p className="text-xs text-muted-foreground">
-                                          Expiry: {new Date(allocation.expiryDate).toLocaleDateString()}
-                                        </p>
+                                      <p className="text-xs text-muted-foreground leading-relaxed">
+                                        {allocation.warehouseName} &gt; {allocation.zoneName} &gt; {allocation.aisleName} &gt; {allocation.shelfName}
+                                      </p>
+                                      {(allocation.batchNumber || allocation.lotNumber || allocation.expiryDate) && (
+                                        <div className="flex gap-3 mt-2">
+                                          {(allocation.batchNumber || allocation.lotNumber) && (
+                                            <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded">
+                                              {allocation.batchNumber ? `Batch: ${allocation.batchNumber}` : `Lot: ${allocation.lotNumber}`}
+                                            </span>
+                                          )}
+                                          {allocation.expiryDate && (
+                                            <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded">
+                                              Exp: {new Date(allocation.expiryDate).toLocaleDateString()}
+                                            </span>
+                                          )}
+                                        </div>
                                       )}
                                     </div>
                                     
                                     <div className="col-span-2 text-center">
-                                      <p className="text-xs text-muted-foreground mb-1">Available</p>
-                                      <p className="text-sm font-semibold">{availableQty}</p>
+                                      <p className="text-base font-semibold">{availableQty}</p>
                                     </div>
 
                                     <div className="col-span-3">
-                                      <label className="text-xs text-muted-foreground block mb-1">Pick Qty</label>
                                       <Input
                                         type="number"
                                         min="0"
