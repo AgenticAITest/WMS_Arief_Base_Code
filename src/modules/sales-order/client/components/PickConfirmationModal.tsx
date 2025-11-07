@@ -38,7 +38,7 @@ interface SalesOrder {
 
 interface PickConfirmationModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (success?: boolean, data?: { pickNumber: string; documentPath: string }) => void;
   salesOrder: SalesOrder;
 }
 
@@ -60,7 +60,10 @@ const PickConfirmationModal: React.FC<PickConfirmationModalProps> = ({
         toast.success('Pick confirmed successfully', {
           description: `Pick document ${response.data.data.pickNumber} generated`,
         });
-        onClose();
+        onClose(true, {
+          pickNumber: response.data.data.pickNumber,
+          documentPath: response.data.data.documentPath,
+        });
       } else {
         toast.error('Failed to confirm pick', {
           description: response.data.message,
@@ -156,7 +159,7 @@ const PickConfirmationModal: React.FC<PickConfirmationModalProps> = ({
         <DialogFooter>
           <Button
             variant="outline"
-            onClick={onClose}
+            onClick={() => onClose()}
             disabled={isSubmitting}
           >
             Cancel

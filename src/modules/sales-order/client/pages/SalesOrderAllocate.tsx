@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Package, RefreshCw, FileText } from 'lucide-react';
 import AllocationConfirmationModal from '../components/AllocationConfirmationModal';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
+import { AllocationPrintView } from '../components/AllocationPrintView';
 
 interface SOItem {
   id: string;
@@ -42,6 +43,8 @@ const SalesOrderAllocate: React.FC = () => {
   const [confirmOrderId, setConfirmOrderId] = useState<string | null>(null);
   const [viewDocumentPath, setViewDocumentPath] = useState<string | null>(null);
   const [viewDocumentNumber, setViewDocumentNumber] = useState<string | null>(null);
+  const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
+  const [allocationData, setAllocationData] = useState<{ allocationNumber: string; documentPath: string } | null>(null);
 
   useEffect(() => {
     fetchAllocatableOrders();
@@ -64,10 +67,14 @@ const SalesOrderAllocate: React.FC = () => {
     setConfirmOrderId(orderId);
   };
 
-  const handleConfirmClose = (success: boolean) => {
+  const handleConfirmClose = (success: boolean, data?: { allocationNumber: string; documentPath: string }) => {
     setConfirmOrderId(null);
     if (success) {
       fetchAllocatableOrders();
+      if (data && data.documentPath) {
+        setAllocationData(data);
+        setIsPrintViewOpen(true);
+      }
     }
   };
 
@@ -212,6 +219,14 @@ const SalesOrderAllocate: React.FC = () => {
           onClose={handleCloseDocumentViewer}
           documentPath={viewDocumentPath}
           documentNumber={viewDocumentNumber || undefined}
+        />
+      )}
+
+      {allocationData && (
+        <AllocationPrintView
+          open={isPrintViewOpen}
+          onOpenChange={setIsPrintViewOpen}
+          allocationData={allocationData}
         />
       )}
     </>

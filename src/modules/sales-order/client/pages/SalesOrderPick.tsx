@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Package, RefreshCw, FileText, MapPin, Check } from 'lucide-react';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import PickConfirmationModal from '../components/PickConfirmationModal';
+import { PickPrintView } from '../components/PickPrintView';
 
 interface Allocation {
   allocationId: string;
@@ -120,6 +121,8 @@ const SalesOrderPick: React.FC = () => {
   const [viewDocumentNumber, setViewDocumentNumber] = useState<string | null>(null);
   const [confirmOrderId, setConfirmOrderId] = useState<string | null>(null);
   const [pickQuantities, dispatch] = useReducer(pickReducer, {});
+  const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
+  const [pickData, setPickData] = useState<{ pickNumber: string; documentPath: string } | null>(null);
 
   useEffect(() => {
     fetchPickableOrders();
@@ -156,9 +159,15 @@ const SalesOrderPick: React.FC = () => {
     setConfirmOrderId(orderId);
   };
 
-  const handleConfirmClose = () => {
+  const handleConfirmClose = (success?: boolean, data?: { pickNumber: string; documentPath: string }) => {
     setConfirmOrderId(null);
-    fetchPickableOrders();
+    if (success) {
+      fetchPickableOrders();
+      if (data && data.documentPath) {
+        setPickData(data);
+        setIsPrintViewOpen(true);
+      }
+    }
   };
 
   const handleQuantityChange = (itemId: string, allocationId: string, value: string) => {
@@ -388,6 +397,14 @@ const SalesOrderPick: React.FC = () => {
           onClose={handleCloseDocumentViewer}
           documentPath={viewDocumentPath}
           documentNumber={viewDocumentNumber || undefined}
+        />
+      )}
+
+      {pickData && (
+        <PickPrintView
+          open={isPrintViewOpen}
+          onOpenChange={setIsPrintViewOpen}
+          pickData={pickData}
         />
       )}
     </>

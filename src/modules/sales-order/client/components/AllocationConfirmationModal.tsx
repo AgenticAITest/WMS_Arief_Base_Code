@@ -41,7 +41,7 @@ interface SalesOrder {
 
 interface AllocationConfirmationModalProps {
   isOpen: boolean;
-  onClose: (success: boolean) => void;
+  onClose: (success: boolean, data?: { allocationNumber: string; documentPath: string }) => void;
   salesOrder: SalesOrder;
 }
 
@@ -63,7 +63,10 @@ const AllocationConfirmationModal: React.FC<AllocationConfirmationModalProps> = 
         toast.success(
           `Allocation confirmed! Document ${response.data.data.allocationNumber} generated.`
         );
-        onClose(true);
+        onClose(true, {
+          allocationNumber: response.data.data.allocationNumber,
+          documentPath: response.data.data.documentPath,
+        });
       }
     } catch (error: any) {
       console.error('Error confirming allocation:', error);
