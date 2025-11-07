@@ -257,18 +257,25 @@ export const packages = pgTable('packages', {
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenant.id),
-  shipmentId: uuid('shipment_id')
+  salesOrderId: uuid('sales_order_id')
     .notNull()
+    .references(() => salesOrders.id, { onDelete: 'cascade' }),
+  shipmentId: uuid('shipment_id')
     .references(() => shipments.id, { onDelete: 'cascade' }),
+  packageId: varchar('package_id', { length: 100 }).notNull(),
   packageNumber: varchar('package_number', { length: 100 }).notNull(),
   barcode: varchar('barcode', { length: 100 }),
-  dimensions: varchar('dimensions', { length: 100 }),
+  length: decimal('length', { precision: 10, scale: 2 }),
+  width: decimal('width', { precision: 10, scale: 2 }),
+  height: decimal('height', { precision: 10, scale: 2 }),
   weight: decimal('weight', { precision: 10, scale: 3 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 },
   (t) => [
+    uniqueIndex('packages_package_id_unique_idx').on(t.packageId),
     uniqueIndex('packages_barcode_unique_idx').on(t.barcode),
     index('packages_tenant_idx').on(t.tenantId),
+    index('packages_so_idx').on(t.salesOrderId),
     index('packages_shipment_idx').on(t.shipmentId),
   ]
 );
@@ -278,18 +285,22 @@ export const packageItems = pgTable('package_items', {
   packageId: uuid('package_id')
     .notNull()
     .references(() => packages.id, { onDelete: 'cascade' }),
+  salesOrderItemId: uuid('sales_order_item_id')
+    .notNull()
+    .references(() => salesOrderItems.id),
   productId: uuid('product_id')
     .notNull()
     .references(() => products.id),
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenant.id),
-  quantity: integer('quantity').notNull(),
+  quantity: decimal('quantity', { precision: 15, scale: 3 }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 },
   (t) => [
     index('package_items_tenant_idx').on(t.tenantId),
     index('package_items_package_idx').on(t.packageId),
+    index('package_items_so_item_idx').on(t.salesOrderItemId),
     index('package_items_product_idx').on(t.productId),
   ]
 );
