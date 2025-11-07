@@ -31,18 +31,44 @@ router.get('/packs', authorized('ADMIN', 'sales-order.view'), async (req, res) =
         so.id,
         so.order_number as "orderNumber",
         so.order_date as "orderDate",
+        so.requested_delivery_date as "requestedDeliveryDate",
         so.status,
         so.workflow_state as "workflowState",
         so.total_amount as "totalAmount",
+        so.notes,
+        so.created_at as "createdAt",
+        so.customer_id as "customerId",
         c.name as "customerName",
-        COUNT(DISTINCT soi.id) as "itemCount"
+        COALESCE(
+          json_agg(
+            CASE 
+              WHEN soi.id IS NOT NULL THEN 
+                json_build_object(
+                  'id', soi.id,
+                  'lineNumber', soi.line_number,
+                  'productId', soi.product_id,
+                  'productName', p.name,
+                  'sku', p.sku,
+                  'orderedQuantity', soi.ordered_quantity,
+                  'allocatedQuantity', soi.allocated_quantity,
+                  'pickedQuantity', soi.picked_quantity,
+                  'unitPrice', soi.unit_price,
+                  'totalPrice', soi.total_price
+                )
+            END
+            ORDER BY soi.line_number
+          ) FILTER (WHERE soi.id IS NOT NULL),
+          '[]'::json
+        ) as items
       FROM sales_orders so
       JOIN customers c ON c.id = so.customer_id
       LEFT JOIN sales_order_items soi ON soi.sales_order_id = so.id
+      LEFT JOIN products p ON p.id = soi.product_id
       WHERE so.tenant_id = ${tenantId}
         AND so.status = 'picked'
         AND so.workflow_state = 'pack'
-      GROUP BY so.id, so.order_number, so.order_date, so.status, so.workflow_state, so.total_amount, c.name
+      GROUP BY so.id, so.order_number, so.order_date, so.requested_delivery_date, so.status, 
+               so.workflow_state, so.total_amount, so.notes, so.created_at, so.customer_id, c.name
       ORDER BY so.order_date DESC
     `);
 
