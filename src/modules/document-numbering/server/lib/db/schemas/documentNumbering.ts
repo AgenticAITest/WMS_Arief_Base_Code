@@ -234,8 +234,8 @@ export const generatedDocuments = pgTable('generated_documents', {
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
 },
   (t) => [
-    // Index for finding all versions of a specific document
-    uniqueIndex('gen_docs_ref_idx').on(t.tenantId, t.referenceType, t.referenceId),
+    // Index for finding all versions of a specific document type for a reference
+    uniqueIndex('gen_docs_ref_idx').on(t.tenantId, t.referenceType, t.referenceId, t.documentType),
     // Index for quick document number lookup
     uniqueIndex('gen_docs_number_idx').on(t.tenantId, t.documentNumber),
   ]
