@@ -160,6 +160,60 @@ router.get('/packs/:id', authorized('ADMIN', 'sales-order.view'), async (req, re
   }
 });
 
+// GET /packs/:id/packages - Get packages for a specific sales order
+router.get('/packs/:id/packages', authorized('ADMIN', 'sales-order.pack'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user!.activeTenantId;
+
+    // Fetch existing packages with items
+    const existingPackages = await db.execute(sql`
+      SELECT 
+        pkg.id,
+        pkg.package_id as "packageId",
+        pkg.package_number as "packageNumber",
+        pkg.length,
+        pkg.width,
+        pkg.height,
+        pkg.weight,
+        COALESCE(
+          json_agg(
+            CASE 
+              WHEN pi.id IS NOT NULL THEN 
+                json_build_object(
+                  'id', pi.id,
+                  'salesOrderItemId', pi.sales_order_item_id,
+                  'productId', pi.product_id,
+                  'quantity', pi.quantity,
+                  'productName', p.name,
+                  'sku', p.sku
+                )
+            END
+          ) FILTER (WHERE pi.id IS NOT NULL),
+          '[]'::json
+        ) as items
+      FROM packages pkg
+      LEFT JOIN package_items pi ON pi.package_id = pkg.id
+      LEFT JOIN products p ON p.id = pi.product_id
+      WHERE pkg.sales_order_id = ${id}
+        AND pkg.tenant_id = ${tenantId}
+      GROUP BY pkg.id, pkg.package_id, pkg.package_number, pkg.length, pkg.width, pkg.height, pkg.weight
+      ORDER BY pkg.package_id
+    `);
+
+    res.json({
+      success: true,
+      data: existingPackages || [],
+    });
+  } catch (error) {
+    console.error('Error fetching packages:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
 // POST /packs/:id/packages - Save packages for a sales order
 router.post('/packs/:id/packages', authorized('ADMIN', 'sales-order.pack'), async (req, res) => {
   try {

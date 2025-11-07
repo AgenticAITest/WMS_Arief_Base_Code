@@ -1,7 +1,7 @@
 # React Admin - Warehouse Management System
 
 ## Overview
-This project is a comprehensive admin dashboard built with React, TypeScript, Vite, and Drizzle ORM. Its primary purpose is to provide a modular and scalable foundation for warehouse management, including features for managing users, roles, permissions, and multi-tenant organizations with robust authentication and authorization. The system aims to streamline warehouse operations, from product and inventory type management to detailed hierarchical setup of warehouses, zones, aisles, shelves, and bins. The business vision is to provide a robust, scalable, and intuitive platform for efficient warehouse operations, with market potential in various logistics and supply chain sectors.
+This project is a comprehensive admin dashboard built with React, TypeScript, Vite, and Drizzle ORM. Its primary purpose is to provide a modular and scalable foundation for warehouse management, including features for managing users, roles, permissions, multi-tenant organizations with robust authentication and authorization, and detailed hierarchical setup of warehouses. The system aims to streamline warehouse operations, from product and inventory type management to advanced sales order processing (allocation, picking, packing). The business vision is to provide a robust, scalable, and intuitive platform for efficient warehouse operations, with market potential in various logistics and supply chain sectors.
 
 ## User Preferences
 None specified yet
@@ -14,67 +14,54 @@ None specified yet
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: JWT (Access, Refresh, Reset tokens)
 
-### Key Features
-- Multi-tenant architecture with Role-based access control (RBAC) and Permission-based authorization.
-- User management.
-- Master Data Management: CRUD for Product, Inventory Type, Package Type, Supplier, and Customer.
-- Document Numbering System: Standardized, period-based document number generation with flexible prefixes and auto-incrementing sequences.
-- Modular page structure and comprehensive API documentation with Swagger.
-- Rate limiting and CORS support.
-- Hierarchical Warehouse Setup: Management of Warehouses, Zones, Aisles, Shelves, and Bins with detailed configurations.
-- Inventory Items Management: CRUD for inventory items with product and bin associations, batch/lot tracking, expiry dates, and cost tracking.
-- Stock Information: Aggregated inventory view by product with location breakdowns.
-- Workflow Configuration: Tenant-specific customizable workflows for Purchase Orders (PO) and Sales Orders (SO).
-- Purchase Order Putaway: Accordion-based interface for POs in 'putaway' state, featuring cascading location selectors and a "Smart Allocation" algorithm for optimal bin suggestions.
-- Sales Order Multi-Location Delivery: SO creation with support for splitting order items across multiple customer delivery locations, with expandable distribution UI and quantity validation.
-- Sales Order Allocation: FIFO/FEFO-based inventory allocation system with atomic transaction handling, document generation, and inventory reservation tracking.
-- Audit Logging: Comprehensive audit trail for user actions, state changes, and data modifications, with queryable REST APIs.
+### UI/UX Decisions
+- Utilizes shadcn/ui and Radix UI for consistent components.
+- Specific fixes implemented for Radix UI Dialogs.
+- PO-focused UI for putaway with nested accordions for GRNs.
+- Compact single-line forms for receiving items.
+- Sales Order multi-location selection uses checkbox grid.
+- Line-item allocation editor features expandable rows and "Split Evenly" helper.
+- SKU-centric pick UI with nested location rows and auto-population logic.
+- Package creation modal with comprehensive package management and item assignment.
+
+### Technical Implementations & Feature Specifications
+- **Multi-tenancy**: Role-based access control (RBAC) and permission-based authorization.
+- **Master Data Management**: CRUD operations for Product, Inventory Type, Package Type, Supplier, Customer.
+- **Document Numbering System**: Standardized, period-based generation with flexible prefixes.
+- **Hierarchical Warehouse Setup**: Management of Warehouses, Zones, Aisles, Shelves, Bins.
+- **Inventory Items Management**: CRUD for items with product/bin associations, batch/lot tracking, expiry dates, cost tracking.
+- **Stock Information**: Aggregated inventory view by product with location breakdowns.
+- **Workflow Configuration**: Tenant-specific customizable workflows for Purchase Orders (PO) and Sales Orders (SO).
+- **Purchase Order Putaway**: Accordion-based interface for GRNs, "Smart Allocation" algorithm for bin suggestions.
+- **Sales Order Multi-Location Delivery**: SO creation with splitting order items across multiple customer delivery locations.
+  - Schema includes `customer_id`, `shipping_location_id`, `status`, `workflow_state`.
+  - Products with 0 stock are filtered.
+  - Real-time allocation validation with visual feedback.
+- **Sales Order Allocation**: FIFO/FEFO-based inventory reservation, atomic transactions.
+  - `allocations` table tracks inventory-to-SO-item mappings.
+  - HTML document generation for allocations.
+- **Sales Order Pick System**: Guided location-based picking using FIFO/FEFO allocated inventory.
+  - Displays allocation records with full warehouse hierarchy.
+  - SKU-centric pick UI with nested location rows, auto-population, and real-time validation.
+  - HTML document generation for picks.
+- **Sales Order Pack System**: Package creation, dimension tracking, item-to-package assignment.
+  - `packages` and `package_items` tables support fractional quantities.
+  - Package ID format: `PKG-{SO_NUMBER}-{SEQUENCE}`.
+  - HTML document generation for packs.
+- **Audit Logging**: Comprehensive audit trail for user actions and data modifications with queryable APIs.
+- **Document Viewer Integration**: UI allows viewing generated HTML documents (PO, GRN, PUTAWAY, ALLOCATION, PICK, PACK) in a modal.
 
 ### System Design Choices
-- **UI/UX**: Utilizes shadcn/ui and Radix UI for consistent components. Critical fixes for Radix UI Dialogs implemented for pointer-event cleanup and boolean field validation.
-- **Backend**: Modular structure for features (system, master-data, warehouse-setup, document-numbering), clear API naming, multi-tenant isolation, and database transactions for atomicity.
-- **Location Update Pattern**: Supplier and customer location updates use transaction-wrapped delete-update-insert pattern. Removed locations are deleted first with FK constraint detection; updates preserve existing IDs; new locations are inserted. FK violations (SQLSTATE 23503) return HTTP 400 with user-friendly messages. All operations atomic via `db.transaction()`.
-- **Document Numbering**: Period-based numbering scheme (e.g., PO-2510-WH1-LOCAL-0001) with mandatory components and optional prefixes; each unique combination maintains its own sequence.
-- **Database Schema**: Designed with clear separation and multi-tenancy support. Geolocation is included. **REPLIT AGENT IS NOT AUTHORIZED TO CHANGE DATABASE SCHEMA WITHOUT EXPLICIT USER PERMISSION.**
-- **Authentication**: JWT-based with separate tokens for access, refresh, and password reset.
-- **Workflow Module**: Database-driven configuration using `workflows` and `workflow_steps` tables, allowing per-tenant customization. Workflow step state updates are batched to prevent React race conditions.
-- **Document Storage Strategy**: Generated documents (e.g., PO, SO) are stored as HTML files in a structured public directory with metadata in a `JSONB` column.
-- **Receipt Items Data Model**: Normalized `receipt_items` table for individual item receipts, with `purchase_order_items` maintaining a denormalized `receivedQuantity` for performance.
-- **Receive Items UX**: Compact single-line form layout with consistent field positions; discrepancy notes are contextually enabled/disabled.
-- **GRN-Based Putaway Architecture**: Putaway operates on a GRN (receipt) level, allowing multiple putaway operations per PO. `purchase_orders_receipt` table includes `putawayStatus`. Backend returns GRNs with PO details; frontend groups them into a PO-focused hierarchy.
-- **Putaway Page Design**: Nested accordion layout with **PO-focused UI**: outer accordions display Purchase Orders, with GRNs grouped underneath each PO as nested sub-accordions. This allows multiple GRNs per PO to be organized clearly. Each GRN contains an item table with cascading location dropdowns filtered by parent selections, and `warehouseId` in API responses for reliable filtering.
-- **Smart Allocation Algorithm**: Bin suggestion system using weighted scoring based on Available Capacity (45%), Item Match (35%), and Temperature Match (20%).
-- **Confirm Putaway Flow**: GRN-based transactional workflow for bin assignments, `inventory_items` creation, PUTAWAY document generation, `putawayStatus` updates, and audit logging.
-- **Audit Logging**: Simple system using `audit_logs` table for critical operations, internal `logAudit()` service, and REST APIs for querying. Includes `document_path` field for tracking generated HTML documents (PO, GRN, PUTAWAY).
-- **Document Viewer Integration**: Audit Log UI includes a "View Document" button (FileText icon) that appears when `documentPath` exists. Clicking opens a `DocumentViewerModal` component which fetches and displays the HTML document in a modal, supporting PO, GRN, and PUTAWAY document types.
-- **Sales Order Multi-Location Delivery**: Built using native SQL for schema changes to avoid data loss. `sales_order_item_locations` table tracks per-item delivery locations. Backend uses `db.transaction()` for atomicity, validates location quantity sums, and generates SO numbers via document numbering API.
-  - **Schema**: `sales_orders` table includes: `customer_id`, `shipping_location_id`, `shipping_method_id`, `order_date`, `requested_delivery_date`, `tracking_number`, `delivery_instructions`, `total_amount`, `notes`, `status` (enum: created, allocated, picked, packed, shipped, delivered), and `workflow_state`.
-  - **Items Schema**: `sales_order_items` table includes: `ordered_quantity`, `allocated_quantity`, `picked_quantity`, `unit_price`, `total_price` (simple quantity × unit_price calculation, no discount/tax at item level).
-  - **Status Design**: Uses "created" status for new orders (not "draft" or "pending"), aligning with WMS workflow states where orders are actionable immediately upon creation.
-  - **SO Create Page Optimizations**: Products with 0 available stock are filtered at database level (HAVING clause). Customer locations preloaded via `includeLocations` query parameter for instant access. Address display uses correct `address` field from schema with city as fallback.
-  - **Multi-Location Selection UI**: Checkbox-based location selector displays all customer shipping locations in a grid layout with "Select All" helper (for 4+ locations). Items table is disabled until at least one location is selected, preventing invalid allocations.
-  - **Line-Item Allocation Editor**: Expandable table rows with chevron indicators allow per-item quantity distribution across selected locations. Each item shows allocation status (X/Y allocated) with green (valid) or red (invalid) highlighting. Expansion reveals location-specific quantity inputs in a grid layout with "Split Evenly" helper button for automatic distribution.
-  - **Allocation Validation**: Real-time validation ensures allocated quantities sum exactly to ordered quantity. Visual feedback includes color-coded status indicators, remaining quantity display, and error messages for over/under allocation. Frontend blocks submission until all items have valid allocations.
-  - **Confirmation Modal Enhancement**: Shows selected shipping locations as chips at the top, followed by items table with nested location breakdown rows displaying quantity distribution per location.
-- **Sales Order Allocation System**: Inventory reservation workflow that transitions SOs from 'created' to 'allocated' status using intelligent FIFO/FEFO logic.
-  - **Allocation API**: GET `/allocations` endpoint fetches SOs with status='created' and workflow_state='allocate'. POST `/allocations/:id/confirm` executes atomic transaction for inventory reservation.
-  - **FIFO/FEFO Logic**: Inventory selection query uses `ORDER BY expiry_date ASC NULLS LAST, received_date ASC NULLS LAST, created_at ASC` to prioritize items with earliest expiry dates (FEFO), then oldest received items (FIFO).
-  - **Transaction Atomicity**: Single `db.transaction()` wraps all inventory updates (`reserved_quantity` increments, `available_quantity` decrements), allocation record creation, SO status updates, and workflow state advancement. Partial failures trigger full rollback.
-  - **Allocation Records**: `allocations` table tracks inventory-to-SO-item mappings with `inventory_item_id`, `sales_order_item_id`, `quantity_allocated`, and `allocation_date`.
-  - **Document Generation**: `AllocationDocumentGenerator` service creates HTML allocation documents in `/storage/sales-order/allocations/tenants/{tenantId}/` directory with detailed breakdowns by product, bin location, batch/lot numbers, and expiry dates.
-  - **UI Components**: `SalesOrderAllocate` page displays allocatable orders in table format with "Allocate" action button. `AllocationConfirmationModal` shows SO details and confirms allocation action before executing transaction.
-  - **Audit Integration**: Successful allocations logged to `audit_logs` table with action='allocate_sales_order', including generated document path for traceability.
-- **Sales Order Pick System**: Picking workflow that transitions SOs from 'allocated' to 'picked' status with guided location-based picking using FIFO/FEFO allocated inventory.
-  - **Pick API**: GET `/picks` endpoint fetches SOs with status='allocated' and workflow_state='pick', returning allocation records with complete warehouse location hierarchy (zone → aisle → shelf → bin). POST `/picks/:id/confirm` executes atomic transaction for pick confirmation.
-  - **FIFO/FEFO Display**: Allocation records are displayed in FIFO/FEFO order (matching allocation logic) with full location paths to guide warehouse pickers to optimal inventory locations.
-  - **Transaction Atomicity**: Single `db.transaction()` wraps all inventory updates (decrement `available_quantity` and `reserved_quantity`), pick record creation, SO item `picked_quantity` updates, SO status transition, workflow state advancement, and PICK document generation. Partial failures trigger full rollback.
-  - **Pick Records**: `sales_order_picks` table tracks individual pick operations with `sales_order_item_id`, `inventory_item_id`, `picked_quantity` (decimal), `picked_by`, batch/lot tracking, and timestamps.
-  - **Document Generation**: `PickDocumentGenerator` service creates HTML pick documents in `/storage/sales-order/picks/tenants/{tenantId}/{year}/` directory with year-based organization. Documents include product details, pick locations, quantities, batch/lot numbers, and expiry dates. Uses `generated_documents` table with JSONB `files` field for metadata storage.
-  - **SKU-Centric Pick UI**: Pick page organizes items by SKU with nested location rows. Each SKU displays picked/ordered ratio with color-coded status (green=complete, yellow=partial, red=over, gray=not started). Locations are listed under each SKU with full hierarchical path (warehouse > zone > aisle > shelf > bin), available quantity, and per-location pick quantity input fields. Smart sorting applies: FIFO products sort locations by least quantity first (to empty small bins); FEFO products sort by nearest expiry date first. Each location row includes a "Pick" button for per-location confirmation. Frontend uses useReducer for state management of pick quantities with real-time validation.
-  - **Auto-Population Logic**: Pick quantities are automatically pre-filled on page load using progressive fill algorithm. For each item, locations are filled in FIFO/FEFO order with pick_qty = MIN(available_qty, remaining_qty). This fills first location completely, then next location with remaining quantity, until total ordered quantity is reached. Users can manually adjust pre-filled values if needed.
-  - **Audit Integration**: Successful picks logged to `audit_logs` table with action='pick_sales_order', including generated document path for full traceability.
-  - **Print Modal Integration**: Both Allocation and Pick workflows include print modals (AllocationPrintView, PickPrintView) that automatically display after successful confirmation, allowing users to print or view generated documents. Modals fetch HTML via authenticated API and display in iframe with Print/Close buttons.
-- **Generated Documents Schema**: The `generated_documents` table uses a unique constraint on `(tenant_id, reference_type, reference_id, document_type)` to allow multiple document types (ALLOCATION, PICK, PACK, SHIP, etc.) for the same reference entity. Changed from original constraint that only allowed one document per reference (2025-11-07).
+- **Backend Modularity**: Features organized into logical modules (system, master-data, warehouse-setup, document-numbering).
+- **Database Transactions**: Atomicity ensured for critical operations (e.g., location updates, SO allocation, picking, packing) using `db.transaction()`.
+- **Document Storage Strategy**: Generated documents stored as HTML files in a structured public directory with metadata in a `JSONB` column of the `generated_documents` table.
+- **Document Numbering**: Period-based, unique sequence per document type and context.
+- **Database Schema**: Designed for multi-tenancy and clear separation. **REPLIT AGENT IS NOT AUTHORIZED TO CHANGE DATABASE SCHEMA WITHOUT EXPLICIT USER PERMISSION.**
+- **Workflow Module**: Database-driven configuration for tenant-specific process customization.
+- **Receipt Items Data Model**: Normalized `receipt_items` with denormalized `receivedQuantity` in `purchase_order_items`.
+- **GRN-Based Putaway**: Putaway operates at the Goods Receipt Note (GRN) level, allowing multiple putaways per PO.
+- **Smart Allocation Algorithm**: Bin suggestion based on weighted scoring (Capacity, Item Match, Temperature Match).
+- **`generated_documents` table**: Unique constraint `(tenant_id, reference_type, reference_id, document_type)` allows multiple document types for the same reference entity.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.
