@@ -38,7 +38,7 @@ interface SalesOrder {
 }
 
 interface Package {
-  id: string;
+  id?: string;
   packageId: string;
   packageNumber: string;
   length: number | null;
