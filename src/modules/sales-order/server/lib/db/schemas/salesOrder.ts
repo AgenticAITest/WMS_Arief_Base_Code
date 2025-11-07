@@ -188,23 +188,22 @@ export const salesOrderAllocations = pgTable('sales_order_allocations', {
 
 export const salesOrderPicks = pgTable('sales_order_picks', {
   id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenant.id),
   salesOrderItemId: uuid('sales_order_item_id')
     .notNull()
     .references(() => salesOrderItems.id, { onDelete: 'cascade' }),
   inventoryItemId: uuid('inventory_item_id')
     .notNull()
     .references(() => inventoryItems.id, { onDelete: 'cascade' }),
-  tenantId: uuid('tenant_id')
-    .notNull()
-    .references(() => tenant.id),
   pickedQuantity: decimal('picked_quantity', { precision: 15, scale: 3 }).notNull(),
-  pickDate: timestamp('pick_date').defaultNow().notNull(),
-  pickedBy: uuid('picked_by')
-    .references(() => user.id),
   batchNumber: varchar('batch_number', { length: 100 }),
   lotNumber: varchar('lot_number', { length: 100 }),
   serialNumber: varchar('serial_number', { length: 100 }),
-  notes: text('notes'),
+  pickDate: timestamp('pick_date').defaultNow().notNull(),
+  pickedBy: uuid('picked_by')
+    .references(() => user.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
 },

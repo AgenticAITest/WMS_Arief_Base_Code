@@ -79,7 +79,6 @@ router.post('/picks', authorized('ADMIN', 'sales-order.create'), async (req, res
       batchNumber,
       lotNumber,
       serialNumber,
-      notes,
     } = req.body;
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -98,7 +97,6 @@ router.post('/picks', authorized('ADMIN', 'sales-order.create'), async (req, res
       batchNumber,
       lotNumber,
       serialNumber,
-      notes,
     };
 
     const [created] = await db
@@ -121,7 +119,6 @@ router.put('/picks/:id', authorized('ADMIN', 'sales-order.edit'), async (req, re
       batchNumber,
       lotNumber,
       serialNumber,
-      notes,
     } = req.body;
     const tenantId = req.user!.activeTenantId;
 
@@ -130,7 +127,6 @@ router.put('/picks/:id', authorized('ADMIN', 'sales-order.edit'), async (req, re
     if (batchNumber !== undefined) updateData.batchNumber = batchNumber;
     if (lotNumber !== undefined) updateData.lotNumber = lotNumber;
     if (serialNumber !== undefined) updateData.serialNumber = serialNumber;
-    if (notes !== undefined) updateData.notes = notes;
 
     const [updated] = await db
       .update(salesOrderPicks)
