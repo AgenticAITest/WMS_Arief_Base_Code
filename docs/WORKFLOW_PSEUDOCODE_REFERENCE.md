@@ -1,18 +1,35 @@
 # WORKFLOW PSEUDOCODE REFERENCE
 
-**Purpose:** Complete pseudocode/logic documentation for Purchase Order and Sales Order workflows
-**Generated:** 2025-11-09
+**Purpose:** Complete pseudocode/logic documentation for Purchase Order and Sales Order workflows  
+**Last Updated:** 2025-11-09  
 **Author:** Workflow Analysis Agent
+
+---
+
+## IMPLEMENTATION STATUS
+
+### ✅ COMPLETED & OPERATIONAL
+- **Purchase Order Workflow**: Create → Approve → Receive → Putaway
+- **Sales Order Workflow**: Create → Allocate → Pick → Pack
+- **Document Generation**: PO, GRN, Putaway, SO, Allocation, Pick, Pack documents
+- **Inventory Management**: Creation (putaway), Reservation (allocation), Release (pick)
+
+### ⚠️ NOT YET IMPLEMENTED
+- **Purchase Order**: Complete (terminal state transition)
+- **Sales Order**: Ship, Deliver, Complete (full inventory deduction and final states)
+- **Inventory**: Final deduction from availableQuantity (occurs during ship step)
+
+**Note:** This document describes both implemented and planned functionality. Each section is marked with its implementation status.
 
 ---
 
 ## TABLE OF CONTENTS
 
-1. [Workflow Engine Architecture](#workflow-engine-architecture)
-2. [Purchase Order Workflow](#purchase-order-workflow)
-3. [Sales Order Workflow](#sales-order-workflow)
-4. [Document Generation System](#document-generation-system)
-5. [Inventory Management Logic](#inventory-management-logic)
+1. [Workflow Engine Architecture](#workflow-engine-architecture) ✅ IMPLEMENTED
+2. [Purchase Order Workflow](#purchase-order-workflow) ✅ PARTIAL (Steps 1-4 implemented, Step 5 not)
+3. [Sales Order Workflow](#sales-order-workflow) ✅ PARTIAL (Steps 1-4 implemented, Steps 5-7 not)
+4. [Document Generation System](#document-generation-system) ✅ IMPLEMENTED
+5. [Inventory Management Logic](#inventory-management-logic) ✅ PARTIAL (Creation & reservation only)
 6. [Known Issues & Gaps](#known-issues--gaps)
 
 ---
@@ -118,19 +135,20 @@ FUNCTION transitionWorkflow(orderId, currentStepKey) {
 
 **State Progression:**
 ```
-CREATE (pending/approve)
-  → APPROVE (approved/receive)
-  → RECEIVE (received/putaway OR incomplete/receive)
-  → PUTAWAY (received/putaway - no status change)
-  → COMPLETE (❌ NOT IMPLEMENTED)
+✅ CREATE (pending/approve)
+  → ✅ APPROVE (approved/receive)
+  → ✅ RECEIVE (received/putaway OR incomplete/receive)
+  → ✅ PUTAWAY (received/putaway - no status change)
+  → ⚠️ COMPLETE (NOT IMPLEMENTED - PO stays in received/putaway indefinitely)
 ```
 
 ---
 
-### STEP 1: CREATE PURCHASE ORDER
+### STEP 1: CREATE PURCHASE ORDER ✅ IMPLEMENTED
 
 **Endpoint:** `POST /api/modules/purchase-order/orders`
 **File:** `src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:1196-1524`
+**Status:** ✅ Fully functional
 
 **Pseudocode:**
 
@@ -281,10 +299,11 @@ FUNCTION createPurchaseOrder(requestData, userId, tenantId) {
 
 ---
 
-### STEP 2: APPROVE PURCHASE ORDER
+### STEP 2: APPROVE PURCHASE ORDER ✅ IMPLEMENTED
 
 **Endpoint:** `POST /api/modules/purchase-order/orders/:id/approve`
 **File:** `src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:2419-2502`
+**Status:** ✅ Fully functional
 
 **Pseudocode:**
 
@@ -365,10 +384,11 @@ FUNCTION rejectPurchaseOrder(poId, userId, tenantId, reason) {
 
 ---
 
-### STEP 3: RECEIVE ITEMS (GRN Creation)
+### STEP 3: RECEIVE ITEMS (GRN Creation) ✅ IMPLEMENTED
 
 **Endpoint:** `POST /api/modules/purchase-order/receive/:id/submit`
 **File:** `src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:3557-3895`
+**Status:** ✅ Fully functional
 
 **Pseudocode:**
 
@@ -600,10 +620,12 @@ FUNCTION receiveItems(poId, receivedItems, notes, userId, tenantId) {
 
 ---
 
-### STEP 4: PUTAWAY CONFIRMATION
+### STEP 4: PUTAWAY CONFIRMATION ✅ IMPLEMENTED
 
 **Endpoint:** `POST /api/modules/purchase-order/putaway/:id/confirm`
 **File:** `src/modules/purchase-order/server/routes/purchaseOrderRoutes.ts:3279-3501`
+**Status:** ✅ Fully functional
+**Known Limitation:** Cannot split single receipt item across multiple bins; batch/lot/serial numbers not captured
 
 **Pseudocode:**
 
@@ -790,9 +812,11 @@ When putaway is confirmed, actual `inventory_items` records are created with:
 
 ---
 
-### STEP 5: COMPLETE (❌ NOT IMPLEMENTED)
+### STEP 5: COMPLETE ⚠️ NOT IMPLEMENTED
 
-**Expected Behavior:**
+**Status:** ⚠️ Endpoint does not exist - PO remains in received/putaway state after all putaways complete
+
+**Expected Behavior (Planned):**
 ```javascript
 FUNCTION completePurchaseOrder(poId, userId, tenantId) {
   // Verify all receipts are put away
@@ -832,21 +856,24 @@ FUNCTION completePurchaseOrder(poId, userId, tenantId) {
 
 **State Progression:**
 ```
-CREATE (created/allocate)
-  → ALLOCATE (allocated/pick)
-  → PICK (picked/pack)
-  → PACK (packed/ship)
-  → SHIP (❌ NOT IMPLEMENTED)
-  → DELIVER (❌ NOT IMPLEMENTED)
-  → COMPLETE (❌ NOT IMPLEMENTED)
+✅ CREATE (created/allocate)
+  → ✅ ALLOCATE (allocated/pick)
+  → ✅ PICK (picked/pack)
+  → ✅ PACK (packed/ship)
+  → ⚠️ SHIP (NOT IMPLEMENTED - inventory deduction occurs here)
+  → ⚠️ DELIVER (NOT IMPLEMENTED)
+  → ⚠️ COMPLETE (NOT IMPLEMENTED)
 ```
+
+**Critical Note:** Inventory is NOT deducted from availableQuantity until the SHIP step (not yet implemented). Currently, picked items remain in the system's available count.
 
 ---
 
-### STEP 1: CREATE SALES ORDER
+### STEP 1: CREATE SALES ORDER ✅ IMPLEMENTED
 
 **Endpoint:** `POST /api/modules/sales-order/sales-orders`
 **File:** `src/modules/sales-order/server/routes/salesOrderRoutes.ts:246-556`
+**Status:** ✅ Fully functional with multi-location delivery support
 
 **Pseudocode:**
 
@@ -1025,9 +1052,11 @@ FUNCTION createSalesOrder(requestData, userId, tenantId) {
 
 ---
 
-### STEP 2: ALLOCATE INVENTORY (FEFO/FIFO)
+### STEP 2: ALLOCATE INVENTORY (FEFO/FIFO) ✅ IMPLEMENTED
 
 **Endpoint:** `POST /api/modules/sales-order/allocations/:id/confirm`
+**Status:** ✅ Fully functional with FEFO/FIFO support
+**Known Issues:** Missing FOR UPDATE locks (race condition risk); document type was 'ALLOCATION' instead of 'ALLOC' (fixed)
 **File:** `src/modules/sales-order/server/routes/salesOrderRoutes.ts:1004-1304`
 
 **Pseudocode:**
@@ -1236,9 +1265,11 @@ Total in system: 100 (unchanged)
 
 ---
 
-### STEP 3: PICK INVENTORY
+### STEP 3: PICK INVENTORY ✅ IMPLEMENTED
 
 **Endpoint:** `POST /api/modules/sales-order/picks/:id/confirm`
+**Status:** ✅ Fully functional with SKU-centric UI
+**Known Issues:** No idempotency protection; can create duplicate picks if called twice
 **File:** `src/modules/sales-order/server/routes/salesOrderRoutes.ts:752-1002`
 
 **Pseudocode:**
@@ -1409,9 +1440,11 @@ Total in system: 70
 
 ---
 
-### STEP 4: PACK INTO PACKAGES
+### STEP 4: PACK INTO PACKAGES ✅ IMPLEMENTED
 
 **Endpoint (Step 4a):** `POST /api/modules/sales-order/packs/:id/packages`
+**Status:** ✅ Fully functional with package creation modal
+**Known Issues:** Package quantities not validated against picked quantities
 **Endpoint (Step 4b):** `POST /api/modules/sales-order/packs/:id/confirm`
 **File:** `src/modules/sales-order/server/routes/packRoutes.ts:243-519`
 
@@ -1578,7 +1611,9 @@ FUNCTION confirmPacking(soId, userId, tenantId) {
 
 ---
 
-### STEP 5: SHIP (❌ NOT IMPLEMENTED)
+### STEP 5: SHIP ⚠️ NOT IMPLEMENTED
+
+**Status:** ⚠️ Endpoint does not exist - This is where inventory deduction should occur
 
 **Current State:**
 - Basic shipment CRUD exists in `shipmentRoutes.ts`
@@ -1670,9 +1705,11 @@ ACTUAL: Inventory never deducted! Gap in implementation.
 
 ---
 
-### STEP 6: DELIVER (❌ NOT IMPLEMENTED)
+### STEP 6: DELIVER ⚠️ NOT IMPLEMENTED
 
-**Expected Implementation:**
+**Status:** ⚠️ Endpoint does not exist
+
+**Expected Implementation (Planned):**
 
 ```javascript
 FUNCTION confirmDelivery(soId, deliveryProof, userId, tenantId) {
@@ -1697,9 +1734,11 @@ FUNCTION confirmDelivery(soId, deliveryProof, userId, tenantId) {
 
 ---
 
-### STEP 7: COMPLETE (❌ NOT IMPLEMENTED)
+### STEP 7: COMPLETE ⚠️ NOT IMPLEMENTED
 
-**Expected Implementation:**
+**Status:** ⚠️ Terminal state not implemented
+
+**Expected Implementation (Planned):**
 
 ```javascript
 FUNCTION completeSalesOrder(soId, userId, tenantId) {
