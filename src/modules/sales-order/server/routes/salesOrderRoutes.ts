@@ -1178,7 +1178,7 @@ router.post('/allocations/:id/confirm', authorized('ADMIN', 'sales-order.allocat
     // Generate allocation document number
     const allocationDocNumber = await axios.post(
       `${req.protocol}://${req.get('host')}/api/modules/document-numbering/generate`,
-      { documentType: 'ALLOCATION', options: {} },
+      { documentType: 'ALLOC', options: {} },
       { headers: { Authorization: req.headers.authorization } }
     );
 
