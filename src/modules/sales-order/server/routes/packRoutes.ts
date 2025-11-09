@@ -346,6 +346,9 @@ router.post('/packs/:id/packages', authorized('ADMIN', 'sales-order.pack'), asyn
 
 // POST /packs/:id/confirm - Confirm packing and generate PACK document
 router.post('/packs/:id/confirm', authorized('ADMIN', 'sales-order.pack'), async (req, res) => {
+  console.log('===== PACK CONFIRM ROUTE HIT =====');
+  console.log('Request params:', req.params);
+  console.log('User:', req.user);
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;

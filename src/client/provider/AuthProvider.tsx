@@ -66,7 +66,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
       return response;
     },
     (error) => {
-      if (error.response.status === 401) {
+      if (error.response && error.response.status === 401) {
         console.log('interceptor : 401 error');
         setToken(null);
         setUser(null);
