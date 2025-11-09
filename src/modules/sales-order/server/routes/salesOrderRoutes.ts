@@ -1220,7 +1220,7 @@ router.post('/allocations/:id/confirm', authorized('ADMIN', 'sales-order.allocat
       JOIN aisles a ON a.id = s.aisle_id
       JOIN zones z ON z.id = a.zone_id
       JOIN warehouses w ON w.id = z.warehouse_id
-      WHERE ii.id = ANY(${inventoryItemIds})
+      WHERE ii.id IN ${inventoryItemIds}
     `);
     const binLocationMap = new Map((binLocations as any[]).map(bl => [bl.inventory_item_id, bl.location_path]));
 
