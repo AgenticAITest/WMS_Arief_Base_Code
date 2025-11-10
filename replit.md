@@ -3,7 +3,7 @@
 ## Overview
 This project is a comprehensive admin dashboard built with React, TypeScript, Vite, and Drizzle ORM. Its primary purpose is to provide a modular and scalable foundation for warehouse management, including features for managing users, roles, permissions, multi-tenant organizations with robust authentication and authorization, and detailed hierarchical setup of warehouses. The system aims to streamline warehouse operations, from product and inventory type management to advanced sales order processing (allocation, picking, packing). The business vision is to provide a robust, scalable, and intuitive platform for efficient warehouse operations, with market potential in various logistics and supply chain sectors.
 
-### Implementation Status (as of 2025-11-09)
+### Implementation Status (as of 2025-11-10)
 **✅ Completed Workflows:**
 - Purchase Order: Create → Approve → Receive → Putaway
 - Sales Order: Create → Allocate → Pick → Pack
@@ -15,6 +15,9 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
 **📚 Documentation:**
 - `docs/WORKFLOW_LOGIC_ANALYSIS.md` - Comprehensive issue tracker separating actual bugs, incomplete features, and design improvements
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
+
+**🔄 Recent Changes (2025-11-10):**
+- Migrated Transporters from sales-order module to master-data module (schema, routes, UI)
 
 ## User Preferences
 None specified yet
@@ -39,7 +42,7 @@ None specified yet
 
 ### Technical Implementations & Feature Specifications
 - **Multi-tenancy**: Role-based access control (RBAC) and permission-based authorization.
-- **Master Data Management**: CRUD operations for Product, Inventory Type, Package Type, Supplier, Customer.
+- **Master Data Management**: CRUD operations for Product, Inventory Type, Package Type, Supplier, Customer, Transporter.
 - **Document Numbering System**: Standardized, period-based generation with flexible prefixes.
 - **Hierarchical Warehouse Setup**: Management of Warehouses, Zones, Aisles, Shelves, Bins.
 - **Inventory Items Management**: CRUD for items with product/bin associations, batch/lot tracking, expiry dates, cost tracking.

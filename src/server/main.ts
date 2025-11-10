@@ -18,7 +18,6 @@ import documentNumberTrackerRoutes from '../modules/document-numbering/server/ro
 import generatedDocumentsRoutes from '../modules/document-numbering/server/routes/generatedDocumentsRoutes';
 import purchaseOrderRoutes from '../modules/purchase-order/server/routes/purchaseOrderRoutes';
 import {
-  transporterRoutes,
   shippingMethodRoutes,
   salesOrderRoutes,
   allocationRoutes,
@@ -151,7 +150,6 @@ app.use('/api/modules/document-numbering', generatedDocumentsRoutes);
 app.use('/api/modules/purchase-order', purchaseOrderRoutes);
 
 // sales-order routes
-app.use('/api/modules/sales-order', transporterRoutes);
 app.use('/api/modules/sales-order', shippingMethodRoutes);
 app.use('/api/modules/sales-order', salesOrderRoutes);
 app.use('/api/modules/sales-order', allocationRoutes);
