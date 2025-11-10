@@ -6,6 +6,7 @@ import PackageTypeTab from '../components/PackageTypeTab';
 import ProductTab from '../components/ProductTab';
 import SupplierTab from '../components/SupplierTab';
 import CustomerTab from '../components/CustomerTab';
+import TransporterTab from '../components/TransporterTab';
 import NumberTab from '../components/NumberTab';
 
 const MasterDataManagement = () => {
@@ -58,6 +59,12 @@ const MasterDataManagement = () => {
             Customer
           </TabsTrigger>
           <TabsTrigger 
+            value="transporter"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            Transporter
+          </TabsTrigger>
+          <TabsTrigger 
             value="number"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
           >
@@ -83,6 +90,10 @@ const MasterDataManagement = () => {
 
         <TabsContent value="customer" className="mt-6">
           <CustomerTab />
+        </TabsContent>
+
+        <TabsContent value="transporter" className="mt-6">
+          <TransporterTab />
         </TabsContent>
 
         <TabsContent value="number" className="mt-6">
