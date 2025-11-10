@@ -1,6 +1,6 @@
 import { relations } from 'drizzle-orm';
-import { boolean, decimal, integer, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
-import { tenant } from '@server/lib/db/schema/system';
+import { boolean, decimal, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import { tenant, user } from '@server/lib/db/schema/system';
 
 export const productTypes = pgTable('product_types', {
   id: uuid('id').primaryKey(),
@@ -149,6 +149,33 @@ export const customerLocations = pgTable('customer_locations', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const transporters = pgTable('transporters', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenant.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  code: varchar('code', { length: 50 }).notNull(),
+  contactPerson: varchar('contact_person', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
+  email: varchar('email', { length: 255 }),
+  website: varchar('website', { length: 500 }),
+  serviceAreas: jsonb('service_areas'),
+  isActive: boolean('is_active').default(true).notNull(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
+  createdBy: uuid('created_by').references(() => user.id),
+  updatedBy: uuid('updated_by').references(() => user.id),
+},
+  (t) => [
+    uniqueIndex('transporters_unique_idx').on(t.tenantId, t.code),
+    index('transporters_tenant_idx').on(t.tenantId),
+    index('transporters_active_idx').on(t.tenantId, t.isActive),
+    index('transporters_code_idx').on(t.tenantId, t.code),
+  ]
+);
+
 export const productTypesRelations = relations(productTypes, ({ one, many }) => ({
   tenant: one(tenant, {
     fields: [productTypes.tenantId],
@@ -218,6 +245,13 @@ export const customerLocationsRelations = relations(customerLocations, ({ one })
   }),
 }));
 
+export const transportersRelations = relations(transporters, ({ one }) => ({
+  tenant: one(tenant, {
+    fields: [transporters.tenantId],
+    references: [tenant.id],
+  }),
+}));
+
 export type ProductType = typeof productTypes.$inferSelect;
 export type NewProductType = typeof productTypes.$inferInsert;
 
@@ -238,3 +272,6 @@ export type NewCustomer = typeof customers.$inferInsert;
 
 export type CustomerLocation = typeof customerLocations.$inferSelect;
 export type NewCustomerLocation = typeof customerLocations.$inferInsert;
+
+export type Transporter = typeof transporters.$inferSelect;
+export type NewTransporter = typeof transporters.$inferInsert;

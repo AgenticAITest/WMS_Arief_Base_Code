@@ -1,37 +1,10 @@
 import { relations, sql } from 'drizzle-orm';
 import { check, date, decimal, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar, boolean } from 'drizzle-orm/pg-core';
 import { tenant, user } from '@server/lib/db/schema/system';
-import { customers, customerLocations, products } from '@modules/master-data/server/lib/db/schemas/masterData';
+import { customers, customerLocations, products, transporters } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
 import { generatedDocuments } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
-
-export const transporters = pgTable('transporters', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id')
-    .notNull()
-    .references(() => tenant.id),
-  name: varchar('name', { length: 255 }).notNull(),
-  code: varchar('code', { length: 50 }).notNull(),
-  contactPerson: varchar('contact_person', { length: 255 }),
-  phone: varchar('phone', { length: 50 }),
-  email: varchar('email', { length: 255 }),
-  website: varchar('website', { length: 500 }),
-  serviceAreas: jsonb('service_areas'),
-  isActive: boolean('is_active').default(true).notNull(),
-  notes: text('notes'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
-  createdBy: uuid('created_by').references(() => user.id),
-  updatedBy: uuid('updated_by').references(() => user.id),
-},
-  (t) => [
-    uniqueIndex('transporters_unique_idx').on(t.tenantId, t.code),
-    index('transporters_tenant_idx').on(t.tenantId),
-    index('transporters_active_idx').on(t.tenantId, t.isActive),
-    index('transporters_code_idx').on(t.tenantId, t.code),
-  ]
-);
 
 export const shippingMethods = pgTable('shipping_methods', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -306,14 +279,6 @@ export const packageItems = pgTable('package_items', {
 );
 
 // Relations
-export const transportersRelations = relations(transporters, ({ one, many }) => ({
-  tenant: one(tenant, {
-    fields: [transporters.tenantId],
-    references: [tenant.id],
-  }),
-  shippingMethods: many(shippingMethods),
-  shipments: many(shipments),
-}));
 
 export const shippingMethodsRelations = relations(shippingMethods, ({ one, many }) => ({
   tenant: one(tenant, {
