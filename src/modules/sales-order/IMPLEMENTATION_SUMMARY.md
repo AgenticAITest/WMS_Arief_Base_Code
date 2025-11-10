@@ -291,7 +291,6 @@ draft → confirmed → allocated → picking → picked → shipped → deliver
 src/modules/sales-order/
 ├── server/
 │   ├── routes/
-│   │   ├── transporterRoutes.ts      ✅ 5 endpoints
 │   │   ├── shippingMethodRoutes.ts   ✅ 5 endpoints
 │   │   ├── salesOrderRoutes.ts       ✅ 5 endpoints
 │   │   ├── allocationRoutes.ts       ✅ 5 endpoints
@@ -300,6 +299,8 @@ src/modules/sales-order/
 │   │   └── index.ts                  ✅ Route exports
 │   └── lib/db/schemas/
 │       └── salesOrder.ts             ✅ Drizzle schemas
+
+Note: transporters migrated to master-data module
 ├── migrations/
 │   └── 001_create_sales_order_tables.sql ✅ Database setup
 ├── tests/

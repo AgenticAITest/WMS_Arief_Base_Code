@@ -10,7 +10,7 @@
 **File:** `migrations/001_create_sales_order_tables.sql`
 
 All 9 tables successfully created in development database:
-- ✅ **transporters** - Shipping carriers
+- ✅ **transporters** - Shipping carriers _(migrated to master-data module)_
 - ✅ **shipping_methods** - Shipping options  
 - ✅ **sales_orders** - Main orders
 - ✅ **sales_order_items** - Order line items
@@ -33,27 +33,28 @@ All 9 tables confirmed in database ✓
 
 | Route File | Endpoints | Status |
 |-----------|-----------|--------|
-| **transporterRoutes.ts** | GET, POST, PUT, DELETE /transporters | ✅ Created |
+| **transporterRoutes.ts** | GET, POST, PUT, DELETE /transporters | ✅ _Migrated to master-data_ |
 | **shippingMethodRoutes.ts** | GET, POST, PUT, DELETE /shipping-methods | ✅ Created |
 | **salesOrderRoutes.ts** | GET, POST, PUT, DELETE /sales-orders | ✅ Created |
 | **allocationRoutes.ts** | GET, POST, PUT, DELETE /allocations | ✅ Created |
 | **pickRoutes.ts** | GET, POST, PUT, DELETE /picks | ✅ Created |
 | **shipmentRoutes.ts** | GET, POST, PUT, DELETE /shipments<br>GET, POST /packages | ✅ Created |
 
-**Total Endpoints Created:** 27+
+**Total Endpoints Created:** 22+ (transporters moved to master-data module)
 
 ### 3. Route Registration
 **File:** `src/server/main.ts`
 
-All 6 route modules registered:
+All 5 route modules registered:
 ```javascript
-app.use('/api/modules/sales-order', transporterRoutes);
 app.use('/api/modules/sales-order', shippingMethodRoutes);
 app.use('/api/modules/sales-order', salesOrderRoutes);
 app.use('/api/modules/sales-order', allocationRoutes);
 app.use('/api/modules/sales-order', pickRoutes);
 app.use('/api/modules/sales-order', shipmentRoutes);
 ```
+
+**Note:** Transporter routes migrated to `/api/modules/master-data/transporters`
 
 **Base URL:** `http://localhost:5000/api/modules/sales-order`
 
