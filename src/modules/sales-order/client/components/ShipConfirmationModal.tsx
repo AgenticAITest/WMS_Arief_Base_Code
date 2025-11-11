@@ -70,6 +70,7 @@ interface ShippingMethod {
   name: string;
   code: string;
   type: string;
+  transporterId: string | null;
   estimatedDays: number | null;
 }
 
@@ -90,6 +91,7 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
   const [customerLocations, setCustomerLocations] = useState<CustomerLocation[]>([]);
   const [transporters, setTransporters] = useState<Transporter[]>([]);
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
+  const [filteredShippingMethods, setFilteredShippingMethods] = useState<ShippingMethod[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -112,6 +114,27 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
       fetchData();
     }
   }, [isOpen, salesOrderId]);
+
+  // Filter shipping methods based on transporter selection
+  useEffect(() => {
+    if (transporterId === '__internal__') {
+      // Show only internal shipping methods
+      const filtered = shippingMethods.filter((method) => method.type === 'internal');
+      setFilteredShippingMethods(filtered);
+    } else if (transporterId) {
+      // Show only third-party methods for the selected transporter
+      const filtered = shippingMethods.filter(
+        (method) => method.type === 'third_party' && method.transporterId === transporterId
+      );
+      setFilteredShippingMethods(filtered);
+    } else {
+      // No transporter selected, show no methods
+      setFilteredShippingMethods([]);
+    }
+    
+    // Clear shipping method selection when transporter changes
+    setShippingMethodId('');
+  }, [transporterId, shippingMethods]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -154,9 +177,22 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
 
       if (methodsRes.data) {
         // Handle both { success, data } and array response formats
-        const methodsData = methodsRes.data.success 
+        let methodsData = methodsRes.data.success 
           ? methodsRes.data.data 
           : (Array.isArray(methodsRes.data) ? methodsRes.data : []);
+        
+        // Transform the data to flatten shippingMethod object if needed
+        methodsData = methodsData.map((item: any) => {
+          if (item.shippingMethod) {
+            // API returns nested structure with shippingMethod and transporter
+            return {
+              ...item.shippingMethod,
+              transporterId: item.shippingMethod.transporterId,
+            };
+          }
+          return item;
+        });
+        
         setShippingMethods(methodsData);
       }
     } catch (error: any) {
@@ -203,7 +239,7 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
       const response = await axios.post(
         `/api/modules/sales-order/ships/${salesOrderId}/confirm`,
         {
-          transporterId,
+          transporterId: transporterId === '__internal__' ? null : transporterId,
           shippingMethodId: shippingMethodId || null,
           trackingNumber: trackingNumber || null,
           shippingDate,
