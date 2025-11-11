@@ -203,45 +203,45 @@ const SalesOrderShip: React.FC = () => {
                 </div>
 
                 {so.deliveryInstructions && (
-                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <div className="text-sm font-medium text-blue-900 mb-1">
+                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-md">
+                    <div className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">
                       Delivery Instructions
                     </div>
-                    <div className="text-sm text-blue-800">{so.deliveryInstructions}</div>
+                    <div className="text-sm text-blue-800 dark:text-blue-200">{so.deliveryInstructions}</div>
                   </div>
                 )}
 
                 {so.notes && (
-                  <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-md">
-                    <div className="text-sm font-medium text-gray-900 mb-1">Notes</div>
-                    <div className="text-sm text-gray-700">{so.notes}</div>
+                  <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-md">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Notes</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300">{so.notes}</div>
                   </div>
                 )}
 
                 <div className="mb-4">
                   <h4 className="text-sm font-semibold mb-2">Order Items</h4>
-                  <div className="border rounded-md overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                             Line
                           </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                             SKU
                           </th>
-                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
                             Product
                           </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">
+                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
                             Ordered
                           </th>
-                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">
+                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
                             Picked
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                         {so.items.map((item) => (
                           <tr key={item.id}>
                             <td className="px-3 py-2 text-sm">{item.lineNumber}</td>
@@ -250,7 +250,7 @@ const SalesOrderShip: React.FC = () => {
                             <td className="px-3 py-2 text-sm text-right">
                               {item.orderedQuantity}
                             </td>
-                            <td className="px-3 py-2 text-sm text-right font-semibold text-green-600">
+                            <td className="px-3 py-2 text-sm text-right font-semibold text-green-600 dark:text-green-400">
                               {item.pickedQuantity}
                             </td>
                           </tr>

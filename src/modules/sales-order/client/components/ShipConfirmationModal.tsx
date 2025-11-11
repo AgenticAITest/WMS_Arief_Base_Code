@@ -263,7 +263,7 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
                 {packages.map((pkg, index) => (
                   <div
                     key={pkg.id}
-                    className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>
@@ -297,16 +297,16 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
                     </div>
 
                     {/* Package Items Table */}
-                    <div className="mb-3 border rounded overflow-hidden">
+                    <div className="mb-3 border border-gray-200 dark:border-gray-700 rounded overflow-hidden">
                       <table className="min-w-full text-sm">
-                        <thead className="bg-gray-100">
+                        <thead className="bg-gray-100 dark:bg-gray-800">
                           <tr>
                             <th className="px-3 py-2 text-left">SKU</th>
                             <th className="px-3 py-2 text-left">Product</th>
                             <th className="px-3 py-2 text-right">Quantity</th>
                           </tr>
                         </thead>
-                        <tbody className="bg-white divide-y">
+                        <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                           {pkg.items.map((item) => (
                             <tr key={item.id}>
                               <td className="px-3 py-2 font-mono">{item.sku}</td>
