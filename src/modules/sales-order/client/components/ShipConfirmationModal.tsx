@@ -561,7 +561,6 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
           <Button
             onClick={handleSubmit}
             disabled={loading || submitting || !transporterId}
-            className="bg-red-600 hover:bg-red-700"
           >
             {submitting ? (
               <>
