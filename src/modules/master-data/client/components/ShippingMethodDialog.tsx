@@ -70,6 +70,14 @@ const formSchema = z.object({
   estimatedDays: z.string().optional(),
   isActive: z.boolean(),
   description: z.string().optional(),
+}).refine((data) => {
+  if (data.type === 'third_party' && (!data.transporterId || data.transporterId === '__none__')) {
+    return false;
+  }
+  return true;
+}, {
+  message: 'Transporter is required for third-party shipping methods',
+  path: ['transporterId'],
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -97,6 +105,14 @@ export default function ShippingMethodDialog({
       description: '',
     },
   });
+
+  const selectedType = form.watch('type');
+
+  useEffect(() => {
+    if (selectedType === 'internal') {
+      form.setValue('transporterId', '__none__');
+    }
+  }, [selectedType, form]);
 
   useEffect(() => {
     if (isOpen) {
@@ -251,11 +267,21 @@ export default function ShippingMethodDialog({
                 name="transporterId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Transporter</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <FormLabel>
+                      Transporter {selectedType === 'third_party' && '*'}
+                    </FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={selectedType === 'internal'}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select transporter (optional)" />
+                          <SelectValue placeholder={
+                            selectedType === 'internal' 
+                              ? 'Not applicable for internal shipping' 
+                              : 'Select transporter'
+                          } />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -267,6 +293,16 @@ export default function ShippingMethodDialog({
                         ))}
                       </SelectContent>
                     </Select>
+                    {selectedType === 'internal' && (
+                      <p className="text-xs text-muted-foreground">
+                        Internal shipping methods don't require a transporter
+                      </p>
+                    )}
+                    {selectedType === 'third_party' && (
+                      <p className="text-xs text-muted-foreground">
+                        Third-party shipping requires a transporter selection
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
