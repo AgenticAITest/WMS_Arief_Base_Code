@@ -175,11 +175,9 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
         setTransporters(transportersRes.data.data);
       }
 
-      if (methodsRes.data) {
-        // Handle both { success, data } and array response formats
-        let methodsData = methodsRes.data.success 
-          ? methodsRes.data.data 
-          : (Array.isArray(methodsRes.data) ? methodsRes.data : []);
+      if (methodsRes.data && methodsRes.data.data) {
+        // API returns { data: [...], pagination: {...} }
+        let methodsData = methodsRes.data.data;
         
         // Transform the data to flatten shippingMethod object if needed
         methodsData = methodsData.map((item: any) => {
@@ -370,14 +368,8 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
                         <SelectContent>
                           {customerLocations.map((loc) => (
                             <SelectItem key={loc.id} value={loc.id}>
-                              <div className="flex flex-col">
-                                <div className="font-medium">
-                                  {loc.locationType} - {loc.city}, {loc.state}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {loc.address} {loc.postalCode && `• ${loc.postalCode}`}
-                                </div>
-                              </div>
+                              {loc.locationType} - {loc.city}, {loc.state}
+                              {loc.address && ` • ${loc.address}`}
                             </SelectItem>
                           ))}
                         </SelectContent>
