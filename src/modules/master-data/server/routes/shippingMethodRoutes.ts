@@ -1,8 +1,9 @@
 import express from 'express';
 import { db } from '@server/lib/db';
 import { authorized } from '@server/middleware/authMiddleware';
-import { sql } from 'drizzle-orm';
+import { sql, eq, and } from 'drizzle-orm';
 import crypto from 'crypto';
+import { shippingMethods } from '../lib/db/schemas/masterData';
 
 const router = express.Router();
 
@@ -221,64 +222,26 @@ router.put('/:id', authorized('ADMIN', 'master-data.edit'), async (req, res) => 
       description,
     } = req.body;
 
-    const updateParts: string[] = ['updated_at = NOW()', `updated_by = '${userId}'`];
-    const params: any[] = [];
+    const updateData: any = {
+      updatedAt: new Date(),
+      updatedBy: userId,
+    };
 
-    if (name !== undefined) {
-      updateParts.push(`name = $${params.length + 1}`);
-      params.push(name);
-    }
-    if (code !== undefined) {
-      updateParts.push(`code = $${params.length + 1}`);
-      params.push(code);
-    }
-    if (type !== undefined) {
-      updateParts.push(`type = $${params.length + 1}`);
-      params.push(type);
-    }
-    if (transporterId !== undefined) {
-      updateParts.push(`transporter_id = $${params.length + 1}`);
-      params.push(transporterId);
-    }
-    if (costCalculationMethod !== undefined) {
-      updateParts.push(`cost_calculation_method = $${params.length + 1}`);
-      params.push(costCalculationMethod);
-    }
-    if (baseCost !== undefined) {
-      updateParts.push(`base_cost = $${params.length + 1}`);
-      params.push(baseCost);
-    }
-    if (estimatedDays !== undefined) {
-      updateParts.push(`estimated_days = $${params.length + 1}`);
-      params.push(estimatedDays);
-    }
-    if (isActive !== undefined) {
-      updateParts.push(`is_active = $${params.length + 1}`);
-      params.push(isActive);
-    }
-    if (description !== undefined) {
-      updateParts.push(`description = $${params.length + 1}`);
-      params.push(description);
-    }
+    if (name !== undefined) updateData.name = name;
+    if (code !== undefined) updateData.code = code;
+    if (type !== undefined) updateData.type = type;
+    if (transporterId !== undefined) updateData.transporterId = transporterId;
+    if (costCalculationMethod !== undefined) updateData.costCalculationMethod = costCalculationMethod;
+    if (baseCost !== undefined) updateData.baseCost = baseCost;
+    if (estimatedDays !== undefined) updateData.estimatedDays = estimatedDays;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (description !== undefined) updateData.description = description;
 
-    const [updated] = await db.execute(sql.raw(`
-      UPDATE shipping_methods
-      SET ${updateParts.join(', ')}
-      WHERE id = '${id}' AND tenant_id = '${tenantId}'
-      RETURNING 
-        id,
-        name,
-        code,
-        type,
-        transporter_id as "transporterId",
-        cost_calculation_method as "costCalculationMethod",
-        base_cost as "baseCost",
-        estimated_days as "estimatedDays",
-        is_active as "isActive",
-        description,
-        created_at as "createdAt",
-        updated_at as "updatedAt"
-    `));
+    const [updated] = await db
+      .update(shippingMethods)
+      .set(updateData)
+      .where(and(eq(shippingMethods.id, id), eq(shippingMethods.tenantId, tenantId)))
+      .returning();
 
     if (!updated) {
       return res.status(404).json({
