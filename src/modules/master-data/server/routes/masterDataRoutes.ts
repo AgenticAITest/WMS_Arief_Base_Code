@@ -5,10 +5,16 @@ import { authenticated, authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, sql, or } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 import crypto from 'crypto';
+import transporterRoutes from './transporterRoutes';
+import shippingMethodRoutes from './shippingMethodRoutes';
 
 const router = express.Router();
 router.use(authenticated());
 router.use(checkModuleAuthorization('master-data'));
+
+// Mount sub-routes
+router.use('/transporters', transporterRoutes);
+router.use('/shipping-methods', shippingMethodRoutes);
 
 // ================================================================================
 // PRODUCT TYPES ROUTES
@@ -2437,29 +2443,27 @@ router.get('/products-with-stock', authorized('ADMIN', 'master-data.view'), asyn
       .where(and(...whereConditions));
 
     // Query products with stock calculation
-    const productsData = await db.execute(`
+    const productsData = await db.execute(sql`
       SELECT 
         p.id,
         p.sku,
         p.name,
         p.description,
-        p.unit_of_measure,
-        p.min_stock_level,
-        COALESCE(SUM(ii.quantity), 0) as available_stock
+        COALESCE(SUM(ii.available_quantity), 0) as "availableStock"
       FROM products p
       LEFT JOIN inventory_items ii ON ii.product_id = p.id AND ii.tenant_id = p.tenant_id
-      WHERE p.tenant_id = $1
-      ${search ? `AND p.name ILIKE $3` : ''}
-      GROUP BY p.id, p.sku, p.name, p.description, p.unit_of_measure, p.min_stock_level
+      WHERE p.tenant_id = ${tenantId}
+        ${search ? sql`AND p.name ILIKE ${'%' + search + '%'}` : sql``}
+      GROUP BY p.id, p.sku, p.name, p.description
       ORDER BY p.created_at DESC
-      LIMIT $2 OFFSET ${offset}
-    `, search ? [tenantId, limit, `%${search}%`] : [tenantId, limit]);
+      LIMIT ${limit} OFFSET ${offset}
+    `);
 
     const totalPages = Math.ceil(totalResult.count / limit);
 
     res.json({
       success: true,
-      data: productsData.rows,
+      data: productsData,
       pagination: {
         page,
         limit,
@@ -2471,306 +2475,6 @@ router.get('/products-with-stock', authorized('ADMIN', 'master-data.view'), asyn
     });
   } catch (error) {
     console.error('Error fetching products with stock:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-});
-
-// ================================================================================
-// SHIPPING METHODS ROUTES
-// ================================================================================
-
-router.get('/shipping-methods', authorized('ADMIN', 'master-data.view'), async (req, res) => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const offset = (page - 1) * limit;
-    const search = req.query.search as string;
-    const tenantId = req.user!.activeTenantId;
-
-    const result = await db.execute(sql`
-      SELECT 
-        id,
-        name,
-        code,
-        type,
-        estimated_days as "estimatedDays",
-        is_active as "isActive",
-        description
-      FROM shipping_methods
-      WHERE tenant_id = ${tenantId}
-        ${search ? sql`AND name ILIKE ${'%' + search + '%'}` : sql``}
-        AND is_active = true
-      ORDER BY name
-      LIMIT ${limit} OFFSET ${offset}
-    `);
-
-    const [totalResult] = await db.execute(sql`
-      SELECT COUNT(*) as count
-      FROM shipping_methods
-      WHERE tenant_id = ${tenantId}
-        ${search ? sql`AND name ILIKE ${'%' + search + '%'}` : sql``}
-        AND is_active = true
-    `);
-
-    const total = Number(totalResult.count) || 0;
-    const totalPages = Math.ceil(total / limit);
-
-    res.json({
-      success: true,
-      data: result,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching shipping methods:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-// ================================================================================
-// TRANSPORTERS ROUTES
-// ================================================================================
-
-router.get('/transporters', authorized('ADMIN', 'master-data.view'), async (req, res) => {
-  try {
-    const tenantId = req.user!.activeTenantId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = req.query.search as string;
-    const offset = (page - 1) * limit;
-
-    const whereConditions = [eq(transporters.tenantId, tenantId)];
-    
-    if (search) {
-      whereConditions.push(
-        or(
-          ilike(transporters.name, `%${search}%`),
-          ilike(transporters.code, `%${search}%`)
-        )!
-      );
-    }
-
-    const [totalResult] = await db
-      .select({ count: count() })
-      .from(transporters)
-      .where(and(...whereConditions));
-
-    const data = await db
-      .select()
-      .from(transporters)
-      .where(and(...whereConditions))
-      .orderBy(desc(transporters.createdAt))
-      .limit(limit)
-      .offset(offset);
-
-    const totalPages = Math.ceil(totalResult.count / limit);
-
-    res.json({
-      success: true,
-      data,
-      pagination: {
-        page,
-        limit,
-        total: totalResult.count,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching transporters:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-});
-
-router.get('/transporters/:id', authorized('ADMIN', 'master-data.view'), async (req, res) => {
-  try {
-    const tenantId = req.user!.activeTenantId;
-    const { id } = req.params;
-
-    const [record] = await db
-      .select()
-      .from(transporters)
-      .where(and(eq(transporters.id, id), eq(transporters.tenantId, tenantId)));
-
-    if (!record) {
-      return res.status(404).json({
-        success: false,
-        message: 'Transporter not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: record,
-    });
-  } catch (error) {
-    console.error('Error fetching transporter:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-});
-
-router.post('/transporters', authorized('ADMIN', 'master-data.create'), async (req, res) => {
-  try {
-    const tenantId = req.user!.activeTenantId;
-    const userId = req.user!.id;
-    const {
-      name,
-      code,
-      contactPerson,
-      phone,
-      email,
-      website,
-      serviceAreas,
-      isActive,
-      notes,
-    } = req.body;
-
-    if (!name || !code) {
-      return res.status(400).json({
-        success: false,
-        message: 'Name and code are required',
-      });
-    }
-
-    const [newRecord] = await db
-      .insert(transporters)
-      .values({
-        id: crypto.randomUUID(),
-        tenantId,
-        name,
-        code,
-        contactPerson,
-        phone,
-        email,
-        website,
-        serviceAreas,
-        isActive: isActive ?? true,
-        notes,
-        createdBy: userId,
-        updatedBy: userId,
-      })
-      .returning();
-
-    res.status(201).json({
-      success: true,
-      data: newRecord,
-      message: 'Transporter created successfully',
-    });
-  } catch (error: any) {
-    console.error('Error creating transporter:', error);
-    if (error.code === '23505') {
-      return res.status(400).json({
-        success: false,
-        message: 'Transporter code already exists',
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-});
-
-router.put('/transporters/:id', authorized('ADMIN', 'master-data.edit'), async (req, res) => {
-  try {
-    const tenantId = req.user!.activeTenantId;
-    const userId = req.user!.id;
-    const { id } = req.params;
-    const {
-      name,
-      code,
-      contactPerson,
-      phone,
-      email,
-      website,
-      serviceAreas,
-      isActive,
-      notes,
-    } = req.body;
-
-    const updateData: any = { updatedAt: new Date(), updatedBy: userId };
-    if (name !== undefined) updateData.name = name;
-    if (code !== undefined) updateData.code = code;
-    if (contactPerson !== undefined) updateData.contactPerson = contactPerson;
-    if (phone !== undefined) updateData.phone = phone;
-    if (email !== undefined) updateData.email = email;
-    if (website !== undefined) updateData.website = website;
-    if (serviceAreas !== undefined) updateData.serviceAreas = serviceAreas;
-    if (isActive !== undefined) updateData.isActive = isActive;
-    if (notes !== undefined) updateData.notes = notes;
-
-    const [updated] = await db
-      .update(transporters)
-      .set(updateData)
-      .where(and(eq(transporters.id, id), eq(transporters.tenantId, tenantId)))
-      .returning();
-
-    if (!updated) {
-      return res.status(404).json({
-        success: false,
-        message: 'Transporter not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: updated,
-      message: 'Transporter updated successfully',
-    });
-  } catch (error: any) {
-    console.error('Error updating transporter:', error);
-    if (error.code === '23505') {
-      return res.status(400).json({
-        success: false,
-        message: 'Transporter code already exists',
-      });
-    }
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
-  }
-});
-
-router.delete('/transporters/:id', authorized('ADMIN', 'master-data.delete'), async (req, res) => {
-  try {
-    const tenantId = req.user!.activeTenantId;
-    const { id } = req.params;
-
-    const [deleted] = await db
-      .delete(transporters)
-      .where(and(eq(transporters.id, id), eq(transporters.tenantId, tenantId)))
-      .returning();
-
-    if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        message: 'Transporter not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Transporter deleted successfully',
-    });
-  } catch (error) {
-    console.error('Error deleting transporter:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

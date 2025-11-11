@@ -1,4 +1,4 @@
-import { Puzzle, Database } from 'lucide-react';
+import { Puzzle, Database, Truck } from 'lucide-react';
 
 export const masterDataSidebarMenus = {
     id: 'master-data',
@@ -12,6 +12,13 @@ export const masterDataSidebarMenus = {
         id: "master-data-management",
         title: "Master Data Management",
         url: "/console/modules/master-data/management",
+        roles: "ADMIN",
+        permissions: "master-data.view",
+      },
+      {
+        id: "transporter-management",
+        title: "Transporter",
+        url: "/console/modules/master-data/transporters",
         roles: "ADMIN",
         permissions: "master-data.view",
       },

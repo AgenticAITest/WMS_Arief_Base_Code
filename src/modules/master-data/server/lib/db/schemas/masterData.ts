@@ -176,6 +176,39 @@ export const transporters = pgTable('transporters', {
   ]
 );
 
+export const shippingMethods = pgTable('shipping_methods', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenant.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  code: varchar('code', { length: 50 }).notNull(),
+  type: varchar('type', { 
+    length: 50,
+  }).notNull(),
+  transporterId: uuid('transporter_id')
+    .references(() => transporters.id),
+  costCalculationMethod: varchar('cost_calculation_method', { 
+    length: 50,
+  }).notNull().default('fixed'),
+  baseCost: decimal('base_cost', { precision: 15, scale: 2 }),
+  estimatedDays: integer('estimated_days'),
+  isActive: boolean('is_active').default(true).notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
+  createdBy: uuid('created_by').references(() => user.id),
+  updatedBy: uuid('updated_by').references(() => user.id),
+},
+  (t) => ({
+    uniqueIdx: uniqueIndex('shipping_methods_unique_idx').on(t.tenantId, t.code),
+    tenantIdx: index('shipping_methods_tenant_idx').on(t.tenantId),
+    activeIdx: index('shipping_methods_active_idx').on(t.tenantId, t.isActive),
+    typeIdx: index('shipping_methods_type_idx').on(t.tenantId, t.type),
+    transporterIdx: index('shipping_methods_transporter_idx').on(t.transporterId),
+  })
+);
+
 export const productTypesRelations = relations(productTypes, ({ one, many }) => ({
   tenant: one(tenant, {
     fields: [productTypes.tenantId],
@@ -252,6 +285,17 @@ export const transportersRelations = relations(transporters, ({ one }) => ({
   }),
 }));
 
+export const shippingMethodsRelations = relations(shippingMethods, ({ one }) => ({
+  tenant: one(tenant, {
+    fields: [shippingMethods.tenantId],
+    references: [tenant.id],
+  }),
+  transporter: one(transporters, {
+    fields: [shippingMethods.transporterId],
+    references: [transporters.id],
+  }),
+}));
+
 export type ProductType = typeof productTypes.$inferSelect;
 export type NewProductType = typeof productTypes.$inferInsert;
 
@@ -275,3 +319,6 @@ export type NewCustomerLocation = typeof customerLocations.$inferInsert;
 
 export type Transporter = typeof transporters.$inferSelect;
 export type NewTransporter = typeof transporters.$inferInsert;
+
+export type ShippingMethod = typeof shippingMethods.$inferSelect;
+export type NewShippingMethod = typeof shippingMethods.$inferInsert;

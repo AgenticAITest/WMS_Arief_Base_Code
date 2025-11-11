@@ -4,8 +4,7 @@ import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddlewar
 import { and, desc, eq, ilike, or } from 'drizzle-orm';
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { shippingMethods } from '../lib/db/schemas/salesOrder';
-import { transporters } from '../../../master-data/server/lib/db/schemas/masterData';
+import { shippingMethods, transporters } from '../../../master-data/server/lib/db/schemas/masterData';
 
 const router = express.Router();
 router.use(authenticated());

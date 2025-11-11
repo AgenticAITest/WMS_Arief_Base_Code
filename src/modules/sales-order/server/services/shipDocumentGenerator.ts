@@ -2,8 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { db } from '@server/lib/db';
 import { generatedDocuments } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
-import { transporters as transportersTable } from '@modules/master-data/server/lib/db/schemas/masterData';
-import { shippingMethods } from '../lib/db/schemas/salesOrder';
+import { transporters as transportersTable, shippingMethods } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { eq } from 'drizzle-orm';
 
 interface PackageItem {

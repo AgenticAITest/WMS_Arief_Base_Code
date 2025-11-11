@@ -1,45 +1,10 @@
 import { relations, sql } from 'drizzle-orm';
 import { check, date, decimal, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, varchar, boolean } from 'drizzle-orm/pg-core';
 import { tenant, user } from '@server/lib/db/schema/system';
-import { customers, customerLocations, products, transporters } from '@modules/master-data/server/lib/db/schemas/masterData';
+import { customers, customerLocations, products, transporters, shippingMethods } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
 import { generatedDocuments } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
-
-export const shippingMethods = pgTable('shipping_methods', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  tenantId: uuid('tenant_id')
-    .notNull()
-    .references(() => tenant.id),
-  name: varchar('name', { length: 255 }).notNull(),
-  code: varchar('code', { length: 50 }).notNull(),
-  type: varchar('type', { 
-    length: 50,
-    enum: ['internal', 'third_party']
-  }).notNull(),
-  transporterId: uuid('transporter_id')
-    .references(() => transporters.id),
-  costCalculationMethod: varchar('cost_calculation_method', { 
-    length: 50,
-    enum: ['fixed', 'weight_based', 'volume_based', 'distance_based']
-  }).notNull().default('fixed'),
-  baseCost: decimal('base_cost', { precision: 15, scale: 2 }),
-  estimatedDays: integer('estimated_days'),
-  isActive: boolean('is_active').default(true).notNull(),
-  description: text('description'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
-  createdBy: uuid('created_by').references(() => user.id),
-  updatedBy: uuid('updated_by').references(() => user.id),
-},
-  (t) => ({
-    uniqueIdx: uniqueIndex('shipping_methods_unique_idx').on(t.tenantId, t.code),
-    tenantIdx: index('shipping_methods_tenant_idx').on(t.tenantId),
-    activeIdx: index('shipping_methods_active_idx').on(t.tenantId, t.isActive),
-    typeIdx: index('shipping_methods_type_idx').on(t.tenantId, t.type),
-    transporterIdx: index('shipping_methods_transporter_idx').on(t.transporterId),
-  })
-);
 
 export const salesOrders = pgTable('sales_orders', {
   id: uuid('id').primaryKey().defaultRandom(),
