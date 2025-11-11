@@ -3,20 +3,21 @@
 ## Overview
 This project is a comprehensive admin dashboard built with React, TypeScript, Vite, and Drizzle ORM. Its primary purpose is to provide a modular and scalable foundation for warehouse management, including features for managing users, roles, permissions, multi-tenant organizations with robust authentication and authorization, and detailed hierarchical setup of warehouses. The system aims to streamline warehouse operations, from product and inventory type management to advanced sales order processing (allocation, picking, packing). The business vision is to provide a robust, scalable, and intuitive platform for efficient warehouse operations, with market potential in various logistics and supply chain sectors.
 
-### Implementation Status (as of 2025-11-10)
+### Implementation Status (as of 2025-11-11)
 **✅ Completed Workflows:**
 - Purchase Order: Create → Approve → Receive → Putaway
-- Sales Order: Create → Allocate → Pick → Pack
+- Sales Order: Create → Allocate → Pick → Pack → Ship
 
 **⚠️ Not Yet Implemented:**
 - Purchase Order: Complete (terminal state)
-- Sales Order: Ship, Deliver, Complete (inventory deduction occurs in Ship step)
+- Sales Order: Deliver, Complete
 
 **📚 Documentation:**
 - `docs/WORKFLOW_LOGIC_ANALYSIS.md` - Comprehensive issue tracker separating actual bugs, incomplete features, and design improvements
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
 
-**🔄 Recent Changes (2025-11-10):**
+**🔄 Recent Changes (2025-11-11):**
+- Implemented Sales Order Ship workflow: package-to-location assignment, transporter selection, inventory deduction, HTML document generation
 - Migrated Transporters from sales-order module to master-data module (schema, routes, UI)
 
 ## User Preferences
@@ -64,8 +65,16 @@ None specified yet
   - `packages` and `package_items` tables support fractional quantities.
   - Package ID format: `PKG-{SO_NUMBER}-{SEQUENCE}`.
   - HTML document generation for packs.
+- **Sales Order Ship System**: Shipment confirmation with package-to-delivery-location assignment.
+  - Package-level delivery location selection (multi-location support).
+  - Transporter selection from master-data module.
+  - Shipping method configuration.
+  - **Inventory deduction**: Atomic transaction reduces `available_quantity` from `inventory_items` based on allocations during Ship confirmation.
+  - Workflow advancement: packed/ship → shipped/deliver.
+  - Shipment record creation in `shipments` table with tracking information.
+  - HTML document generation for shipping instructions.
 - **Audit Logging**: Comprehensive audit trail for user actions and data modifications with queryable APIs.
-- **Document Viewer Integration**: UI allows viewing generated HTML documents (PO, GRN, PUTAWAY, ALLOCATION, PICK, PACK) in a modal.
+- **Document Viewer Integration**: UI allows viewing generated HTML documents (PO, GRN, PUTAWAY, ALLOCATION, PICK, PACK, SHIP) in a modal.
 
 ### System Design Choices
 - **Backend Modularity**: Features organized into logical modules (system, master-data, warehouse-setup, document-numbering).
