@@ -89,7 +89,7 @@ export default function ShippingMethodDialog({
       name: '',
       code: '',
       type: '',
-      transporterId: '',
+      transporterId: '__none__',
       costCalculationMethod: 'fixed',
       baseCost: '',
       estimatedDays: '',
@@ -106,7 +106,7 @@ export default function ShippingMethodDialog({
           name: shippingMethod.name,
           code: shippingMethod.code,
           type: shippingMethod.type,
-          transporterId: shippingMethod.transporterId || '',
+          transporterId: shippingMethod.transporterId || '__none__',
           costCalculationMethod: shippingMethod.costCalculationMethod,
           baseCost: shippingMethod.baseCost || '',
           estimatedDays: shippingMethod.estimatedDays?.toString() || '',
@@ -118,7 +118,7 @@ export default function ShippingMethodDialog({
           name: '',
           code: '',
           type: '',
-          transporterId: '',
+          transporterId: '__none__',
           costCalculationMethod: 'fixed',
           baseCost: '',
           estimatedDays: '',
@@ -148,7 +148,7 @@ export default function ShippingMethodDialog({
         name: data.name,
         code: data.code,
         type: data.type,
-        transporterId: data.transporterId || null,
+        transporterId: data.transporterId && data.transporterId !== '__none__' ? data.transporterId : null,
         costCalculationMethod: data.costCalculationMethod,
         baseCost: data.baseCost ? parseFloat(data.baseCost) : null,
         estimatedDays: data.estimatedDays ? parseInt(data.estimatedDays) : null,
@@ -259,7 +259,7 @@ export default function ShippingMethodDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="__none__">None</SelectItem>
                         {transporters.map((transporter) => (
                           <SelectItem key={transporter.id} value={transporter.id}>
                             {transporter.name} ({transporter.code})
