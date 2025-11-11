@@ -261,10 +261,7 @@ const SalesOrderShip: React.FC = () => {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleShipOrder(so.id)}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
+                  <Button onClick={() => handleShipOrder(so.id)}>
                     <Ship className="mr-2 h-4 w-4" />
                     Ship Order
                   </Button>
