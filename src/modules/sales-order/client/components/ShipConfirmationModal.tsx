@@ -412,6 +412,14 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
                       <SelectValue placeholder="Select transporter" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="__internal__">
+                        <div className="flex flex-col">
+                          <div className="font-medium">Internal</div>
+                          <div className="text-xs text-muted-foreground">
+                            Company-managed shipping
+                          </div>
+                        </div>
+                      </SelectItem>
                       {transporters.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
                           <div className="flex flex-col">
@@ -428,22 +436,44 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
                   {!transporterId && (
                     <p className="text-xs text-red-600 mt-1">Transporter required</p>
                   )}
+                  {transporterId === '__internal__' && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Using internal shipping resources
+                    </p>
+                  )}
                 </div>
 
                 {/* Shipping Method */}
                 <div>
-                  <Label htmlFor="shippingMethod">Shipping Method</Label>
-                  <Select value={shippingMethodId} onValueChange={setShippingMethodId}>
+                  <Label htmlFor="shippingMethod">
+                    Shipping Method
+                    {filteredShippingMethods.length > 0 && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        ({filteredShippingMethods.length} available)
+                      </span>
+                    )}
+                  </Label>
+                  <Select 
+                    value={shippingMethodId} 
+                    onValueChange={setShippingMethodId}
+                    disabled={!transporterId || filteredShippingMethods.length === 0}
+                  >
                     <SelectTrigger id="shippingMethod">
-                      <SelectValue placeholder="Select shipping method (optional)" />
+                      <SelectValue placeholder={
+                        !transporterId 
+                          ? 'Select transporter first' 
+                          : filteredShippingMethods.length === 0
+                            ? 'No shipping methods available'
+                            : 'Select shipping method (optional)'
+                      } />
                     </SelectTrigger>
                     <SelectContent>
-                      {shippingMethods.map((m) => (
+                      {filteredShippingMethods.map((m) => (
                         <SelectItem key={m.id} value={m.id}>
                           <div className="flex flex-col">
                             <div className="font-medium">{m.name}</div>
                             <div className="text-xs text-muted-foreground">
-                              {m.type}
+                              {m.type === 'internal' ? 'Internal' : 'Third Party'}
                               {m.estimatedDays && ` • ${m.estimatedDays} days`}
                             </div>
                           </div>
@@ -451,6 +481,11 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
                       ))}
                     </SelectContent>
                   </Select>
+                  {transporterId && filteredShippingMethods.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      No shipping methods configured for this transporter
+                    </p>
+                  )}
                 </div>
 
                 {/* Tracking Number */}
