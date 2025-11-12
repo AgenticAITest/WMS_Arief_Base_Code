@@ -147,43 +147,36 @@ router.get('/ships/:id/packages', authorized('ADMIN', 'sales-order.view'), async
   }
 });
 
-// GET /ships/:id/customer-locations - Fetch customer delivery locations
+// GET /ships/:id/customer-locations - Fetch customer delivery locations selected during SO creation
 router.get('/ships/:id/customer-locations', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;
 
-    // Get customer ID from sales order
-    const [so] = await db
-      .select({ customerId: salesOrders.customerId })
-      .from(salesOrders)
-      .where(
-        and(
-          eq(salesOrders.id, id),
-          eq(salesOrders.tenantId, tenantId)
-        )
-      )
-      .limit(1);
-
-    if (!so) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sales order not found',
-      });
-    }
-
-    // Fetch customer locations
-    const locations = await db
-      .select()
-      .from(customerLocations)
-      .where(
-        and(
-          eq(customerLocations.customerId, so.customerId),
-          eq(customerLocations.tenantId, tenantId),
-          eq(customerLocations.isActive, true)
-        )
-      )
-      .orderBy(customerLocations.locationType, customerLocations.city);
+    // Fetch only locations that were selected during SO creation
+    // by querying sales_order_item_locations table
+    const locations = await db.execute(sql`
+      SELECT DISTINCT
+        cl.id,
+        cl.customer_id as "customerId",
+        cl.location_type as "locationType",
+        cl.address,
+        cl.city,
+        cl.state,
+        cl.postal_code as "postalCode",
+        cl.country,
+        cl.contact_person as "contactPerson",
+        cl.phone,
+        cl.email,
+        cl.is_active as "isActive"
+      FROM customer_locations cl
+      JOIN sales_order_item_locations soil ON soil.customer_location_id = cl.id
+      JOIN sales_order_items soi ON soi.id = soil.sales_order_item_id
+      WHERE soi.sales_order_id = ${id}
+        AND cl.tenant_id = ${tenantId}
+        AND cl.is_active = true
+      ORDER BY cl.location_type, cl.city
+    `);
 
     res.json({
       success: true,
@@ -341,41 +334,8 @@ router.post('/ships/:id/confirm', authorized('ADMIN', 'sales-order.ship'), async
           .where(eq(packages.id, pkg.id));
       }
 
-      // 5. **CRITICAL: Deduct inventory based on picked quantities**
-      // Get all salesOrderAllocations for this SO to know which inventory items to deduct from
-      const soAllocations = await tx.execute(sql`
-        SELECT a.id, a.inventory_item_id, a.allocated_quantity, a.created_at
-        FROM sales_order_allocations a
-        JOIN sales_order_items soi ON soi.id = a.sales_order_item_id
-        WHERE soi.sales_order_id = ${id}
-          AND a.tenant_id = ${tenantId}
-        ORDER BY a.created_at ASC
-      `);
-
-      // Deduct inventory for each salesOrderAllocation
-      for (const allocation of soAllocations as any[]) {
-        // Convert allocated_quantity from string to number (PostgreSQL returns numeric as string)
-        const allocatedQty = Number(allocation.allocated_quantity);
-        
-        // Validate that the quantity is a finite integer
-        if (!Number.isFinite(allocatedQty)) {
-          throw new Error(`Invalid allocated quantity: ${allocation.allocated_quantity} for allocation ${allocation.id}`);
-        }
-        
-        if (!Number.isInteger(allocatedQty)) {
-          throw new Error(`Allocated quantity must be an integer, got: ${allocatedQty} for allocation ${allocation.id}`);
-        }
-        
-        // Update inventory_items: reduce availableQuantity
-        await tx.execute(sql`
-          UPDATE inventory_items
-          SET available_quantity = available_quantity - ${allocatedQty}
-          WHERE id = ${allocation.inventory_item_id}
-            AND tenant_id = ${tenantId}
-        `);
-      }
-
-      // 6. Update SO status to 'shipped' and advance workflow state
+      // 5. Update SO status to 'shipped' and advance workflow state
+      // Note: Inventory was already deducted during allocation workflow, no need to deduct again
       await tx
         .update(salesOrders)
         .set({
@@ -489,7 +449,7 @@ router.post('/ships/:id/confirm', authorized('ADMIN', 'sales-order.ship'), async
         resourceId: so.id,
         ipAddress: getClientIp(req),
         documentPath: shipDocumentPath.filePath,
-        description: `Shipped sales order ${so.orderNumber} with ${packagesForSO.length} package(s). Generated shipment ${shipNumber}. Inventory deducted.`,
+        description: `Shipped sales order ${so.orderNumber} with ${packagesForSO.length} package(s). Generated shipment ${shipNumber}.`,
       });
 
       // Return success response
