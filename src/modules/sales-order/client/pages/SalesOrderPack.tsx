@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { PackageOpen, RefreshCw, Plus, FileText } from 'lucide-react';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import PackageCreationModal from '../components/PackageCreationModal';
+import PackConfirmationModal from '../components/PackConfirmationModal';
 import { PackPrintView } from '../components/PackPrintView';
 
 interface SOItem {
@@ -63,6 +64,8 @@ const SalesOrderPack: React.FC = () => {
   const [packages, setPackages] = useState<{ [orderId: string]: Package[] }>({});
   const [isPrintViewOpen, setIsPrintViewOpen] = useState(false);
   const [packData, setPackData] = useState<{ packNumber: string; documentPath: string } | null>(null);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmOrderData, setConfirmOrderData] = useState<SalesOrder | null>(null);
 
   useEffect(() => {
     fetchPackableSalesOrders();
@@ -110,7 +113,7 @@ const SalesOrderPack: React.FC = () => {
     toast.success('Packages saved successfully');
   };
 
-  const handleConfirmPack = async (orderId: string) => {
+  const handleConfirmPack = (orderId: string) => {
     const orderPackages = packages[orderId] || [];
     
     if (orderPackages.length === 0) {
@@ -118,32 +121,32 @@ const SalesOrderPack: React.FC = () => {
       return;
     }
 
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `/api/modules/sales-order/packs/${orderId}/confirm`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+    // Find the sales order
+    const order = salesOrders.find(so => so.id === orderId);
+    if (!order) {
+      toast.error('Sales order not found');
+      return;
+    }
 
-      if (response.data.success) {
-        toast.success('Sales order packed successfully');
-        
-        // Open print view modal
-        setPackData({
-          packNumber: response.data.data.packNumber,
-          documentPath: response.data.data.documentPath,
-        });
-        setIsPrintViewOpen(true);
-        
-        // Refresh the list
-        await fetchPackableSalesOrders();
-      } else {
-        toast.error(response.data.message || 'Failed to confirm pack');
-      }
-    } catch (error: any) {
-      console.error('Error confirming pack:', error);
-      toast.error(error.response?.data?.message || 'Failed to confirm pack');
+    // Open confirmation modal
+    setConfirmOrderData(order);
+    setIsConfirmModalOpen(true);
+  };
+
+  const handleConfirmClose = async (success?: boolean, data?: { packNumber: string; documentPath: string }) => {
+    setIsConfirmModalOpen(false);
+    setConfirmOrderData(null);
+
+    if (success && data) {
+      // Open print view modal
+      setPackData({
+        packNumber: data.packNumber,
+        documentPath: data.documentPath,
+      });
+      setIsPrintViewOpen(true);
+      
+      // Refresh the list
+      await fetchPackableSalesOrders();
     }
   };
 
@@ -347,6 +350,15 @@ const SalesOrderPack: React.FC = () => {
           onClose={handlePrintViewClose}
           packNumber={packData.packNumber}
           documentPath={packData.documentPath}
+        />
+      )}
+
+      {confirmOrderData && (
+        <PackConfirmationModal
+          isOpen={isConfirmModalOpen}
+          onClose={handleConfirmClose}
+          salesOrder={confirmOrderData}
+          packages={packages[confirmOrderData.id] || []}
         />
       )}
     </div>
