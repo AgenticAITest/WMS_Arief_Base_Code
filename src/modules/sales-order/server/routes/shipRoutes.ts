@@ -354,10 +354,22 @@ router.post('/ships/:id/confirm', authorized('ADMIN', 'sales-order.ship'), async
 
       // Deduct inventory for each salesOrderAllocation
       for (const allocation of soAllocations as any[]) {
+        // Convert allocated_quantity from string to number (PostgreSQL returns numeric as string)
+        const allocatedQty = Number(allocation.allocated_quantity);
+        
+        // Validate that the quantity is a finite integer
+        if (!Number.isFinite(allocatedQty)) {
+          throw new Error(`Invalid allocated quantity: ${allocation.allocated_quantity} for allocation ${allocation.id}`);
+        }
+        
+        if (!Number.isInteger(allocatedQty)) {
+          throw new Error(`Allocated quantity must be an integer, got: ${allocatedQty} for allocation ${allocation.id}`);
+        }
+        
         // Update inventory_items: reduce availableQuantity
         await tx.execute(sql`
           UPDATE inventory_items
-          SET available_quantity = available_quantity - ${allocation.allocated_quantity}
+          SET available_quantity = available_quantity - ${allocatedQty}
           WHERE id = ${allocation.inventory_item_id}
             AND tenant_id = ${tenantId}
         `);
