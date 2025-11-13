@@ -248,7 +248,7 @@ router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.manage'),
         LIMIT 1
       `);
 
-      const nextStep = nextStepResult[0]?.step_name || 'complete';
+      const nextStep = (nextStepResult[0]?.step_name as string) || 'complete';
 
       // Create delivery record
       const deliveryId = uuidv4();
@@ -291,7 +291,7 @@ router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.manage'),
         .update(salesOrders)
         .set({
           status: 'delivered',
-          workflowState: nextStep,
+          workflowState: nextStep as string,
           updatedBy: userId,
           updatedAt: new Date(),
         })
@@ -357,6 +357,7 @@ router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.manage'),
     await logAudit({
       userId,
       tenantId,
+      module: 'sales-order',
       action: 'deliver_complete',
       description: `Confirmed complete delivery ${deliveryNumber} for SO ${so.orderNumber}`,
       resourceType: 'sales_order',
@@ -368,7 +369,6 @@ router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.manage'),
         recipientName,
       },
       ipAddress: getClientIp(req),
-      userAgent: req.get('user-agent'),
     });
 
     res.json({
@@ -481,23 +481,23 @@ router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.manage'), 
         }).replace(/\//g, '');
         
         returnPONumber = `PO-return-${so.orderNumber}-${dateStr}`;
-        returnPOId = uuidv4();
 
         // Create return purchase order
-        await tx.insert(purchaseOrders).values({
-          id: returnPOId,
+        const [returnPO] = await tx.insert(purchaseOrders).values({
           tenantId,
           orderNumber: returnPONumber,
           supplierId: null, // Customer returning goods
           isReturn: true,
           deliveryMethod: 'delivery',
-          warehouseId: defaultWarehouse.id,
+          warehouseId: defaultWarehouse.id as string,
           status: 'approved',
           workflowState: 'receive',
           orderDate: new Date().toISOString().split('T')[0],
           notes: `Return from Sales Order ${so.orderNumber} - Partial Delivery ${new Date().toLocaleDateString()}`,
           createdBy: userId,
-        });
+        }).returning();
+        
+        returnPOId = returnPO.id;
 
         // Create return PO items for rejected items
         const rejectedItems = items.filter((item: any) => parseFloat(item.rejectedQuantity) > 0);
@@ -541,7 +541,7 @@ router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.manage'), 
         LIMIT 1
       `);
 
-      const nextStep = nextStepResult[0]?.step_name || 'complete';
+      const nextStep = (nextStepResult[0]?.step_name as string) || 'complete';
 
       // Create delivery record
       const deliveryId = uuidv4();
@@ -584,7 +584,7 @@ router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.manage'), 
         .update(salesOrders)
         .set({
           status: 'delivered',
-          workflowState: nextStep,
+          workflowState: nextStep as string,
           updatedBy: userId,
           updatedAt: new Date(),
         })
@@ -650,6 +650,7 @@ router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.manage'), 
     await logAudit({
       userId,
       tenantId,
+      module: 'sales-order',
       action: 'deliver_partial',
       description: `Confirmed partial delivery ${deliveryNumber} for SO ${so.orderNumber}${result.returnPONumber ? ` with return PO ${result.returnPONumber}` : ''}`,
       resourceType: 'sales_order',
@@ -663,7 +664,6 @@ router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.manage'), 
         totalRejected,
       },
       ipAddress: getClientIp(req),
-      userAgent: req.get('user-agent'),
     });
 
     res.json({
