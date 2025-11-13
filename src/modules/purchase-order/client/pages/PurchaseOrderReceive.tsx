@@ -7,7 +7,7 @@ import { Checkbox } from '@client/components/ui/checkbox';
 import { Badge } from '@client/components/ui/badge';
 import { Calendar } from '@client/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@client/components/ui/popover';
-import { RefreshCw, Package, AlertTriangle, CalendarIcon, CheckCircle } from 'lucide-react';
+import { RefreshCw, Package, AlertTriangle, CalendarIcon, CheckCircle, RotateCcw } from 'lucide-react';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 import axios from 'axios';
 import { toast } from 'sonner';
@@ -19,10 +19,12 @@ interface PO {
   id: string;
   orderNumber: string;
   orderDate: string;
-  supplierName: string;
+  supplierName: string | null;
   warehouseName: string;
   status: string;
   totalAmount: string;
+  isReturn: boolean;
+  notes: string | null;
   items: POItem[];
   grnNumber?: string | null;
   grnDocumentId?: string | null;
@@ -224,6 +226,13 @@ const PurchaseOrderReceive: React.FC = () => {
     return `$${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const extractSONumber = (notes: string | null | undefined): string | null => {
+    if (!notes) return null;
+    // Extract SO number from notes like "Return from Sales Order SO-2501-0001 - Partial Delivery..."
+    const match = notes.match(/Sales Order\s+(SO-[\w-]+)/i);
+    return match ? match[1] : null;
+  };
+
   const renderPOTable = (pos: PO[], displayType: 'approved' | 'incomplete' | 'received' = 'approved') => {
     if (pos.length === 0) {
       const emptyMessages = {
@@ -254,6 +263,12 @@ const PurchaseOrderReceive: React.FC = () => {
                   <div>
                     <CardTitle className="text-xl flex items-center gap-2">
                       {po.orderNumber}
+                      {po.isReturn && (
+                        <Badge variant="destructive" className="gap-1">
+                          <RotateCcw className="h-3 w-3" />
+                          Return PO
+                        </Badge>
+                      )}
                       <Badge variant={displayType === 'incomplete' ? 'secondary' : displayType === 'received' ? 'outline' : 'default'}>
                         {displayType === 'incomplete' ? 'Incomplete' : displayType === 'received' ? 'Received' : 'Ready to Receive'}
                       </Badge>
@@ -264,7 +279,17 @@ const PurchaseOrderReceive: React.FC = () => {
                       )}
                     </CardTitle>
                     <div className="text-sm text-muted-foreground mt-2 space-y-1">
-                      <p><strong>Supplier:</strong> {po.supplierName}</p>
+                      {po.isReturn ? (
+                        <p>
+                          <strong>Source:</strong>{' '}
+                          {(() => {
+                            const soNumber = extractSONumber(po.notes);
+                            return soNumber ? `Return from ${soNumber}` : 'Customer Return';
+                          })()}
+                        </p>
+                      ) : (
+                        <p><strong>Supplier:</strong> {po.supplierName || 'N/A'}</p>
+                      )}
                       <p><strong>Warehouse:</strong> {po.warehouseName}</p>
                       <p><strong>Order Date:</strong> {format(new Date(po.orderDate), 'PPP')}</p>
                       <p><strong>Total Amount:</strong> {formatCurrency(po.totalAmount)}</p>

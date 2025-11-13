@@ -5,6 +5,7 @@ import { customers, customerLocations, products, transporters, shippingMethods }
 import { warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
 import { generatedDocuments } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
+import { purchaseOrders } from '@modules/purchase-order/server/lib/db/schemas/purchaseOrder';
 
 export const salesOrders = pgTable('sales_orders', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -243,6 +244,66 @@ export const packageItems = pgTable('package_items', {
   ]
 );
 
+export const deliveries = pgTable('deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenant.id),
+  shipmentId: uuid('shipment_id')
+    .notNull()
+    .references(() => shipments.id, { onDelete: 'cascade' }),
+  salesOrderId: uuid('sales_order_id')
+    .notNull()
+    .references(() => salesOrders.id, { onDelete: 'cascade' }),
+  status: varchar('status', { 
+    length: 50,
+    enum: ['complete', 'partial']
+  }).notNull(),
+  deliveryDate: timestamp('delivery_date').notNull(),
+  recipientName: varchar('recipient_name', { length: 255 }),
+  notes: text('notes'),
+  returnPurchaseOrderId: uuid('return_purchase_order_id')
+    .references(() => purchaseOrders.id),
+  deliveredBy: uuid('delivered_by')
+    .references(() => user.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull().$onUpdate(() => new Date()),
+},
+  (t) => [
+    uniqueIndex('deliveries_shipment_unique_idx').on(t.shipmentId),
+    index('deliveries_tenant_idx').on(t.tenantId),
+    index('deliveries_so_idx').on(t.salesOrderId),
+    index('deliveries_status_idx').on(t.status),
+  ]
+);
+
+export const deliveryItems = pgTable('delivery_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  deliveryId: uuid('delivery_id')
+    .notNull()
+    .references(() => deliveries.id, { onDelete: 'cascade' }),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenant.id),
+  salesOrderItemId: uuid('sales_order_item_id')
+    .notNull()
+    .references(() => salesOrderItems.id),
+  productId: uuid('product_id')
+    .notNull()
+    .references(() => products.id),
+  shippedQuantity: decimal('shipped_quantity', { precision: 15, scale: 3 }).notNull(),
+  acceptedQuantity: decimal('accepted_quantity', { precision: 15, scale: 3 }).notNull().default('0'),
+  rejectedQuantity: decimal('rejected_quantity', { precision: 15, scale: 3 }).notNull().default('0'),
+  rejectionNotes: text('rejection_notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+},
+  (t) => [
+    index('delivery_items_tenant_idx').on(t.tenantId),
+    index('delivery_items_delivery_idx').on(t.deliveryId),
+    index('delivery_items_product_idx').on(t.productId),
+  ]
+);
+
 // Relations
 
 export const shippingMethodsRelations = relations(shippingMethods, ({ one, many }) => ({
@@ -411,6 +472,49 @@ export const packageItemsRelations = relations(packageItems, ({ one }) => ({
   }),
 }));
 
+export const deliveriesRelations = relations(deliveries, ({ one, many }) => ({
+  shipment: one(shipments, {
+    fields: [deliveries.shipmentId],
+    references: [shipments.id],
+  }),
+  salesOrder: one(salesOrders, {
+    fields: [deliveries.salesOrderId],
+    references: [salesOrders.id],
+  }),
+  returnPurchaseOrder: one(purchaseOrders, {
+    fields: [deliveries.returnPurchaseOrderId],
+    references: [purchaseOrders.id],
+  }),
+  deliveredByUser: one(user, {
+    fields: [deliveries.deliveredBy],
+    references: [user.id],
+  }),
+  tenant: one(tenant, {
+    fields: [deliveries.tenantId],
+    references: [tenant.id],
+  }),
+  items: many(deliveryItems),
+}));
+
+export const deliveryItemsRelations = relations(deliveryItems, ({ one }) => ({
+  delivery: one(deliveries, {
+    fields: [deliveryItems.deliveryId],
+    references: [deliveries.id],
+  }),
+  salesOrderItem: one(salesOrderItems, {
+    fields: [deliveryItems.salesOrderItemId],
+    references: [salesOrderItems.id],
+  }),
+  product: one(products, {
+    fields: [deliveryItems.productId],
+    references: [products.id],
+  }),
+  tenant: one(tenant, {
+    fields: [deliveryItems.tenantId],
+    references: [tenant.id],
+  }),
+}));
+
 // Types
 export type Transporter = typeof transporters.$inferSelect;
 export type NewTransporter = typeof transporters.$inferInsert;
@@ -441,4 +545,10 @@ export type NewPackage = typeof packages.$inferInsert;
 
 export type PackageItem = typeof packageItems.$inferSelect;
 export type NewPackageItem = typeof packageItems.$inferInsert;
+
+export type Delivery = typeof deliveries.$inferSelect;
+export type NewDelivery = typeof deliveries.$inferInsert;
+
+export type DeliveryItem = typeof deliveryItems.$inferSelect;
+export type NewDeliveryItem = typeof deliveryItems.$inferInsert;
 

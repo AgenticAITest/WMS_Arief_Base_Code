@@ -5,6 +5,7 @@ import pickRoutes from './pickRoutes';
 import packRoutes from './packRoutes';
 import shipRoutes from './shipRoutes';
 import shipmentRoutes from './shipmentRoutes';
+import deliverRoutes from './deliverRoutes';
 
 export {
   shippingMethodRoutes,
@@ -14,4 +15,5 @@ export {
   packRoutes,
   shipRoutes,
   shipmentRoutes,
+  deliverRoutes,
 };

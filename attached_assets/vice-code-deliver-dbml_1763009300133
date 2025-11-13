@@ -1,0 +1,53 @@
+// ================================================================================
+// SALES ORDER DELIVERY MANAGEMENT (PRD Section 6.2: "Deliver")
+// Schema to manage the final step of the outbound workflow.
+// ================================================================================
+
+// This table records the confirmation of a delivery event for a specific shipment.
+// It captures the final status, recipient information, and timestamp of the delivery.
+Table deliveries {
+  id serial [pk, increment]
+  tenant_id integer [ref: > sys_tenant.id, not null]
+  shipment_id integer [ref: > shipments.id, not null, unique, note: "Each shipment has one final delivery record"]
+  sales_order_id integer [ref: > sales_orders.id, not null, note: "Denormalized for easier querying on the SO delivery screen"]
+  status varchar(50) [not null, note: "Completed, Partial"]
+  delivery_date timestamp [not null, note: "Actual date and time of delivery confirmation"]
+  recipient_name varchar(255) [note: "Name of the person who received the goods"]
+  notes text [note: "General notes regarding the delivery, e.g., 'left at front door'"]
+  // If a return PO is generated for the rejected items, its ID is stored here.
+  return_purchase_order_id integer [ref: > purchase_orders.id]
+  created_at timestamp [default: `now()`, not null]
+  updated_at timestamp [default: `now()`, not null]
+
+  indexes {
+    tenant_id
+    shipment_id
+    sales_order_id
+    status
+  }
+}
+
+// This table captures item-level details for a delivery, which is critical for
+// handling partial deliveries and processing returns as per the PRD.
+Table delivery_items {
+  id serial [pk, increment]
+  delivery_id integer [ref: > deliveries.id, not null]
+  tenant_id integer [ref: > sys_tenant.id, not null]
+  // Links back to the original sales order item for full traceability.
+  sales_order_item_id integer [ref: > sales_order_items.id, not null]
+  product_id integer [ref: > products.id, not null]
+  // Quantity of the product that was in the associated shipment.
+  shipped_quantity integer [not null]
+  // Quantity the customer accepted. This is the key input field in the UI.
+  accepted_quantity integer [not null, default: 0]
+  // Calculated field: shipped_quantity - accepted_quantity.
+  rejected_quantity integer [not null, default: 0]
+  // If rejected, the reason for rejection is stored here.
+  rejection_notes text [note: "Additional details for the rejection reason"]
+
+  indexes {
+    tenant_id
+    delivery_id
+    product_id
+  }
+}

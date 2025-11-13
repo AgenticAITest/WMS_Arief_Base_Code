@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm';
-import { check, date, decimal, index, integer, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
+import { boolean, check, date, decimal, index, integer, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
 import { tenant, user } from '@server/lib/db/schema/system';
 import { suppliers, supplierLocations, products } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
@@ -12,10 +12,10 @@ export const purchaseOrders = pgTable('purchase_orders', {
     .references(() => tenant.id),
   orderNumber: varchar('order_number', { length: 100 }).notNull(),
   supplierId: uuid('supplier_id')
-    .notNull()
     .references(() => suppliers.id),
   supplierLocationId: uuid('supplier_location_id')
     .references(() => supplierLocations.id),
+  isReturn: boolean('is_return').default(false).notNull(),
   deliveryMethod: varchar('delivery_method', { length: 20 })
     .notNull()
     .default('delivery'),

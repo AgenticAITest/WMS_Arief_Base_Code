@@ -25,6 +25,7 @@ import {
   packRoutes,
   shipRoutes,
   shipmentRoutes,
+  deliverRoutes,
 } from '../modules/sales-order/server/routes';
 import workflowRoutes from '../modules/workflow/server/routes/workflowRoutes';
 import reportsRoutes from '../modules/reports/server/routes/reportsRoutes';
@@ -158,6 +159,7 @@ app.use('/api/modules/sales-order', pickRoutes);
 app.use('/api/modules/sales-order', packRoutes);
 app.use('/api/modules/sales-order', shipRoutes);
 app.use('/api/modules/sales-order', shipmentRoutes);
+app.use('/api/modules/sales-order', deliverRoutes);
 
 // workflow routes
 app.use('/api/modules/workflow', workflowRoutes);
