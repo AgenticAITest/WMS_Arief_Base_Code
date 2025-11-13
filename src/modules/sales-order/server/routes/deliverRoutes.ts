@@ -369,6 +369,7 @@ router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.manage'),
         recipientName,
       },
       ipAddress: getClientIp(req),
+      documentPath: docResult.filePath,
     });
 
     res.json({
@@ -664,6 +665,7 @@ router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.manage'), 
         totalRejected,
       },
       ipAddress: getClientIp(req),
+      documentPath: docResult.filePath,
     });
 
     res.json({
