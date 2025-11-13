@@ -306,7 +306,7 @@ router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.manage'),
       { documentType: 'DELIVERY', options: {} },
       { headers: { Authorization: req.headers.authorization } }
     );
-    const deliveryNumber = deliveryNumberResponse.data.orderNumber;
+    const deliveryNumber = deliveryNumberResponse.data.documentNumber;
 
     // Get customer details
     const [customer] = await db
@@ -599,7 +599,7 @@ router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.manage'), 
       { documentType: 'DELIVERY', options: {} },
       { headers: { Authorization: req.headers.authorization } }
     );
-    const deliveryNumber = deliveryNumberResponse.data.orderNumber;
+    const deliveryNumber = deliveryNumberResponse.data.documentNumber;
 
     // Get customer details
     const [customer] = await db
