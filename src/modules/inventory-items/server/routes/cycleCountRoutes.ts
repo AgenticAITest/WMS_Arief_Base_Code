@@ -208,6 +208,86 @@ router.post('/cycle-counts/start', authorized('ADMIN', 'inventory-items.manage')
 });
 
 /**
+ * GET /api/modules/inventory-items/cycle-counts/filter-options
+ * Get filter options for cycle count creation
+ */
+router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+
+    // Get inventory types (product types)
+    const inventoryTypes = await db
+      .select({
+        id: productTypes.id,
+        name: productTypes.name,
+      })
+      .from(productTypes)
+      .where(
+        and(
+          eq(productTypes.tenantId, tenantId),
+          eq(productTypes.isActive, true)
+        )
+      )
+      .orderBy(productTypes.name);
+
+    // Get zones with warehouse info
+    const zonesData = await db
+      .select({
+        id: zones.id,
+        name: zones.name,
+        warehouseId: warehouses.id,
+        warehouseName: warehouses.name,
+      })
+      .from(zones)
+      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+      .where(eq(zones.tenantId, tenantId))
+      .orderBy(warehouses.name, zones.name);
+
+    // Get bins with full hierarchy
+    const binsData = await db
+      .select({
+        id: bins.id,
+        name: bins.name,
+        shelfId: shelves.id,
+        shelfName: shelves.name,
+        aisleId: aisles.id,
+        aisleName: aisles.name,
+        zoneId: zones.id,
+        zoneName: zones.name,
+        warehouseId: warehouses.id,
+        warehouseName: warehouses.name,
+      })
+      .from(bins)
+      .innerJoin(shelves, eq(bins.shelfId, shelves.id))
+      .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
+      .innerJoin(zones, eq(aisles.zoneId, zones.id))
+      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+      .where(eq(bins.tenantId, tenantId))
+      .orderBy(warehouses.name, zones.name, aisles.name, shelves.name, bins.name);
+
+    // Count types are hardcoded
+    const countTypes = [
+      { value: 'full', label: 'Full' },
+      { value: 'partial', label: 'Partial' },
+      { value: 'spot', label: 'Spot' },
+    ];
+
+    res.json({
+      success: true,
+      data: {
+        inventoryTypes,
+        zones: zonesData,
+        bins: binsData,
+        countTypes,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching filter options:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
  * GET /api/modules/inventory-items/cycle-counts/:id
  * Get cycle count details
  */
@@ -535,86 +615,6 @@ router.post('/cycle-counts/:id/submit', authorized('ADMIN', 'inventory-items.man
     });
   } catch (error) {
     console.error('Error submitting cycle count:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-/**
- * GET /api/modules/inventory-items/cycle-counts/filter-options
- * Get filter options for cycle count creation
- */
-router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
-  try {
-    const tenantId = req.user!.activeTenantId;
-
-    // Get inventory types (product types)
-    const inventoryTypes = await db
-      .select({
-        id: productTypes.id,
-        name: productTypes.name,
-      })
-      .from(productTypes)
-      .where(
-        and(
-          eq(productTypes.tenantId, tenantId),
-          eq(productTypes.isActive, true)
-        )
-      )
-      .orderBy(productTypes.name);
-
-    // Get zones with warehouse info
-    const zonesData = await db
-      .select({
-        id: zones.id,
-        name: zones.name,
-        warehouseId: warehouses.id,
-        warehouseName: warehouses.name,
-      })
-      .from(zones)
-      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
-      .where(eq(zones.tenantId, tenantId))
-      .orderBy(warehouses.name, zones.name);
-
-    // Get bins with full hierarchy
-    const binsData = await db
-      .select({
-        id: bins.id,
-        name: bins.name,
-        shelfId: shelves.id,
-        shelfName: shelves.name,
-        aisleId: aisles.id,
-        aisleName: aisles.name,
-        zoneId: zones.id,
-        zoneName: zones.name,
-        warehouseId: warehouses.id,
-        warehouseName: warehouses.name,
-      })
-      .from(bins)
-      .innerJoin(shelves, eq(bins.shelfId, shelves.id))
-      .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
-      .innerJoin(zones, eq(aisles.zoneId, zones.id))
-      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
-      .where(eq(bins.tenantId, tenantId))
-      .orderBy(warehouses.name, zones.name, aisles.name, shelves.name, bins.name);
-
-    // Count types are hardcoded
-    const countTypes = [
-      { value: 'full', label: 'Full' },
-      { value: 'partial', label: 'Partial' },
-      { value: 'spot', label: 'Spot' },
-    ];
-
-    res.json({
-      success: true,
-      data: {
-        inventoryTypes,
-        zones: zonesData,
-        bins: binsData,
-        countTypes,
-      },
-    });
-  } catch (error) {
-    console.error('Error fetching filter options:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
