@@ -219,7 +219,8 @@ const PackageCreationModal: React.FC<PackageCreationModalProps> = ({
 
       if (response.data.success) {
         toast.success('Packages saved successfully');
-        onSave(response.data.data);
+        // Extract the packages array from the response
+        onSave(response.data.data.packages || []);
       } else {
         toast.error(response.data.message || 'Failed to save packages');
       }

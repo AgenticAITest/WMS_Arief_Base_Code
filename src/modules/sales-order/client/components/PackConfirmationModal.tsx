@@ -52,12 +52,7 @@ const PackConfirmationModal: React.FC<PackConfirmationModalProps> = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Debug: Log what we're receiving
-  console.log('PackConfirmationModal packages prop:', packages);
-  console.log('PackConfirmationModal packages type:', typeof packages);
-  console.log('PackConfirmationModal is array?:', Array.isArray(packages));
-
-  // Ensure packages is always an array
+  // Ensure packages is always an array (defensive programming)
   const packagesList = Array.isArray(packages) ? packages : [];
 
   const handleConfirm = async () => {
