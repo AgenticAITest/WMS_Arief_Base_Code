@@ -64,11 +64,11 @@ const CycleCount = () => {
   const handleStartSuccess = (id: string, countNumber: string) => {
     toast.success(`Cycle count ${countNumber} started`);
     // Navigate to the detail page
-    navigate(`/inventory-items/cycle-count/${id}`);
+    navigate(`/modules/inventory-items/cycle-count/${id}`);
   };
 
   const handleViewDetails = (id: string) => {
-    navigate(`/inventory-items/cycle-count/${id}`);
+    navigate(`/modules/inventory-items/cycle-count/${id}`);
   };
 
   const getStatusBadge = (status: string) => {
