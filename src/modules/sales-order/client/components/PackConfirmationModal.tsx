@@ -52,6 +52,9 @@ const PackConfirmationModal: React.FC<PackConfirmationModalProps> = ({
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Ensure packages is always an array
+  const packagesList = Array.isArray(packages) ? packages : [];
+
   const handleConfirm = async () => {
     try {
       setIsSubmitting(true);
@@ -96,7 +99,7 @@ const PackConfirmationModal: React.FC<PackConfirmationModalProps> = ({
     return pkg.items.reduce((sum, item) => sum + item.quantity, 0);
   };
 
-  const totalItems = packages.reduce((sum, pkg) => {
+  const totalItems = packagesList.reduce((sum, pkg) => {
     return sum + pkg.items.reduce((itemSum, item) => itemSum + item.quantity, 0);
   }, 0);
 
@@ -133,7 +136,7 @@ const PackConfirmationModal: React.FC<PackConfirmationModalProps> = ({
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Packages</p>
-              <p className="font-medium">{packages.length}</p>
+              <p className="font-medium">{packagesList.length}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Items</p>
@@ -143,7 +146,7 @@ const PackConfirmationModal: React.FC<PackConfirmationModalProps> = ({
 
           <div className="space-y-4">
             <h3 className="font-semibold">Packages to Ship</h3>
-            {packages.map((pkg, idx) => (
+            {packagesList.map((pkg, idx) => (
               <div key={pkg.id || idx} className="border rounded-md p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
