@@ -172,7 +172,6 @@ export function StartCountModal({ open, onOpenChange, onSuccess }: StartCountMod
                     <SelectValue placeholder="All types" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All types</SelectItem>
                     {filterOptions?.inventoryTypes.map((type) => (
                       <SelectItem key={type.id} value={type.id}>
                         {type.name}
@@ -189,7 +188,6 @@ export function StartCountModal({ open, onOpenChange, onSuccess }: StartCountMod
                     <SelectValue placeholder="All zones" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All zones</SelectItem>
                     {filterOptions?.zones.map((zone) => (
                       <SelectItem key={zone.id} value={zone.id}>
                         {zone.warehouseName} - {zone.name}
