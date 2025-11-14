@@ -1,0 +1,46 @@
+// ================================================================================
+// CYCLE COUNT & AUDIT SYSTEM
+// ================================================================================
+Table cycle_counts {
+  id serial [pk, increment]
+  tenant_id integer [ref: > tenants.id, not null]
+  count_number varchar(100) [not null]
+  status varchar(50) [not null, note: "created, approved, rejected, completed"]
+  count_type varchar(50) [default: 'partial', note: "full, partial, spot"]
+  scheduled_date date
+  completed_date date
+  variance_threshold decimal(5,2) [default: 0.00]
+  total_variance_amount decimal(15,2)
+  notes text
+  created_by integer [ref: > users.id]
+  approved_by integer [ref: > users.id]
+  created_at timestamp [default: `now()`]
+  updated_at timestamp [default: `now()`]
+  
+  indexes {
+    (tenant_id, count_number) [unique]
+    tenant_id
+    status
+  }
+}
+Table cycle_count_items {
+  id serial [pk, increment]
+  cycle_count_id integer [ref: > cycle_counts.id, not null]
+  tenant_id integer [ref: > tenants.id, not null]
+  product_id integer [ref: > products.id, not null]
+  bin_id integer [ref: > bins.id, not null]
+  system_quantity integer [not null]
+  counted_quantity integer
+  variance_quantity integer
+  variance_amount decimal(15,2)
+  reason_code varchar(50)
+  reason_description text
+  counted_by integer [ref: > users.id]
+  counted_at timestamp
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    tenant_id
+    cycle_count_id
+  }
+}

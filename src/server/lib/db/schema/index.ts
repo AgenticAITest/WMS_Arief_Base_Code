@@ -6,6 +6,7 @@ export * from '@modules/sample-module/server/lib/db/schemas/sampleModule';
 export * from '@modules/master-data/server/lib/db/schemas/masterData';
 export * from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 export * from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
+export * from '@modules/inventory-items/server/lib/db/schemas/cycleCount';
 export * from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
 export * from '@modules/purchase-order/server/lib/db/schemas/purchaseOrder';
 export * from '@modules/sales-order/server/lib/db/schemas/salesOrder';

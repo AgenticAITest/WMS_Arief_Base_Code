@@ -6,10 +6,14 @@ import { bins } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSe
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, sql, or } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
+import cycleCountRoutes from './cycleCountRoutes';
 
 const router = express.Router();
 router.use(authenticated());
 router.use(checkModuleAuthorization('inventory-items'));
+
+// Mount cycle count routes
+router.use(cycleCountRoutes);
 
 /**
  * @swagger
