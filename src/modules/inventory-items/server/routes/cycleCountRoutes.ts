@@ -636,6 +636,134 @@ router.get('/cycle-counts/:id/items', authorized('ADMIN', 'inventory-items.view'
 });
 
 /**
+ * PUT /api/modules/inventory-items/cycle-counts/:id
+ * Update a cycle count and its items
+ */
+router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+    const { scheduledDate, notes, items } = req.body;
+
+    // Verify cycle count exists and belongs to tenant
+    const [cycleCount] = await db
+      .select()
+      .from(cycleCounts)
+      .where(
+        and(
+          eq(cycleCounts.id, id),
+          eq(cycleCounts.tenantId, tenantId)
+        )
+      )
+      .limit(1);
+
+    if (!cycleCount) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cycle count not found',
+      });
+    }
+
+    if (cycleCount.status !== 'created') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only cycle counts with status "created" can be edited',
+      });
+    }
+
+    // Update cycle count in transaction
+    await db.transaction(async (tx) => {
+      // Update cycle count metadata
+      const updateData: any = {
+        updatedAt: new Date(),
+      };
+      
+      if (scheduledDate !== undefined) {
+        updateData.scheduledDate = scheduledDate || null;
+      }
+      
+      if (notes !== undefined) {
+        updateData.notes = notes || null;
+      }
+
+      await tx
+        .update(cycleCounts)
+        .set(updateData)
+        .where(eq(cycleCounts.id, id));
+
+      // Update items if provided
+      if (items && Array.isArray(items)) {
+        for (const item of items) {
+          if (!item.itemId) continue;
+
+          // Get existing item
+          const [existingItem] = await tx
+            .select()
+            .from(cycleCountItems)
+            .where(
+              and(
+                eq(cycleCountItems.id, item.itemId),
+                eq(cycleCountItems.cycleCountId, id)
+              )
+            )
+            .limit(1);
+
+          if (!existingItem) continue;
+
+          // Only update if countedQuantity is a valid number (not null/undefined)
+          if (item.countedQuantity !== null && item.countedQuantity !== undefined) {
+            const variance = item.countedQuantity - existingItem.systemQuantity;
+            
+            await tx
+              .update(cycleCountItems)
+              .set({
+                countedQuantity: item.countedQuantity,
+                varianceQuantity: variance,
+                countedBy: userId,
+                countedAt: new Date(),
+              })
+              .where(eq(cycleCountItems.id, item.itemId));
+          } else if (item.countedQuantity === null) {
+            // If clearing a counted quantity, reset all variance and audit fields to null
+            await tx
+              .update(cycleCountItems)
+              .set({
+                countedQuantity: null,
+                varianceQuantity: null,
+                varianceAmount: null,
+                countedBy: null,
+                countedAt: null,
+              })
+              .where(eq(cycleCountItems.id, item.itemId));
+          }
+        }
+      }
+    });
+
+    // Audit log
+    await logAudit({
+      tenantId,
+      userId,
+      module: 'inventory-items',
+      action: 'update',
+      resourceType: 'cycle_count',
+      resourceId: id,
+      description: `Updated cycle count ${cycleCount.countNumber}`,
+      ipAddress: getClientIp(req),
+    });
+
+    res.json({
+      success: true,
+      message: 'Cycle count updated successfully',
+    });
+  } catch (error) {
+    console.error('Error updating cycle count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
  * PUT /api/modules/inventory-items/cycle-counts/:id/items/:itemId
  * Update a cycle count item
  */

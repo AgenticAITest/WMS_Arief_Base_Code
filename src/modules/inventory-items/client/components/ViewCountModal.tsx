@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -6,6 +6,7 @@ import {
   DialogTitle,
 } from '@client/components/ui/dialog';
 import { Label } from '@client/components/ui/label';
+import { Input } from '@client/components/ui/input';
 import {
   Table,
   TableBody,
@@ -18,6 +19,7 @@ import { Badge } from '@client/components/ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { Search } from 'lucide-react';
 
 interface ViewCountModalProps {
   open: boolean;
@@ -33,6 +35,7 @@ export const ViewCountModal: React.FC<ViewCountModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [count, setCount] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
+  const [searchFilter, setSearchFilter] = useState('');
 
   useEffect(() => {
     if (open && countId) {
@@ -61,6 +64,17 @@ export const ViewCountModal: React.FC<ViewCountModalProps> = ({
       setLoading(false);
     }
   };
+
+  // Filter items based on search
+  const filteredItems = useMemo(() => {
+    if (!searchFilter.trim()) return items;
+    const searchLower = searchFilter.toLowerCase();
+    return items.filter(
+      (item) =>
+        item.productSku?.toLowerCase().includes(searchLower) ||
+        item.productName?.toLowerCase().includes(searchLower)
+    );
+  }, [items, searchFilter]);
 
   if (!count && !loading) {
     return null;
@@ -126,10 +140,27 @@ export const ViewCountModal: React.FC<ViewCountModalProps> = ({
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Count Items</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Count Items</h3>
+                {items.length > 0 && (
+                  <div className="relative w-64">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by SKU or Product Name"
+                      value={searchFilter}
+                      onChange={(e) => setSearchFilter(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                )}
+              </div>
               {items.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No items found for this count
+                </div>
+              ) : filteredItems.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No items match your search
                 </div>
               ) : (
                 <div className="border rounded-lg">
@@ -145,7 +176,7 @@ export const ViewCountModal: React.FC<ViewCountModalProps> = ({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {items.map((item) => {
+                      {filteredItems.map((item) => {
                         const variance = item.varianceQuantity || 0;
                         return (
                           <TableRow key={item.id}>
