@@ -317,8 +317,11 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                       <Badge key={binId} variant="secondary" className="flex items-center gap-1">
                         {bin?.name}
                         <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => handleRemoveBin(binId)}
+                          className="h-3 w-3 cursor-pointer hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveBin(binId);
+                          }}
                         />
                       </Badge>
                     );
