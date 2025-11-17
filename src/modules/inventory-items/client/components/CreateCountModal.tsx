@@ -74,8 +74,8 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
 
-  const [inventoryTypeId, setInventoryTypeId] = useState<string>('');
-  const [zoneId, setZoneId] = useState<string>('');
+  const [inventoryTypeId, setInventoryTypeId] = useState<string>('__all__');
+  const [zoneId, setZoneId] = useState<string>('__all__');
   const [countType, setCountType] = useState<string>('partial');
   const [selectedBinIds, setSelectedBinIds] = useState<string[]>([]);
   const [showBinPicker, setShowBinPicker] = useState(false);
@@ -116,8 +116,8 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   }, [inventoryTypeId, zoneId, countType, selectedBinIds, filterSnapshot]);
 
   const resetForm = () => {
-    setInventoryTypeId('');
-    setZoneId('');
+    setInventoryTypeId('__all__');
+    setZoneId('__all__');
     setCountType('partial');
     setSelectedBinIds([]);
     setShowBinPicker(false);
@@ -151,8 +151,8 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
       setStarting(true);
       const response = await axios.get('/api/modules/inventory-items/cycle-counts/items', {
         params: {
-          inventoryTypeId: inventoryTypeId || undefined,
-          zoneId: zoneId || undefined,
+          inventoryTypeId: inventoryTypeId === '__all__' ? undefined : inventoryTypeId,
+          zoneId: zoneId === '__all__' ? undefined : zoneId,
           countType,
           binIds: countType === 'partial' ? selectedBinIds.join(',') : undefined,
         },
@@ -205,8 +205,8 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
       setSubmitting(true);
       const payload = {
         countType,
-        inventoryTypeId: inventoryTypeId || undefined,
-        zoneId: zoneId || undefined,
+        inventoryTypeId: inventoryTypeId === '__all__' ? undefined : inventoryTypeId,
+        zoneId: zoneId === '__all__' ? undefined : zoneId,
         binIds: countType === 'partial' ? selectedBinIds : undefined,
         scheduledDate: scheduledDate || undefined,
         notes: notes || undefined,
@@ -245,7 +245,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   };
 
   const filteredBins = filterOptions?.bins.filter((bin) => {
-    if (zoneId && bin.zoneId !== zoneId) return false;
+    if (zoneId && zoneId !== '__all__' && bin.zoneId !== zoneId) return false;
     return true;
   }) || [];
 
@@ -285,7 +285,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                   <SelectValue placeholder="All inventory types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All inventory types</SelectItem>
+                  <SelectItem value="__all__">All inventory types</SelectItem>
                   {filterOptions?.inventoryTypes.map((type) => (
                     <SelectItem key={type.id} value={type.id}>
                       {type.name}
@@ -302,7 +302,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                   <SelectValue placeholder="All zones" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All zones</SelectItem>
+                  <SelectItem value="__all__">All zones</SelectItem>
                   {filterOptions?.zones.map((zone) => (
                     <SelectItem key={zone.id} value={zone.id}>
                       {zone.warehouseName} - {zone.name}
