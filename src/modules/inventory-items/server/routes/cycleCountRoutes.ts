@@ -22,8 +22,22 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = (page - 1) * limit;
+    const statusParam = req.query.status as string;
 
     const whereConditions = [eq(cycleCounts.tenantId, tenantId)];
+
+    // Add status filter if provided and valid
+    if (statusParam) {
+      const status = statusParam.trim().toLowerCase();
+      const validStatuses = ['created', 'approved', 'rejected'];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid status. Allowed values: ${validStatuses.join(', ')}`,
+        });
+      }
+      whereConditions.push(eq(cycleCounts.status, status));
+    }
 
     // Get total count
     const [totalResult] = await db
@@ -759,6 +773,142 @@ router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), a
     });
   } catch (error) {
     console.error('Error updating cycle count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
+ * PUT /api/modules/inventory-items/cycle-counts/:id/approve
+ * Approve a cycle count
+ */
+router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+
+    // Verify cycle count exists and belongs to tenant
+    const [cycleCount] = await db
+      .select()
+      .from(cycleCounts)
+      .where(
+        and(
+          eq(cycleCounts.id, id),
+          eq(cycleCounts.tenantId, tenantId)
+        )
+      )
+      .limit(1);
+
+    if (!cycleCount) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cycle count not found',
+      });
+    }
+
+    if (cycleCount.status !== 'created') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only cycle counts with status "created" can be approved',
+      });
+    }
+
+    // Update status to approved
+    await db
+      .update(cycleCounts)
+      .set({
+        status: 'approved',
+        completedDate: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(cycleCounts.id, id));
+
+    // Audit log
+    await logAudit({
+      tenantId,
+      userId,
+      module: 'inventory-items',
+      action: 'approve',
+      resourceType: 'cycle_count',
+      resourceId: id,
+      description: `Approved cycle count ${cycleCount.countNumber}`,
+      ipAddress: getClientIp(req),
+    });
+
+    res.json({
+      success: true,
+      message: 'Cycle count approved successfully',
+    });
+  } catch (error) {
+    console.error('Error approving cycle count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
+ * PUT /api/modules/inventory-items/cycle-counts/:id/reject
+ * Reject a cycle count
+ */
+router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+
+    // Verify cycle count exists and belongs to tenant
+    const [cycleCount] = await db
+      .select()
+      .from(cycleCounts)
+      .where(
+        and(
+          eq(cycleCounts.id, id),
+          eq(cycleCounts.tenantId, tenantId)
+        )
+      )
+      .limit(1);
+
+    if (!cycleCount) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cycle count not found',
+      });
+    }
+
+    if (cycleCount.status !== 'created') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only cycle counts with status "created" can be rejected',
+      });
+    }
+
+    // Update status to rejected
+    await db
+      .update(cycleCounts)
+      .set({
+        status: 'rejected',
+        completedDate: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(cycleCounts.id, id));
+
+    // Audit log
+    await logAudit({
+      tenantId,
+      userId,
+      module: 'inventory-items',
+      action: 'reject',
+      resourceType: 'cycle_count',
+      resourceId: id,
+      description: `Rejected cycle count ${cycleCount.countNumber}`,
+      ipAddress: getClientIp(req),
+    });
+
+    res.json({
+      success: true,
+      message: 'Cycle count rejected successfully',
+    });
+  } catch (error) {
+    console.error('Error rejecting cycle count:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
