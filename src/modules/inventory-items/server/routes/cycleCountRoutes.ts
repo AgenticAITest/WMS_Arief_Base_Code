@@ -59,6 +59,126 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
 });
 
 /**
+ * POST /api/modules/inventory-items/cycle-counts
+ * Create a new cycle count with counted items
+ */
+router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+    const { countType, inventoryTypeId, zoneId, binIds, scheduledDate, notes, items } = req.body;
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one counted item is required',
+      });
+    }
+
+    // Generate cycle count number
+    const now = new Date();
+    const dd = now.getDate().toString().padStart(2, '0');
+    const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+    const yyyy = now.getFullYear();
+    const baseNumber = `CC-${dd}${mm}${yyyy}`;
+
+    const existingCounts = await db
+      .select({ countNumber: cycleCounts.countNumber })
+      .from(cycleCounts)
+      .where(
+        and(
+          eq(cycleCounts.tenantId, tenantId),
+          ilike(cycleCounts.countNumber, `${baseNumber}%`)
+        )
+      );
+
+    let sequence = 1;
+    if (existingCounts.length > 0) {
+      const sequences = existingCounts
+        .map(c => {
+          const match = c.countNumber.match(/-(\d+)$/);
+          return match ? parseInt(match[1]) : 0;
+        })
+        .filter(n => n > 0);
+      
+      if (sequences.length > 0) {
+        sequence = Math.max(...sequences) + 1;
+      }
+    }
+
+    const countNumber = existingCounts.length === 0 && sequence === 1
+      ? baseNumber
+      : `${baseNumber}-${sequence.toString().padStart(4, '0')}`;
+
+    // Create cycle count in transaction
+    const result = await db.transaction(async (tx) => {
+      // Create cycle count record
+      const [cycleCount] = await tx
+        .insert(cycleCounts)
+        .values({
+          id: uuidv4(),
+          tenantId,
+          countNumber,
+          status: 'created',
+          countType: countType || 'partial',
+          scheduledDate: scheduledDate || sql`CURRENT_DATE`,
+          notes,
+          createdBy: userId,
+        })
+        .returning();
+
+      // Create cycle count items
+      const itemsToInsert = items.map((item: any) => {
+        const variance = item.countedQuantity - item.systemQuantity;
+        return {
+          id: uuidv4(),
+          cycleCountId: cycleCount.id,
+          tenantId,
+          productId: item.productId,
+          binId: item.binId,
+          systemQuantity: item.systemQuantity,
+          countedQuantity: item.countedQuantity,
+          varianceQuantity: variance,
+          varianceAmount: null, // Can be calculated later if needed
+          reasonCode: item.reason || null,
+          reasonDescription: item.notes || null,
+          countedBy: userId,
+          countedAt: new Date(),
+        };
+      });
+
+      await tx.insert(cycleCountItems).values(itemsToInsert);
+
+      return { cycleCount, itemsCount: itemsToInsert.length };
+    });
+
+    // Audit log
+    await logAudit({
+      tenantId,
+      userId,
+      module: 'inventory-items',
+      action: 'create',
+      resourceType: 'cycle_count',
+      resourceId: result.cycleCount.id,
+      description: `Created cycle count ${countNumber} with ${result.itemsCount} items`,
+      ipAddress: getClientIp(req),
+    });
+
+    res.json({
+      success: true,
+      data: {
+        id: result.cycleCount.id,
+        countNumber: result.cycleCount.countNumber,
+        itemsCount: result.itemsCount,
+      },
+    });
+  } catch (error) {
+    console.error('Error creating cycle count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
  * POST /api/modules/inventory-items/cycle-counts/start
  * Start a new cycle count session
  */

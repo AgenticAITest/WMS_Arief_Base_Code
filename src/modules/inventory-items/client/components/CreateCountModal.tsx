@@ -53,9 +53,14 @@ interface CountItem {
   productName: string;
   binId: string;
   binName: string;
-  locationPath: string;
+  shelfName: string;
+  aisleName: string;
+  zoneName: string;
+  warehouseName: string;
   systemQuantity: number;
   countedQuantity: number | null;
+  reason: string;
+  notes: string;
 }
 
 interface CreateCountModalProps {
@@ -84,6 +89,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
 
   const [itemsVisible, setItemsVisible] = useState(false);
   const [countItems, setCountItems] = useState<CountItem[]>([]);
+  const [searchFilter, setSearchFilter] = useState<string>('');
 
   const [filterSnapshot, setFilterSnapshot] = useState<{
     inventoryTypeId: string;
@@ -127,6 +133,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
     setItemsVisible(false);
     setCountItems([]);
     setFilterSnapshot(null);
+    setSearchFilter('');
   };
 
   const fetchFilterOptions = async () => {
@@ -163,6 +170,8 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
       setCountItems(items.map((item: any) => ({
         ...item,
         countedQuantity: null,
+        reason: '',
+        notes: '',
       })));
       setItemsVisible(true);
       setFilterSnapshot({
@@ -189,11 +198,47 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
     );
   };
 
+  const handleReasonChange = (itemId: string, value: string) => {
+    setCountItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, reason: value } : item
+      )
+    );
+  };
+
+  const handleNotesChange = (itemId: string, value: string) => {
+    setCountItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId ? { ...item, notes: value } : item
+      )
+    );
+  };
+
+  // Filter items based on search text
+  const filteredCountItems = countItems.filter((item) => {
+    if (!searchFilter) return true;
+    const searchLower = searchFilter.toLowerCase();
+    return (
+      item.productSku.toLowerCase().includes(searchLower) ||
+      item.productName.toLowerCase().includes(searchLower)
+    );
+  });
+
   const handleSubmit = async () => {
     const itemsWithCounts = countItems.filter((item) => item.countedQuantity !== null);
     
     if (itemsWithCounts.length === 0) {
       toast.error('Please count at least one item before submitting');
+      return;
+    }
+
+    // Validate that items with diff have a reason
+    const itemsWithDiff = itemsWithCounts.filter(
+      (item) => item.countedQuantity !== item.systemQuantity
+    );
+    const missingReason = itemsWithDiff.find((item) => !item.reason);
+    if (missingReason) {
+      toast.error('Please provide a reason for all items with differences');
       return;
     }
 
@@ -211,6 +256,8 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
           binId: item.binId,
           systemQuantity: item.systemQuantity,
           countedQuantity: item.countedQuantity!,
+          reason: item.reason || undefined,
+          notes: item.notes || undefined,
         })),
       };
 
@@ -416,8 +463,18 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
 
           {itemsVisible && countItems.length > 0 && (
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Count Items</h3>
-              <div className="border rounded-lg">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Count Items ({filteredCountItems.length})</h3>
+                <div className="w-72">
+                  <Input
+                    placeholder="Search by SKU or Product Name..."
+                    value={searchFilter}
+                    onChange={(e) => setSearchFilter(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <div className="border rounded-lg overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -426,21 +483,24 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                       <TableHead>Location</TableHead>
                       <TableHead className="text-right">System Qty</TableHead>
                       <TableHead className="text-right">Counted Qty</TableHead>
-                      <TableHead className="text-right">Variance</TableHead>
+                      <TableHead className="text-right">Diff</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead>Notes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {countItems.map((item) => {
-                      const variance =
+                    {filteredCountItems.map((item) => {
+                      const diff =
                         item.countedQuantity !== null
                           ? item.countedQuantity - item.systemQuantity
                           : null;
+                      const hasDiff = diff !== null && diff !== 0;
                       return (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.productSku}</TableCell>
                           <TableCell>{item.productName}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {item.locationPath}
+                            {item.warehouseName} → {item.zoneName} → {item.aisleName} → {item.shelfName} → {item.binName}
                           </TableCell>
                           <TableCell className="text-right">{item.systemQuantity}</TableCell>
                           <TableCell className="text-right">
@@ -456,19 +516,49 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                             />
                           </TableCell>
                           <TableCell className="text-right">
-                            {variance !== null && (
+                            {diff !== null && (
                               <span
                                 className={
-                                  variance === 0
+                                  diff === 0
                                     ? 'text-muted-foreground'
-                                    : variance > 0
+                                    : diff > 0
                                     ? 'text-green-600 font-medium'
                                     : 'text-red-600 font-medium'
                                 }
                               >
-                                {variance > 0 ? '+' : ''}
-                                {variance}
+                                {diff > 0 ? '+' : ''}
+                                {diff}
                               </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {hasDiff && (
+                              <Select 
+                                value={item.reason} 
+                                onValueChange={(value) => handleReasonChange(item.id, value)}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue placeholder="Select reason" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="damaged">Damaged</SelectItem>
+                                  <SelectItem value="expired">Expired</SelectItem>
+                                  <SelectItem value="missing">Missing</SelectItem>
+                                  <SelectItem value="found">Found</SelectItem>
+                                  <SelectItem value="count_error">Count Error</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {hasDiff && (
+                              <Input
+                                value={item.notes}
+                                onChange={(e) => handleNotesChange(item.id, e.target.value)}
+                                className="w-48"
+                                placeholder="Add notes..."
+                              />
                             )}
                           </TableCell>
                         </TableRow>
