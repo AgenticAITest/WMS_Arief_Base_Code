@@ -237,11 +237,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   };
 
   const handleRemoveBin = (binId: string) => {
-    console.log('handleRemoveBin called with binId:', binId);
-    console.log('Current selectedBinIds:', selectedBinIds);
-    const newBinIds = selectedBinIds.filter((id) => id !== binId);
-    console.log('New selectedBinIds:', newBinIds);
-    setSelectedBinIds(newBinIds);
+    setSelectedBinIds(selectedBinIds.filter((id) => id !== binId));
   };
 
   const filteredBins = filterOptions?.bins.filter((bin) => {

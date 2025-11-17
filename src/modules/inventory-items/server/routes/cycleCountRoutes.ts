@@ -288,6 +288,83 @@ router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.
 });
 
 /**
+ * GET /api/modules/inventory-items/cycle-counts/items
+ * Get inventory items for cycle count based on filters
+ */
+router.get('/cycle-counts/items', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { inventoryTypeId, zoneId, countType, binIds } = req.query;
+
+    // Build query conditions
+    const whereConditions = [eq(inventoryItems.tenantId, tenantId)];
+
+    // Filter by inventory type (product type)
+    if (inventoryTypeId) {
+      whereConditions.push(eq(products.inventoryTypeId, inventoryTypeId as string));
+    }
+
+    // Filter by zone
+    if (zoneId) {
+      whereConditions.push(eq(zones.id, zoneId as string));
+    }
+
+    // Filter by specific bins if provided
+    if (binIds && typeof binIds === 'string' && binIds.length > 0) {
+      const binIdArray = binIds.split(',').filter(id => id.trim());
+      if (binIdArray.length > 0) {
+        whereConditions.push(
+          sql`${inventoryItems.binId} IN (${sql.raw(binIdArray.map(() => '?').join(','))})`
+        );
+      }
+    }
+
+    // Fetch inventory items with full details
+    const items = await db
+      .select({
+        id: inventoryItems.id,
+        productId: products.id,
+        productName: products.name,
+        productSku: products.sku,
+        binId: bins.id,
+        binName: bins.name,
+        shelfName: shelves.name,
+        aisleName: aisles.name,
+        zoneName: zones.name,
+        warehouseName: warehouses.name,
+        batchNumber: inventoryItems.batchNumber,
+        lotNumber: inventoryItems.lotNumber,
+        expiryDate: inventoryItems.expiryDate,
+        systemQuantity: inventoryItems.availableQuantity,
+      })
+      .from(inventoryItems)
+      .innerJoin(products, eq(inventoryItems.productId, products.id))
+      .innerJoin(bins, eq(inventoryItems.binId, bins.id))
+      .innerJoin(shelves, eq(bins.shelfId, shelves.id))
+      .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
+      .innerJoin(zones, eq(aisles.zoneId, zones.id))
+      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+      .where(and(...whereConditions))
+      .orderBy(
+        warehouses.name,
+        zones.name,
+        aisles.name,
+        shelves.name,
+        bins.name,
+        products.name
+      );
+
+    res.json({
+      success: true,
+      data: items,
+    });
+  } catch (error) {
+    console.error('Error fetching cycle count items:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
  * GET /api/modules/inventory-items/cycle-counts/:id
  * Get cycle count details
  */
@@ -591,7 +668,7 @@ router.post('/cycle-counts/:id/submit', authorized('ADMIN', 'inventory-items.man
       .set({
         status: 'completed',
         completedDate: sql`CURRENT_DATE`,
-        totalVarianceAmount,
+        totalVarianceAmount: totalVarianceAmount.toString(),
         updatedAt: new Date(),
       })
       .where(eq(cycleCounts.id, id))
