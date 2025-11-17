@@ -103,17 +103,18 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   useEffect(() => {
     if (!filterSnapshot) return;
 
+    // Only reset items if non-bin filters changed (inventory type, zone, count type)
+    // Bin selection changes shouldn't reset the items
     if (
       filterSnapshot.inventoryTypeId !== inventoryTypeId ||
       filterSnapshot.zoneId !== zoneId ||
-      filterSnapshot.countType !== countType ||
-      JSON.stringify(filterSnapshot.selectedBinIds) !== JSON.stringify(selectedBinIds)
+      filterSnapshot.countType !== countType
     ) {
       setItemsVisible(false);
       setCountItems([]);
       setFilterSnapshot(null);
     }
-  }, [inventoryTypeId, zoneId, countType, selectedBinIds, filterSnapshot]);
+  }, [inventoryTypeId, zoneId, countType, filterSnapshot]);
 
   const resetForm = () => {
     setInventoryTypeId('__all__');
