@@ -42,6 +42,13 @@ export const inventoryItemsSidebarMenus = {
             url: "/console/modules/inventory-items/cycle-count/create",
             roles: "ADMIN",
             permissions: "inventory-items.view",
+          },
+          {
+            id: "cycle-count-approve",
+            title: "Approve",
+            url: "/console/modules/inventory-items/cycle-count/approve",
+            roles: "ADMIN",
+            permissions: "inventory-items.view",
           }
         ],
       },
