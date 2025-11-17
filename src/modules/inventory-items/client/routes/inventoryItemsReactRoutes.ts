@@ -6,6 +6,7 @@ import Adjustment from '../pages/Adjustment';
 import Relocate from '../pages/Relocate';
 import CycleCountCreate from '../pages/CycleCountCreate';
 import CycleCountApprove from '../pages/CycleCountApprove';
+import CycleCountHistory from '../pages/CycleCountHistory';
 
 export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
   return {
@@ -25,6 +26,7 @@ export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
           },
           { path: 'create', Component: CycleCountCreate },
           { path: 'approve', Component: CycleCountApprove },
+          { path: 'history', Component: CycleCountHistory },
         ]
       },
     ]

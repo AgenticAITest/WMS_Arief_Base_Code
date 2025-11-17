@@ -298,7 +298,10 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[90rem] sm:max-w-[90rem] max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-[90rem] sm:max-w-[90rem] max-h-[90vh] overflow-y-auto"
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Create Cycle Count</DialogTitle>
         </DialogHeader>

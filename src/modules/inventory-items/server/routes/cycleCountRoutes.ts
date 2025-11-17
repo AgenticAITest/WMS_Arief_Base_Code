@@ -91,10 +91,9 @@ router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), asyn
 
     // Generate cycle count number
     const now = new Date();
-    const dd = now.getDate().toString().padStart(2, '0');
     const mm = (now.getMonth() + 1).toString().padStart(2, '0');
     const yyyy = now.getFullYear();
-    const baseNumber = `CC-${dd}${mm}${yyyy}`;
+    const baseNumber = `CC-${yyyy}${mm}`;
 
     const existingCounts = await db
       .select({ countNumber: cycleCounts.countNumber })
@@ -120,9 +119,7 @@ router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), asyn
       }
     }
 
-    const countNumber = existingCounts.length === 0 && sequence === 1
-      ? baseNumber
-      : `${baseNumber}-${sequence.toString().padStart(4, '0')}`;
+    const countNumber = `${baseNumber}-${sequence.toString().padStart(4, '0')}`;
 
     // Create cycle count in transaction
     const result = await db.transaction(async (tx) => {
@@ -202,14 +199,13 @@ router.post('/cycle-counts/start', authorized('ADMIN', 'inventory-items.manage')
     const userId = req.user!.id;
     const { inventoryTypeId, zoneId, countType, binIds } = req.body;
 
-    // Generate cycle count number: CC-ddmmyyyy-XXXX
+    // Generate cycle count number: CC-yyyymm-xxxx
     const now = new Date();
-    const dd = now.getDate().toString().padStart(2, '0');
     const mm = (now.getMonth() + 1).toString().padStart(2, '0');
     const yyyy = now.getFullYear();
-    const baseNumber = `CC-${dd}${mm}${yyyy}`;
+    const baseNumber = `CC-${yyyy}${mm}`;
 
-    // Find next sequence number for this date
+    // Find next sequence number for this period
     const existingCounts = await db
       .select({ countNumber: cycleCounts.countNumber })
       .from(cycleCounts)
@@ -234,9 +230,7 @@ router.post('/cycle-counts/start', authorized('ADMIN', 'inventory-items.manage')
       }
     }
 
-    const uniqueCountNumber = existingCounts.length === 0 && sequence === 1
-      ? baseNumber
-      : `${baseNumber}-${sequence.toString().padStart(4, '0')}`;
+    const uniqueCountNumber = `${baseNumber}-${sequence.toString().padStart(4, '0')}`;
 
     // Build query to get inventory items based on filters
     let query = db
@@ -819,6 +813,7 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
       .set({
         status: 'approved',
         completedDate: sql`CURRENT_DATE`,
+        approvedBy: userId,
         updatedAt: new Date(),
       })
       .where(eq(cycleCounts.id, id));

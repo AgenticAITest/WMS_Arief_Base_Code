@@ -53,6 +53,13 @@ export const cycleCountSidebarMenus = {
       url: "/console/modules/inventory-items/cycle-count/approve",
       roles: "ADMIN",
       permissions: "inventory-items.view",
+    },
+    {
+      id: "cycle-count-history",
+      title: "History",
+      url: "/console/modules/inventory-items/cycle-count/history",
+      roles: "ADMIN",
+      permissions: "inventory-items.view",
     }
   ],
 };
