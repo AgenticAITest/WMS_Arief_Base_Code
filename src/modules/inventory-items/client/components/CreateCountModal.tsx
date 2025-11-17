@@ -237,7 +237,11 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   };
 
   const handleRemoveBin = (binId: string) => {
-    setSelectedBinIds(selectedBinIds.filter((id) => id !== binId));
+    console.log('handleRemoveBin called with binId:', binId);
+    console.log('Current selectedBinIds:', selectedBinIds);
+    const newBinIds = selectedBinIds.filter((id) => id !== binId);
+    console.log('New selectedBinIds:', newBinIds);
+    setSelectedBinIds(newBinIds);
   };
 
   const filteredBins = filterOptions?.bins.filter((bin) => {
@@ -315,16 +319,20 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                   {selectedBinIds.map((binId) => {
                     const bin = filterOptions?.bins.find((b) => b.id === binId);
                     return (
-                      <Badge key={binId} variant="secondary" className="flex items-center gap-1">
+                      <div key={binId} className="inline-flex items-center gap-1 bg-secondary text-secondary-foreground px-2.5 py-0.5 rounded-full text-xs font-semibold">
                         {bin?.name}
-                        <X
-                          className="h-3 w-3 cursor-pointer hover:text-destructive"
+                        <button
+                          type="button"
                           onClick={(e) => {
+                            e.preventDefault();
                             e.stopPropagation();
                             handleRemoveBin(binId);
                           }}
-                        />
-                      </Badge>
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
