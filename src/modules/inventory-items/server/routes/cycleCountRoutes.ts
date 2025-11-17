@@ -5,7 +5,7 @@ import { inventoryItems } from '../lib/db/schemas/inventoryItems';
 import { products, productTypes } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { bins, shelves, aisles, zones, warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { authorized } from '@server/middleware/authMiddleware';
-import { eq, and, desc, count, ilike, sql, or } from 'drizzle-orm';
+import { eq, and, desc, count, ilike, sql, or, inArray } from 'drizzle-orm';
 import { logAudit, getClientIp } from '@server/services/auditService';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -313,9 +313,7 @@ router.get('/cycle-counts/items', authorized('ADMIN', 'inventory-items.view'), a
     if (binIds && typeof binIds === 'string' && binIds.length > 0) {
       const binIdArray = binIds.split(',').filter(id => id.trim());
       if (binIdArray.length > 0) {
-        whereConditions.push(
-          sql`${inventoryItems.binId} IN (${sql.raw(binIdArray.map(() => '?').join(','))})`
-        );
+        whereConditions.push(inArray(inventoryItems.binId, binIdArray));
       }
     }
 
