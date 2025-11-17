@@ -142,11 +142,6 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   };
 
   const handleStartCount = async () => {
-    if (countType === 'partial' && selectedBinIds.length === 0) {
-      toast.error('Please select at least one bin for partial count');
-      return;
-    }
-
     try {
       setStarting(true);
       const response = await axios.get('/api/modules/inventory-items/cycle-counts/items', {
@@ -314,7 +309,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
 
             {countType === 'partial' && (
               <div className="space-y-2 col-span-2">
-                <Label>Bins to Count <span className="text-destructive">*</span></Label>
+                <Label>Bins to Count (Optional)</Label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {selectedBinIds.map((binId) => {
                     const bin = filterOptions?.bins.find((b) => b.id === binId);
