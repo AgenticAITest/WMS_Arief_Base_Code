@@ -152,4 +152,7 @@ const CycleCountApprove: React.FC = () => {
   );
 };
 
-export default withModuleAuthorization(CycleCountApprove, 'inventory-items');
+export default withModuleAuthorization(CycleCountApprove, {
+  moduleId: 'inventory-items',
+  moduleName: 'Inventory Items'
+});
