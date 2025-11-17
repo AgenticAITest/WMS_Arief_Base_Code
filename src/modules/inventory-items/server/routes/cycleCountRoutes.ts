@@ -818,8 +818,8 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
       .update(cycleCounts)
       .set({
         status: 'approved',
-        completedDate: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        completedDate: sql`CURRENT_DATE`,
+        updatedAt: new Date(),
       })
       .where(eq(cycleCounts.id, id));
 
@@ -886,8 +886,8 @@ router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.mana
       .update(cycleCounts)
       .set({
         status: 'rejected',
-        completedDate: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        completedDate: sql`CURRENT_DATE`,
+        updatedAt: new Date(),
       })
       .where(eq(cycleCounts.id, id));
 
