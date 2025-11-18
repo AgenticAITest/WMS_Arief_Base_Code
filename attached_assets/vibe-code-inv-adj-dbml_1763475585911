@@ -1,0 +1,32 @@
+
+TABLE adjustment (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES sys_tenant(id),
+    adjustment_number VARCHAR(100) NOT NULL UNIQUE,
+    status varchar(50) [not null, note: "created, approved, rejected"]
+    type varchar(20) [ notnull, note: "reguler, cycle_count"]
+    cycle_count_id_ref 
+    created_by INTEGER REFERENCES sys_user(id),
+    approved_by INTEGER REFERENCES sys_user(id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    INDEX (tenant_id, adjustment_number),
+    INDEX (inventory_item_id),
+    INDEX (created_by)
+);
+
+TABLE adjustment_items (
+    id SERIAL PRIMARY KEY,
+    adjustment_id integer [ref: > adjustment.id, not null]
+    tenant_id INTEGER NOT NULL REFERENCES sys_tenant(id),
+    inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id),
+    quantity_difference INTEGER NOT NULL,
+    old_quantity INTEGER NOT NULL,
+    new_quantity INTEGER NOT NULL,
+    reason_code VARCHAR(50) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    INDEX (tenant_id)
+);
+
