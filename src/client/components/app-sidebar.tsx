@@ -151,6 +151,8 @@ const data = {
 
     adjustmentSidebarMenus,
 
+    cycleCountSidebarMenus,
+
     purchaseOrderSidebarMenus,
 
 
@@ -194,15 +196,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (inventoryItemsIndex >= 0) {
       return [
         ...staticItems.slice(0, inventoryItemsIndex + 1),
-        adjustmentSidebarMenus,
-        cycleCountSidebarMenus,
         dynamicPurchaseOrderMenu,
         dynamicSalesOrderMenu,
         ...staticItems.slice(inventoryItemsIndex + 1),
       ];
     }
     
-    return [...staticItems, adjustmentSidebarMenus, cycleCountSidebarMenus, dynamicPurchaseOrderMenu, dynamicSalesOrderMenu];
+    return [...staticItems, dynamicPurchaseOrderMenu, dynamicSalesOrderMenu];
   }, [dynamicPurchaseOrderMenu, dynamicSalesOrderMenu]);
 
   return (

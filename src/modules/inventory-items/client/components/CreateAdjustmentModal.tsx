@@ -90,7 +90,7 @@ export const CreateAdjustmentModal: React.FC<CreateAdjustmentModalProps> = ({
 
     try {
       setSkuSearching(true);
-      const response = await axios.get('/api/modules/inventory-items/adjustments/search-sku', {
+      const response = await axios.get('/api/modules/inventory-items/cycle-counts/search-sku', {
         params: { sku: skuInput.trim() },
       });
 

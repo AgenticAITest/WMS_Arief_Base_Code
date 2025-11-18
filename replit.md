@@ -16,7 +16,12 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
 - `docs/WORKFLOW_LOGIC_ANALYSIS.md` - Comprehensive issue tracker separating actual bugs, incomplete features, and design improvements
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
 
-**🔄 Recent Changes (2025-11-11):**
+**🔄 Recent Changes (2025-11-18):**
+- Implemented Inventory Adjustment feature: Create adjustments with SKU search, reason codes, and quantity updates
+- Menu structure: Adjustment menu positioned between Inventory Items and Cycle Count with "Create" submenu
+- Adjustment workflow: Created → Applied (simplified workflow without approval step)
+
+**🔄 Previous Changes (2025-11-11):**
 - Implemented Sales Order Ship workflow: package-to-location assignment, transporter selection, inventory deduction, HTML document generation
 - Migrated Transporters from sales-order module to master-data module (schema, routes, UI)
 
@@ -73,6 +78,12 @@ None specified yet
   - Workflow advancement: packed/ship → shipped/deliver.
   - Shipment record creation in `shipments` table with tracking information.
   - HTML document generation for shipping instructions.
+- **Inventory Adjustment System**: Simplified workflow for inventory corrections and discrepancies.
+  - SKU-based search reuses cycle-count endpoint for consistency.
+  - Conditional reason codes based on adjustment direction (positive/negative).
+  - User enters NEW quantity; system calculates difference automatically.
+  - Document numbering: STOCKADJ-[PERIOD]-WH1-#### format.
+  - Status: created (editable/deletable) → applied (inventory updated, terminal).
 - **Audit Logging**: Comprehensive audit trail for user actions and data modifications with queryable APIs.
 - **Document Viewer Integration**: UI allows viewing generated HTML documents (PO, GRN, PUTAWAY, ALLOCATION, PICK, PACK, SHIP) in a modal.
 

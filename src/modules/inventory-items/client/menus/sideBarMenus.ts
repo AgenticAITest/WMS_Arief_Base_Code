@@ -32,6 +32,15 @@ export const adjustmentSidebarMenus = {
   icon: Settings,
   roles: 'ADMIN',
   permissions: 'inventory-items.view',
+  items: [
+    {
+      id: "adjustment-create",
+      title: "Create",
+      url: "/console/modules/inventory-items/adjustment",
+      roles: "ADMIN",
+      permissions: "inventory-items.view",
+    },
+  ],
 };
 
 export const cycleCountSidebarMenus = {
