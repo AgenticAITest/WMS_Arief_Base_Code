@@ -342,6 +342,7 @@ router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async
       await logAudit({
         tenantId,
         userId,
+        module: 'inventory-items',
         action: 'adjustment.create',
         resourceType: 'adjustment',
         resourceId: adjustment.id,
@@ -407,6 +408,7 @@ router.delete('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'),
     await logAudit({
       tenantId,
       userId,
+      module: 'inventory-items',
       action: 'adjustment.delete',
       resourceType: 'adjustment',
       resourceId: adjustment.id,

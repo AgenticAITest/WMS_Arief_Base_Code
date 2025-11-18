@@ -2,7 +2,7 @@ import { RouteObject, redirect } from 'react-router';
 import InventoryItemsList from '../pages/InventoryItemsList';
 import InventoryItemsAdd from '../pages/InventoryItemsAdd';
 import StockInformation from '../pages/StockInformation';
-import Adjustment from '../pages/Adjustment';
+import { AdjustmentCreate } from '../pages/AdjustmentCreate';
 import Relocate from '../pages/Relocate';
 import CycleCountCreate from '../pages/CycleCountCreate';
 import CycleCountApprove from '../pages/CycleCountApprove';
@@ -15,7 +15,7 @@ export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
       { index: true, Component: InventoryItemsList },
       { path: 'add', Component: InventoryItemsAdd },
       { path: 'stock-information', Component: StockInformation },
-      { path: 'adjustment', Component: Adjustment },
+      { path: 'adjustment', Component: AdjustmentCreate },
       { path: 'relocate', Component: Relocate },
       { 
         path: 'cycle-count', 
