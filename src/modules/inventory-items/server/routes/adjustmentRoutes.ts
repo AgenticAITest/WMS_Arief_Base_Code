@@ -270,26 +270,24 @@ router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async
       });
     }
 
-    // Create adjustment and update inventory in transaction
+    // Create adjustment in transaction (without applying to inventory yet)
     const result = await db.transaction(async (tx) => {
-      // Create adjustment record
+      // Create adjustment record with status "created"
       const [adjustment] = await tx
         .insert(adjustments)
         .values({
           id: uuidv4(),
           tenantId,
           adjustmentNumber,
-          status: 'applied',
+          status: 'created',
           type: 'regular',
           notes,
           createdBy: userId,
-          appliedAt: new Date(),
         })
         .returning();
 
       // Process each adjustment item
       const itemsToInsert = [];
-      const inventoryUpdates = [];
 
       for (const item of items) {
         // Get current inventory item to capture old quantity
@@ -324,15 +322,6 @@ router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async
           reasonCode: item.reasonCode,
           notes: item.notes || null,
         });
-
-        // Update inventory quantity
-        await tx
-          .update(inventoryItems)
-          .set({ 
-            availableQuantity: newQuantity,
-            updatedAt: new Date(),
-          })
-          .where(eq(inventoryItems.id, item.inventoryItemId));
       }
 
       // Insert all adjustment items
@@ -346,7 +335,7 @@ router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async
         action: 'adjustment.create',
         resourceType: 'adjustment',
         resourceId: adjustment.id,
-        description: `Created and applied adjustment ${adjustment.adjustmentNumber}`,
+        description: `Created adjustment ${adjustment.adjustmentNumber}`,
         ipAddress: getClientIp(req),
       });
 
@@ -355,7 +344,7 @@ router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async
 
     res.status(201).json({
       success: true,
-      message: `Adjustment created and applied successfully with ${result.itemCount} items`,
+      message: `Adjustment created successfully with ${result.itemCount} items`,
       data: result.adjustment,
     });
   } catch (error: any) {
