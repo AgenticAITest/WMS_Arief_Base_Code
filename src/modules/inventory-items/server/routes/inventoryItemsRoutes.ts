@@ -7,6 +7,7 @@ import { authenticated, authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, sql, or } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 import cycleCountRoutes from './cycleCountRoutes';
+import adjustmentRoutes from './adjustmentRoutes';
 
 const router = express.Router();
 router.use(authenticated());
@@ -14,6 +15,9 @@ router.use(checkModuleAuthorization('inventory-items'));
 
 // Mount cycle count routes
 router.use(cycleCountRoutes);
+
+// Mount adjustment routes
+router.use(adjustmentRoutes);
 
 /**
  * @swagger
