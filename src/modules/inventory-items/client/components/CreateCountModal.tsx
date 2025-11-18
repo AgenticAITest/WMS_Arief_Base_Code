@@ -688,12 +688,22 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                                   <SelectValue placeholder="Select reason" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="damaged">Damaged</SelectItem>
-                                  <SelectItem value="expired">Expired</SelectItem>
-                                  <SelectItem value="missing">Missing</SelectItem>
-                                  <SelectItem value="found">Found</SelectItem>
-                                  <SelectItem value="count_error">Count Error</SelectItem>
-                                  <SelectItem value="other">Other</SelectItem>
+                                  {diff! > 0 ? (
+                                    // Positive variance (surplus) - items found
+                                    <>
+                                      <SelectItem value="found">Found</SelectItem>
+                                      <SelectItem value="count_error">Count Error</SelectItem>
+                                      <SelectItem value="other">Other</SelectItem>
+                                    </>
+                                  ) : (
+                                    // Negative variance (shortage) - items missing/damaged
+                                    <>
+                                      <SelectItem value="damaged">Damaged</SelectItem>
+                                      <SelectItem value="missing">Missing</SelectItem>
+                                      <SelectItem value="count_error">Count Error</SelectItem>
+                                      <SelectItem value="other">Other</SelectItem>
+                                    </>
+                                  )}
                                 </SelectContent>
                               </Select>
                             )}
