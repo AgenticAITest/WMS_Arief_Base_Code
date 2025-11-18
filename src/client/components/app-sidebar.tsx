@@ -20,7 +20,7 @@ import { sampleModuleSidebarMenus } from "../../modules/sample-module/client/men
 
 import { masterDataSidebarMenus } from "../../modules/master-data/client/menus/sideBarMenus"
 import { warehouseSetupSidebarMenus } from "../../modules/warehouse-setup/client/menus/sideBarMenus"
-import { inventoryItemsSidebarMenus, cycleCountSidebarMenus } from "../../modules/inventory-items/client/menus/sideBarMenus"
+import { inventoryItemsSidebarMenus, adjustmentSidebarMenus, cycleCountSidebarMenus } from "../../modules/inventory-items/client/menus/sideBarMenus"
 import { purchaseOrderSidebarMenus, createPurchaseOrderSidebarMenus } from "../../modules/purchase-order/client/menus/sideBarMenus"
 import { usePurchaseOrderWorkflowSteps } from "../../modules/purchase-order/client/hooks/usePurchaseOrderWorkflowSteps"
 import { salesOrderSidebarMenus, createSalesOrderSidebarMenus } from "../../modules/sales-order/client/menus/sideBarMenus"
@@ -149,7 +149,7 @@ const data = {
 
     inventoryItemsSidebarMenus,
 
-
+    adjustmentSidebarMenus,
 
     purchaseOrderSidebarMenus,
 
@@ -194,6 +194,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (inventoryItemsIndex >= 0) {
       return [
         ...staticItems.slice(0, inventoryItemsIndex + 1),
+        adjustmentSidebarMenus,
         cycleCountSidebarMenus,
         dynamicPurchaseOrderMenu,
         dynamicSalesOrderMenu,
@@ -201,7 +202,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       ];
     }
     
-    return [...staticItems, cycleCountSidebarMenus, dynamicPurchaseOrderMenu, dynamicSalesOrderMenu];
+    return [...staticItems, adjustmentSidebarMenus, cycleCountSidebarMenus, dynamicPurchaseOrderMenu, dynamicSalesOrderMenu];
   }, [dynamicPurchaseOrderMenu, dynamicSalesOrderMenu]);
 
   return (

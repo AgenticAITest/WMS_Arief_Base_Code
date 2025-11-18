@@ -74,6 +74,97 @@ router.get('/adjustments', authorized('ADMIN', 'inventory-items.view'), async (r
 });
 
 /**
+ * GET /api/modules/inventory-items/adjustments/search-sku
+ * Search for inventory items by SKU (reuse from cycle count)
+ */
+router.get('/adjustments/search-sku', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { sku } = req.query;
+
+    if (!sku || typeof sku !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'SKU parameter is required',
+      });
+    }
+
+    // Search for inventory items with this SKU
+    const items = await db
+      .select({
+        inventoryItemId: inventoryItems.id,
+        productId: products.id,
+        productSku: products.sku,
+        productName: products.name,
+        binId: bins.id,
+        binName: bins.name,
+        availableQuantity: inventoryItems.availableQuantity,
+        batchNumber: inventoryItems.batchNumber,
+        lotNumber: inventoryItems.lotNumber,
+        expiryDate: inventoryItems.expiryDate,
+        // Location hierarchy
+        shelfName: shelves.name,
+        aisleName: aisles.name,
+        zoneName: zones.name,
+        warehouseName: warehouses.name,
+      })
+      .from(inventoryItems)
+      .innerJoin(products, eq(inventoryItems.productId, products.id))
+      .innerJoin(bins, eq(inventoryItems.binId, bins.id))
+      .innerJoin(shelves, eq(bins.shelfId, shelves.id))
+      .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
+      .innerJoin(zones, eq(aisles.zoneId, zones.id))
+      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+      .where(
+        and(
+          eq(inventoryItems.tenantId, tenantId),
+          ilike(products.sku, `%${sku}%`)
+        )
+      )
+      .orderBy(products.sku, bins.name)
+      .limit(50);
+
+    if (items.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No inventory items found for this SKU',
+      });
+    }
+
+    // Group by product
+    const grouped: Record<string, any> = {};
+    items.forEach((item) => {
+      if (!grouped[item.productId]) {
+        grouped[item.productId] = {
+          productId: item.productId,
+          productSku: item.productSku,
+          productName: item.productName,
+          bins: [],
+        };
+      }
+      grouped[item.productId].bins.push({
+        inventoryItemId: item.inventoryItemId,
+        binId: item.binId,
+        binName: item.binName,
+        availableQuantity: item.availableQuantity,
+        batchNumber: item.batchNumber,
+        lotNumber: item.lotNumber,
+        expiryDate: item.expiryDate,
+        location: `${item.warehouseName} > ${item.zoneName} > ${item.aisleName} > ${item.shelfName} > ${item.binName}`,
+      });
+    });
+
+    res.json({
+      success: true,
+      data: Object.values(grouped),
+    });
+  } catch (error) {
+    console.error('Error searching SKU:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
  * GET /api/modules/inventory-items/adjustments/:id
  * Get adjustment details
  */
@@ -411,97 +502,6 @@ router.delete('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'),
     });
   } catch (error) {
     console.error('Error deleting adjustment:', error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
-  }
-});
-
-/**
- * GET /api/modules/inventory-items/adjustments/search-sku
- * Search for inventory items by SKU (reuse from cycle count)
- */
-router.get('/adjustments/search-sku', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
-  try {
-    const tenantId = req.user!.activeTenantId;
-    const { sku } = req.query;
-
-    if (!sku || typeof sku !== 'string') {
-      return res.status(400).json({
-        success: false,
-        message: 'SKU parameter is required',
-      });
-    }
-
-    // Search for inventory items with this SKU
-    const items = await db
-      .select({
-        inventoryItemId: inventoryItems.id,
-        productId: products.id,
-        productSku: products.sku,
-        productName: products.name,
-        binId: bins.id,
-        binName: bins.name,
-        availableQuantity: inventoryItems.availableQuantity,
-        batchNumber: inventoryItems.batchNumber,
-        lotNumber: inventoryItems.lotNumber,
-        expiryDate: inventoryItems.expiryDate,
-        // Location hierarchy
-        shelfName: shelves.name,
-        aisleName: aisles.name,
-        zoneName: zones.name,
-        warehouseName: warehouses.name,
-      })
-      .from(inventoryItems)
-      .innerJoin(products, eq(inventoryItems.productId, products.id))
-      .innerJoin(bins, eq(inventoryItems.binId, bins.id))
-      .innerJoin(shelves, eq(bins.shelfId, shelves.id))
-      .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
-      .innerJoin(zones, eq(aisles.zoneId, zones.id))
-      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
-      .where(
-        and(
-          eq(inventoryItems.tenantId, tenantId),
-          ilike(products.sku, `%${sku}%`)
-        )
-      )
-      .orderBy(products.sku, bins.name)
-      .limit(50);
-
-    if (items.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No inventory items found for this SKU',
-      });
-    }
-
-    // Group by product
-    const grouped: Record<string, any> = {};
-    items.forEach((item) => {
-      if (!grouped[item.productId]) {
-        grouped[item.productId] = {
-          productId: item.productId,
-          productSku: item.productSku,
-          productName: item.productName,
-          bins: [],
-        };
-      }
-      grouped[item.productId].bins.push({
-        inventoryItemId: item.inventoryItemId,
-        binId: item.binId,
-        binName: item.binName,
-        availableQuantity: item.availableQuantity,
-        batchNumber: item.batchNumber,
-        lotNumber: item.lotNumber,
-        expiryDate: item.expiryDate,
-        location: `${item.warehouseName} > ${item.zoneName} > ${item.aisleName} > ${item.shelfName} > ${item.binName}`,
-      });
-    });
-
-    res.json({
-      success: true,
-      data: Object.values(grouped),
-    });
-  } catch (error) {
-    console.error('Error searching SKU:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

@@ -1,4 +1,4 @@
-import { Package, ClipboardCheck } from 'lucide-react';
+import { Package, ClipboardCheck, Settings } from 'lucide-react';
 
 export const inventoryItemsSidebarMenus = {
     id: 'inventory-items',
@@ -16,13 +16,6 @@ export const inventoryItemsSidebarMenus = {
         permissions: "inventory-items.view",
       },
       {
-        id: "adjustment",
-        title: "Adjustment",
-        url: "/console/modules/inventory-items/adjustment",
-        roles: "ADMIN",
-        permissions: "inventory-items.view",
-      },
-      {
         id: "relocate",
         title: "Relocate",
         url: "/console/modules/inventory-items/relocate",
@@ -31,6 +24,15 @@ export const inventoryItemsSidebarMenus = {
       },
     ],
   };
+
+export const adjustmentSidebarMenus = {
+  id: 'inventory-adjustment',
+  title: 'Adjustment',
+  url: '/console/modules/inventory-items/adjustment',
+  icon: Settings,
+  roles: 'ADMIN',
+  permissions: 'inventory-items.view',
+};
 
 export const cycleCountSidebarMenus = {
   id: 'inventory-items',
