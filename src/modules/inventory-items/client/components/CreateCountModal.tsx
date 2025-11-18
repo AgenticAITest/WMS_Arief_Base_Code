@@ -79,9 +79,6 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [filterOptions, setFilterOptions] = useState<FilterOptions | null>(null);
 
-  const [inventoryTypeId, setInventoryTypeId] = useState<string>('__all__');
-  const [zoneId, setZoneId] = useState<string>('__all__');
-  const [countType, setCountType] = useState<string>('partial');
   const [selectedBinIds, setSelectedBinIds] = useState<string[]>([]);
   const [showBinPicker, setShowBinPicker] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
@@ -91,12 +88,23 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   const [countItems, setCountItems] = useState<CountItem[]>([]);
   const [searchFilter, setSearchFilter] = useState<string>('');
 
-  const [filterSnapshot, setFilterSnapshot] = useState<{
-    inventoryTypeId: string;
-    zoneId: string;
-    countType: string;
-    selectedBinIds: string[];
+  // Manual SKU addition state
+  const [skuInput, setSkuInput] = useState('');
+  const [skuSearching, setSkuSearching] = useState(false);
+  const [skuSearchResults, setSkuSearchResults] = useState<{
+    product: { id: string; sku: string; name: string };
+    bins: Array<{
+      inventoryItemId: string;
+      binId: string;
+      binName: string;
+      shelfName: string;
+      aisleName: string;
+      zoneName: string;
+      warehouseName: string;
+      availableQuantity: number;
+    }>;
   } | null>(null);
+  const [selectedSkuBins, setSelectedSkuBins] = useState<string[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -106,34 +114,17 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
     }
   }, [open]);
 
-  useEffect(() => {
-    if (!filterSnapshot) return;
-
-    // Only reset items if non-bin filters changed (inventory type, zone, count type)
-    // Bin selection changes shouldn't reset the items
-    if (
-      filterSnapshot.inventoryTypeId !== inventoryTypeId ||
-      filterSnapshot.zoneId !== zoneId ||
-      filterSnapshot.countType !== countType
-    ) {
-      setItemsVisible(false);
-      setCountItems([]);
-      setFilterSnapshot(null);
-    }
-  }, [inventoryTypeId, zoneId, countType, filterSnapshot]);
-
   const resetForm = () => {
-    setInventoryTypeId('__all__');
-    setZoneId('__all__');
-    setCountType('partial');
     setSelectedBinIds([]);
     setShowBinPicker(false);
     setScheduledDate('');
     setNotes('');
     setItemsVisible(false);
     setCountItems([]);
-    setFilterSnapshot(null);
     setSearchFilter('');
+    setSkuInput('');
+    setSkuSearchResults(null);
+    setSelectedSkuBins([]);
   };
 
   const fetchFilterOptions = async () => {
@@ -150,20 +141,24 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   };
 
   const handleStartCount = async () => {
+    // Validate that at least one bin is selected
+    if (selectedBinIds.length === 0) {
+      toast.error('Please select at least one bin to count');
+      return;
+    }
+
     try {
       setStarting(true);
       const response = await axios.get('/api/modules/inventory-items/cycle-counts/items', {
         params: {
-          inventoryTypeId: inventoryTypeId === '__all__' ? undefined : inventoryTypeId,
-          zoneId: zoneId === '__all__' ? undefined : zoneId,
-          countType,
-          binIds: countType === 'partial' ? selectedBinIds.join(',') : undefined,
+          countType: 'partial',
+          binIds: selectedBinIds.join(','),
         },
       });
 
       const items = response.data.data || [];
       if (items.length === 0) {
-        toast.error('No inventory items found matching the selected filters');
+        toast.error('No inventory items found in the selected bins');
         return;
       }
 
@@ -174,12 +169,6 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
         notes: '',
       })));
       setItemsVisible(true);
-      setFilterSnapshot({
-        inventoryTypeId,
-        zoneId,
-        countType,
-        selectedBinIds: [...selectedBinIds],
-      });
       toast.success(`${items.length} items loaded for counting`);
     } catch (error: any) {
       console.error('Error starting count:', error);
@@ -245,10 +234,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
     try {
       setSubmitting(true);
       const payload = {
-        countType,
-        inventoryTypeId: inventoryTypeId === '__all__' ? undefined : inventoryTypeId,
-        zoneId: zoneId === '__all__' ? undefined : zoneId,
-        binIds: countType === 'partial' ? selectedBinIds : undefined,
+        countType: 'partial',
         scheduledDate: scheduledDate || undefined,
         notes: notes || undefined,
         items: itemsWithCounts.map((item) => ({
@@ -285,12 +271,72 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
 
   const handleRemoveBin = (binId: string) => {
     setSelectedBinIds(selectedBinIds.filter((id) => id !== binId));
+    // Remove items from this bin from the count items list
+    setCountItems(countItems.filter((item) => item.binId !== binId));
+    // If no items left, hide the items section
+    if (countItems.filter((item) => item.binId !== binId).length === 0) {
+      setItemsVisible(false);
+    }
   };
 
-  const filteredBins = filterOptions?.bins.filter((bin) => {
-    if (zoneId && zoneId !== '__all__' && bin.zoneId !== zoneId) return false;
-    return true;
-  }) || [];
+  const handleSearchSku = async () => {
+    if (!skuInput.trim()) {
+      toast.error('Please enter a SKU');
+      return;
+    }
+
+    try {
+      setSkuSearching(true);
+      const response = await axios.get('/api/modules/inventory-items/cycle-counts/search-sku', {
+        params: { sku: skuInput.trim() },
+      });
+
+      if (response.data.success) {
+        setSkuSearchResults(response.data.data);
+        setSelectedSkuBins([]);
+        toast.success(`Found ${response.data.data.bins.length} bins with stock for SKU ${skuInput.trim()}`);
+      }
+    } catch (error: any) {
+      console.error('Error searching SKU:', error);
+      if (error.response?.status === 404) {
+        toast.error('SKU not found');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to search SKU');
+      }
+      setSkuSearchResults(null);
+    } finally {
+      setSkuSearching(false);
+    }
+  };
+
+  const handleAddSkuBins = () => {
+    if (selectedSkuBins.length === 0) {
+      toast.error('Please select at least one bin to add');
+      return;
+    }
+
+    // Add selected bins to the main bin list
+    const newBinIds = selectedSkuBins.filter((binId) => !selectedBinIds.includes(binId));
+    if (newBinIds.length > 0) {
+      setSelectedBinIds([...selectedBinIds, ...newBinIds]);
+      toast.success(`Added ${newBinIds.length} bin(s) to count`);
+    }
+
+    // Clear SKU search
+    setSkuInput('');
+    setSkuSearchResults(null);
+    setSelectedSkuBins([]);
+  };
+
+  const handleToggleSkuBin = (binId: string) => {
+    if (selectedSkuBins.includes(binId)) {
+      setSelectedSkuBins(selectedSkuBins.filter((id) => id !== binId));
+    } else {
+      setSelectedSkuBins([...selectedSkuBins, binId]);
+    }
+  };
+
+  const filteredBins = filterOptions?.bins || [];
 
   const availableBins = filteredBins.filter(
     (bin) => !selectedBinIds.includes(bin.id)
@@ -307,59 +353,8 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="countType">Count Type</Label>
-              <Select value={countType} onValueChange={setCountType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select count type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filterOptions?.countTypes.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="inventoryType">Inventory Type (Optional)</Label>
-              <Select value={inventoryTypeId} onValueChange={setInventoryTypeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All inventory types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All inventory types</SelectItem>
-                  {filterOptions?.inventoryTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="zone">Zone (Optional)</Label>
-              <Select value={zoneId} onValueChange={setZoneId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All zones" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">All zones</SelectItem>
-                  {filterOptions?.zones.map((zone) => (
-                    <SelectItem key={zone.id} value={zone.id}>
-                      {zone.warehouseName} - {zone.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {countType === 'partial' && (
-              <div className="space-y-2 col-span-2">
                 <Label>Bins to Count (Optional)</Label>
                 <div className="flex flex-wrap gap-2 mb-2">
                   {selectedBinIds.map((binId) => {
@@ -408,9 +403,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                     <div className="max-h-48 overflow-y-auto space-y-1">
                       {availableBins.length === 0 ? (
                         <p className="text-sm text-muted-foreground">
-                          {zoneId
-                            ? 'No bins available in selected zone'
-                            : 'No bins available'}
+                          No bins available
                         </p>
                       ) : (
                         availableBins.map((bin) => (
@@ -431,7 +424,78 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                   </div>
                 )}
               </div>
-            )}
+
+            {/* Manual SKU Addition Section */}
+            <div className="space-y-2">
+              <Label>Add by SKU</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter SKU to search"
+                  value={skuInput}
+                  onChange={(e) => setSkuInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearchSku();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  onClick={handleSearchSku}
+                  disabled={skuSearching || !skuInput.trim()}
+                >
+                  {skuSearching ? 'Searching...' : 'Search'}
+                </Button>
+              </div>
+
+              {skuSearchResults && (
+                <div className="border rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-medium">{skuSearchResults.product.name}</div>
+                      <div className="text-sm text-muted-foreground">SKU: {skuSearchResults.product.sku}</div>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleAddSkuBins}
+                      disabled={selectedSkuBins.length === 0}
+                    >
+                      Add Selected ({selectedSkuBins.length})
+                    </Button>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {skuSearchResults.bins.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No bins with stock found</p>
+                    ) : (
+                      skuSearchResults.bins.map((bin) => (
+                        <div
+                          key={bin.binId}
+                          className={`p-2 rounded border cursor-pointer ${
+                            selectedSkuBins.includes(bin.binId)
+                              ? 'bg-primary/10 border-primary'
+                              : 'hover:bg-accent border-transparent'
+                          }`}
+                          onClick={() => handleToggleSkuBin(bin.binId)}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="text-sm font-medium">{bin.binName}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {bin.warehouseName} → {bin.zoneName} → {bin.aisleName} → {bin.shelfName}
+                              </div>
+                            </div>
+                            <div className="text-sm font-medium">Qty: {bin.availableQuantity}</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="scheduledDate">Scheduled Date (Optional)</Label>

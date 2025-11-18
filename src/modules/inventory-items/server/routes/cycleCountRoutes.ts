@@ -4,6 +4,8 @@ import { cycleCounts, cycleCountItems } from '../lib/db/schemas/cycleCount';
 import { inventoryItems } from '../lib/db/schemas/inventoryItems';
 import { products, productTypes } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { bins, shelves, aisles, zones, warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
+import { documentNumberConfig } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
+import { generateDocumentNumber } from '@modules/document-numbering/server/services/documentNumberService';
 import { authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, sql, or, inArray } from 'drizzle-orm';
 import { logAudit, getClientIp } from '@server/services/auditService';
@@ -89,37 +91,49 @@ router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), asyn
       });
     }
 
-    // Generate cycle count number
-    const now = new Date();
-    const mm = (now.getMonth() + 1).toString().padStart(2, '0');
-    const yyyy = now.getFullYear();
-    const baseNumber = `CC-${yyyy}${mm}`;
-
-    const existingCounts = await db
-      .select({ countNumber: cycleCounts.countNumber })
-      .from(cycleCounts)
+    // Fetch document numbering configuration
+    const [docConfig] = await db
+      .select()
+      .from(documentNumberConfig)
       .where(
         and(
-          eq(cycleCounts.tenantId, tenantId),
-          ilike(cycleCounts.countNumber, `${baseNumber}%`)
+          eq(documentNumberConfig.tenantId, tenantId),
+          eq(documentNumberConfig.documentType, 'CYCCOUNT'),
+          eq(documentNumberConfig.isActive, true)
         )
-      );
+      )
+      .limit(1);
 
-    let sequence = 1;
-    if (existingCounts.length > 0) {
-      const sequences = existingCounts
-        .map(c => {
-          const match = c.countNumber.match(/-(\d+)$/);
-          return match ? parseInt(match[1]) : 0;
-        })
-        .filter(n => n > 0);
-      
-      if (sequences.length > 0) {
-        sequence = Math.max(...sequences) + 1;
-      }
+    if (!docConfig) {
+      return res.status(500).json({
+        success: false,
+        message: 'Document numbering configuration not found for CYCCOUNT',
+      });
     }
 
-    const countNumber = `${baseNumber}-${sequence.toString().padStart(4, '0')}`;
+    // Generate cycle count number via document numbering service
+    let countNumber: string;
+    let documentHistoryId: string;
+    
+    try {
+      const docNumberResult = await generateDocumentNumber({
+        tenantId,
+        documentType: 'CYCCOUNT',
+        prefix1: docConfig.prefix1DefaultValue || null,
+        prefix2: docConfig.prefix2DefaultValue || null,
+        documentTableName: 'cycle_counts',
+        userId,
+      });
+      
+      countNumber = docNumberResult.documentNumber;
+      documentHistoryId = docNumberResult.historyId;
+    } catch (error: any) {
+      console.error('Error generating cycle count number:', error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate cycle count number',
+      });
+    }
 
     // Create cycle count in transaction
     const result = await db.transaction(async (tx) => {
@@ -199,38 +213,49 @@ router.post('/cycle-counts/start', authorized('ADMIN', 'inventory-items.manage')
     const userId = req.user!.id;
     const { inventoryTypeId, zoneId, countType, binIds } = req.body;
 
-    // Generate cycle count number: CC-yyyymm-xxxx
-    const now = new Date();
-    const mm = (now.getMonth() + 1).toString().padStart(2, '0');
-    const yyyy = now.getFullYear();
-    const baseNumber = `CC-${yyyy}${mm}`;
-
-    // Find next sequence number for this period
-    const existingCounts = await db
-      .select({ countNumber: cycleCounts.countNumber })
-      .from(cycleCounts)
+    // Fetch document numbering configuration
+    const [docConfig] = await db
+      .select()
+      .from(documentNumberConfig)
       .where(
         and(
-          eq(cycleCounts.tenantId, tenantId),
-          ilike(cycleCounts.countNumber, `${baseNumber}%`)
+          eq(documentNumberConfig.tenantId, tenantId),
+          eq(documentNumberConfig.documentType, 'CYCCOUNT'),
+          eq(documentNumberConfig.isActive, true)
         )
-      );
+      )
+      .limit(1);
 
-    let sequence = 1;
-    if (existingCounts.length > 0) {
-      const sequences = existingCounts
-        .map(c => {
-          const match = c.countNumber.match(/-(\d+)$/);
-          return match ? parseInt(match[1]) : 0;
-        })
-        .filter(n => n > 0);
-      
-      if (sequences.length > 0) {
-        sequence = Math.max(...sequences) + 1;
-      }
+    if (!docConfig) {
+      return res.status(500).json({
+        success: false,
+        message: 'Document numbering configuration not found for CYCCOUNT',
+      });
     }
 
-    const uniqueCountNumber = `${baseNumber}-${sequence.toString().padStart(4, '0')}`;
+    // Generate cycle count number via document numbering service
+    let uniqueCountNumber: string;
+    let documentHistoryId: string;
+    
+    try {
+      const docNumberResult = await generateDocumentNumber({
+        tenantId,
+        documentType: 'CYCCOUNT',
+        prefix1: docConfig.prefix1DefaultValue || null,
+        prefix2: docConfig.prefix2DefaultValue || null,
+        documentTableName: 'cycle_counts',
+        userId,
+      });
+      
+      uniqueCountNumber = docNumberResult.documentNumber;
+      documentHistoryId = docNumberResult.historyId;
+    } catch (error: any) {
+      console.error('Error generating cycle count number:', error.message);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to generate cycle count number',
+      });
+    }
 
     // Build query to get inventory items based on filters
     let query = db
@@ -411,6 +436,88 @@ router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.
     });
   } catch (error) {
     console.error('Error fetching filter options:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/modules/inventory-items/cycle-counts/search-sku
+ * Search for product by SKU and return bins with stock
+ */
+router.get('/cycle-counts/search-sku', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { sku } = req.query;
+
+    if (!sku || typeof sku !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'SKU parameter is required',
+      });
+    }
+
+    // Find product by SKU
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(
+        and(
+          eq(products.tenantId, tenantId),
+          eq(products.sku, sku.trim())
+        )
+      )
+      .limit(1);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'SKU not found',
+      });
+    }
+
+    // Find all bins with stock for this product
+    const inventoryWithBins = await db
+      .select({
+        inventoryItemId: inventoryItems.id,
+        binId: bins.id,
+        binName: bins.name,
+        shelfId: shelves.id,
+        shelfName: shelves.name,
+        aisleId: aisles.id,
+        aisleName: aisles.name,
+        zoneId: zones.id,
+        zoneName: zones.name,
+        warehouseId: warehouses.id,
+        warehouseName: warehouses.name,
+        availableQuantity: inventoryItems.availableQuantity,
+      })
+      .from(inventoryItems)
+      .innerJoin(bins, eq(inventoryItems.binId, bins.id))
+      .innerJoin(shelves, eq(bins.shelfId, shelves.id))
+      .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
+      .innerJoin(zones, eq(aisles.zoneId, zones.id))
+      .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+      .where(
+        and(
+          eq(inventoryItems.tenantId, tenantId),
+          eq(inventoryItems.productId, product.id)
+        )
+      )
+      .orderBy(warehouses.name, zones.name, aisles.name, shelves.name, bins.name);
+
+    res.json({
+      success: true,
+      data: {
+        product: {
+          id: product.id,
+          sku: product.sku,
+          name: product.name,
+        },
+        bins: inventoryWithBins,
+      },
+    });
+  } catch (error) {
+    console.error('Error searching SKU:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
