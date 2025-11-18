@@ -165,14 +165,26 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
         return;
       }
 
-      setCountItems(items.map((item: any) => ({
+      // Merge with existing count items (from manual SKU additions)
+      const newItems: CountItem[] = items.map((item: any) => ({
         ...item,
         countedQuantity: null,
         reason: '',
         notes: '',
-      })));
+      }));
+
+      // Create a set of existing item IDs for deduplication
+      const existingItemIds = new Set(countItems.map((item) => item.id));
+      const uniqueNewItems = newItems.filter((item) => !existingItemIds.has(item.id));
+
+      if (uniqueNewItems.length === 0) {
+        toast.warning('All items from selected bins are already in the count list');
+      } else {
+        setCountItems([...countItems, ...uniqueNewItems]);
+        toast.success(`Added ${uniqueNewItems.length} item(s) from selected bins`);
+      }
+      
       setItemsVisible(true);
-      toast.success(`${items.length} items loaded for counting`);
     } catch (error: any) {
       console.error('Error starting count:', error);
       toast.error(error.response?.data?.message || 'Failed to load count items');
