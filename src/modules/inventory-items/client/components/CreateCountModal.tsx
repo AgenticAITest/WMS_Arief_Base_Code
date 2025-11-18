@@ -81,6 +81,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
 
   const [selectedBinIds, setSelectedBinIds] = useState<string[]>([]);
   const [showBinPicker, setShowBinPicker] = useState(false);
+  const [inventoryTypeFilter, setInventoryTypeFilter] = useState<string>('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -117,6 +118,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
   const resetForm = () => {
     setSelectedBinIds([]);
     setShowBinPicker(false);
+    setInventoryTypeFilter('');
     setScheduledDate('');
     setNotes('');
     setItemsVisible(false);
@@ -153,6 +155,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
         params: {
           countType: 'partial',
           binIds: selectedBinIds.join(','),
+          inventoryTypeId: inventoryTypeFilter || undefined,
         },
       });
 
@@ -309,23 +312,58 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
     }
   };
 
-  const handleAddSkuBins = () => {
+  const handleAddSkuBins = async () => {
     if (selectedSkuBins.length === 0) {
       toast.error('Please select at least one bin to add');
       return;
     }
 
-    // Add selected bins to the main bin list
-    const newBinIds = selectedSkuBins.filter((binId) => !selectedBinIds.includes(binId));
-    if (newBinIds.length > 0) {
-      setSelectedBinIds([...selectedBinIds, ...newBinIds]);
-      toast.success(`Added ${newBinIds.length} bin(s) to count`);
-    }
+    if (!skuSearchResults) return;
 
-    // Clear SKU search
-    setSkuInput('');
-    setSkuSearchResults(null);
-    setSelectedSkuBins([]);
+    try {
+      // Get the selected bin details from search results
+      const selectedBinDetails = skuSearchResults.bins.filter((bin) =>
+        selectedSkuBins.includes(bin.binId)
+      );
+
+      // Create count items from selected bins
+      const newCountItems: CountItem[] = selectedBinDetails.map((bin) => ({
+        id: bin.inventoryItemId,
+        productId: skuSearchResults.product.id,
+        productSku: skuSearchResults.product.sku,
+        productName: skuSearchResults.product.name,
+        binId: bin.binId,
+        binName: bin.binName,
+        shelfName: bin.shelfName,
+        aisleName: bin.aisleName,
+        zoneName: bin.zoneName,
+        warehouseName: bin.warehouseName,
+        systemQuantity: bin.availableQuantity,
+        countedQuantity: null,
+        reason: '',
+        notes: '',
+      }));
+
+      // Filter out duplicates (items already in the count list)
+      const existingItemIds = new Set(countItems.map((item) => item.id));
+      const uniqueNewItems = newCountItems.filter((item) => !existingItemIds.has(item.id));
+
+      if (uniqueNewItems.length === 0) {
+        toast.warning('All selected items are already in the count list');
+      } else {
+        setCountItems([...countItems, ...uniqueNewItems]);
+        setItemsVisible(true);
+        toast.success(`Added ${uniqueNewItems.length} item(s) to count list`);
+      }
+
+      // Clear SKU search
+      setSkuInput('');
+      setSkuSearchResults(null);
+      setSelectedSkuBins([]);
+    } catch (error: any) {
+      console.error('Error adding SKU items:', error);
+      toast.error('Failed to add items to count list');
+    }
   };
 
   const handleToggleSkuBin = (binId: string) => {
@@ -336,9 +374,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
     }
   };
 
-  const filteredBins = filterOptions?.bins || [];
-
-  const availableBins = filteredBins.filter(
+  const availableBins = (filterOptions?.bins || []).filter(
     (bin) => !selectedBinIds.includes(bin.id)
   );
 
@@ -354,6 +390,27 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
 
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4">
+            {/* Inventory Type Filter */}
+            <div className="space-y-2">
+              <Label htmlFor="inventoryType">Inventory Type Filter (Optional)</Label>
+              <Select value={inventoryTypeFilter} onValueChange={setInventoryTypeFilter}>
+                <SelectTrigger id="inventoryType">
+                  <SelectValue placeholder="All Inventory Types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All Inventory Types</SelectItem>
+                  {filterOptions?.inventoryTypes.map((type) => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                When selected, only items of this type from chosen bins will be loaded
+              </p>
+            </div>
+
             <div className="space-y-2">
                 <Label>Bins to Count (Optional)</Label>
                 <div className="flex flex-wrap gap-2 mb-2">
