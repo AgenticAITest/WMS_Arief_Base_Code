@@ -405,19 +405,30 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
             {/* Inventory Type Filter */}
             <div className="space-y-2">
               <Label htmlFor="inventoryType">Inventory Type Filter (Optional)</Label>
-              <Select value={inventoryTypeFilter} onValueChange={setInventoryTypeFilter}>
-                <SelectTrigger id="inventoryType">
-                  <SelectValue placeholder="All Inventory Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Inventory Types</SelectItem>
-                  {filterOptions?.inventoryTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex gap-2">
+                <Select value={inventoryTypeFilter} onValueChange={setInventoryTypeFilter}>
+                  <SelectTrigger id="inventoryType">
+                    <SelectValue placeholder="All Inventory Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterOptions?.inventoryTypes.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {inventoryTypeFilter && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setInventoryTypeFilter('')}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
                 When selected, only items of this type from chosen bins will be loaded
               </p>
