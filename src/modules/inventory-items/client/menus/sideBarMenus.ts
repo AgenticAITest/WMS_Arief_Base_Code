@@ -44,7 +44,7 @@ export const adjustmentSidebarMenus = {
 };
 
 export const cycleCountSidebarMenus = {
-  id: 'inventory-items',
+  id: 'inventory-cycle-count',
   title: 'Cycle Count / Audit',
   url: '/console/modules/inventory-items/cycle-count',
   icon: ClipboardCheck,

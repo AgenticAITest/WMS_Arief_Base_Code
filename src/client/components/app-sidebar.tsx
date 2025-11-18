@@ -191,14 +191,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const navItems = React.useMemo(() => {
     const staticItems = data.navMain.filter(item => item.id !== 'sales-order' && item.id !== 'purchase-order');
-    const inventoryItemsIndex = staticItems.findIndex(item => item.id === 'inventory-items');
+    const cycleCountIndex = staticItems.findIndex(item => item.id === 'inventory-cycle-count');
     
-    if (inventoryItemsIndex >= 0) {
+    if (cycleCountIndex >= 0) {
       return [
-        ...staticItems.slice(0, inventoryItemsIndex + 1),
+        ...staticItems.slice(0, cycleCountIndex + 1),
         dynamicPurchaseOrderMenu,
         dynamicSalesOrderMenu,
-        ...staticItems.slice(inventoryItemsIndex + 1),
+        ...staticItems.slice(cycleCountIndex + 1),
       ];
     }
     
