@@ -27,6 +27,7 @@ export const inventoryItemsSidebarMenus = {
 
 export const adjustmentSidebarMenus = {
   id: 'inventory-adjustment',
+  moduleId: 'inventory-items',
   title: 'Adjustment',
   url: '/console/modules/inventory-items/adjustment',
   icon: Settings,
@@ -45,6 +46,7 @@ export const adjustmentSidebarMenus = {
 
 export const cycleCountSidebarMenus = {
   id: 'inventory-cycle-count',
+  moduleId: 'inventory-items',
   title: 'Cycle Count / Audit',
   url: '/console/modules/inventory-items/cycle-count',
   icon: ClipboardCheck,
