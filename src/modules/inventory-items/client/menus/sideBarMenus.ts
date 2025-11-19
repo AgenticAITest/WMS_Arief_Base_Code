@@ -41,6 +41,13 @@ export const adjustmentSidebarMenus = {
       roles: "ADMIN",
       permissions: "inventory-items.view",
     },
+    {
+      id: "adjustment-approve",
+      title: "Approve",
+      url: "/console/modules/inventory-items/adjustment/approve",
+      roles: "ADMIN",
+      permissions: "inventory-items.view",
+    },
   ],
 };
 
