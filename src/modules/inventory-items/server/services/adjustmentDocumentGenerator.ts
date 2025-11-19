@@ -432,7 +432,8 @@ export class AdjustmentDocumentGenerator {
 
   static async generateAndSaveDocument(
     adjustmentData: AdjustmentDocumentData,
-    userId: string
+    userId: string,
+    txClient?: any
   ): Promise<string> {
     try {
       // Generate HTML content
@@ -475,8 +476,11 @@ export class AdjustmentDocumentGenerator {
         fileName
       );
 
+      // Use transaction client if provided, otherwise use global db
+      const dbClient = txClient || db;
+
       // Save document metadata to database
-      await db.insert(generatedDocuments).values({
+      await dbClient.insert(generatedDocuments).values({
         tenantId: adjustmentData.tenantId,
         documentType: 'ADJUSTMENT',
         documentNumber: adjustmentData.adjustmentNumber,

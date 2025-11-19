@@ -12,9 +12,10 @@ import { eq, and, desc, count, ilike, sql, or, inArray } from 'drizzle-orm';
 import { logAudit, getClientIp } from '@server/services/auditService';
 import { v4 as uuidv4 } from 'uuid';
 import { AdjustmentDocumentGenerator } from '../services/adjustmentDocumentGenerator';
-import { user } from '@server/lib/db/schemas/system';
+import { user } from '@server/lib/db/schema/system';
 
 const router = express.Router();
+
 
 /**
  * GET /api/modules/inventory-items/adjustments
@@ -682,8 +683,8 @@ router.post('/adjustments/:id/reject', authorized('ADMIN', 'inventory-items.mana
       });
     }
 
-    // Reject adjustment in transaction
-    await db.transaction(async (tx) => {
+    // Reject adjustment in transaction (ensures atomic operation)
+    const result = await db.transaction(async (tx) => {
       // Update adjustment status to 'rejected'
       await tx
         .update(adjustments)
@@ -706,17 +707,19 @@ router.post('/adjustments/:id/reject', authorized('ADMIN', 'inventory-items.mana
           .where(eq(cycleCounts.id, adjustment.cycleCountId));
       }
 
-      // Log audit trail
-      await logAudit({
-        tenantId,
-        userId,
-        module: 'inventory-items',
-        action: 'reject',
-        resourceType: 'adjustment',
-        resourceId: id,
-        description: `Rejected adjustment ${adjustment.adjustmentNumber}`,
-        ipAddress: getClientIp(req),
-      });
+      return { success: true };
+    });
+
+    // Log audit trail (outside transaction for safety)
+    await logAudit({
+      tenantId,
+      userId,
+      module: 'inventory-items',
+      action: 'reject',
+      resourceType: 'adjustment',
+      resourceId: id,
+      description: `Rejected adjustment ${adjustment.adjustmentNumber}`,
+      ipAddress: getClientIp(req),
     });
 
     res.json({
@@ -765,7 +768,42 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
       });
     }
 
-    // Approve adjustment in transaction
+    // Fetch detailed data for document generation
+    const adjustmentItemsData = await db
+      .select({
+        adjustmentItem: adjustmentItems,
+        product: products,
+        bin: bins,
+        shelf: shelves,
+        aisle: aisles,
+        zone: zones,
+        warehouse: warehouses,
+        inventoryItem: inventoryItems,
+      })
+      .from(adjustmentItems)
+      .leftJoin(inventoryItems, eq(adjustmentItems.inventoryItemId, inventoryItems.id))
+      .leftJoin(products, eq(inventoryItems.productId, products.id))
+      .leftJoin(bins, eq(inventoryItems.binId, bins.id))
+      .leftJoin(shelves, eq(bins.shelfId, shelves.id))
+      .leftJoin(aisles, eq(shelves.aisleId, aisles.id))
+      .leftJoin(zones, eq(aisles.zoneId, zones.id))
+      .leftJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+      .where(eq(adjustmentItems.adjustmentId, id));
+
+    // Fetch user names
+    const [createdByUser] = await db
+      .select({ firstName: user.firstName, lastName: user.lastName })
+      .from(user)
+      .where(eq(user.id, adjustment.createdBy))
+      .limit(1);
+
+    const [approvedByUser] = await db
+      .select({ firstName: user.firstName, lastName: user.lastName })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    // Approve adjustment in transaction (ensures atomic operation)
     await db.transaction(async (tx) => {
       // Get all adjustment items
       const items = await tx
@@ -803,56 +841,6 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
           .where(eq(cycleCounts.id, adjustment.cycleCountId));
       }
 
-      // Log audit trail
-      await logAudit({
-        tenantId,
-        userId,
-        module: 'inventory-items',
-        action: 'approve',
-        resourceType: 'adjustment',
-        resourceId: id,
-        description: `Approved adjustment ${adjustment.adjustmentNumber}`,
-        ipAddress: getClientIp(req),
-      });
-    });
-
-    // Generate HTML document (after transaction completes successfully)
-    try {
-      // Fetch detailed data for document generation
-      const adjustmentItems = await db
-        .select({
-          adjustmentItem: adjustmentItems,
-          product: products,
-          bin: bins,
-          shelf: shelves,
-          aisle: aisles,
-          zone: zones,
-          warehouse: warehouses,
-          inventoryItem: inventoryItems,
-        })
-        .from(adjustmentItems)
-        .leftJoin(inventoryItems, eq(adjustmentItems.inventoryItemId, inventoryItems.id))
-        .leftJoin(products, eq(inventoryItems.productId, products.id))
-        .leftJoin(bins, eq(inventoryItems.binId, bins.id))
-        .leftJoin(shelves, eq(bins.shelfId, shelves.id))
-        .leftJoin(aisles, eq(shelves.aisleId, aisles.id))
-        .leftJoin(zones, eq(aisles.zoneId, zones.id))
-        .leftJoin(warehouses, eq(zones.warehouseId, warehouses.id))
-        .where(eq(adjustmentItems.adjustmentId, id));
-
-      // Fetch user names
-      const [createdByUser] = await db
-        .select({ firstName: user.firstName, lastName: user.lastName })
-        .from(user)
-        .where(eq(user.id, adjustment.createdBy))
-        .limit(1);
-
-      const [approvedByUser] = await db
-        .select({ firstName: user.firstName, lastName: user.lastName })
-        .from(user)
-        .where(eq(user.id, userId))
-        .limit(1);
-
       // Prepare document data
       const documentData = {
         adjustmentNumber: adjustment.adjustmentNumber,
@@ -869,7 +857,7 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
           ? `${approvedByUser.firstName} ${approvedByUser.lastName}`
           : 'Unknown',
         notes: adjustment.notes,
-        items: adjustmentItems.map((item) => {
+        items: adjustmentItemsData.map((item) => {
           const locationPath = [
             item.warehouse?.name,
             item.zone?.name,
@@ -894,13 +882,21 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
         }),
       };
 
-      // Generate and save document
-      await AdjustmentDocumentGenerator.generateAndSaveDocument(documentData, userId);
-    } catch (docError) {
-      console.error('Error generating adjustment document:', docError);
-      // Don't fail the entire operation if document generation fails
-      // The adjustment is already approved
-    }
+      // Generate and save document (inside transaction for atomicity)
+      await AdjustmentDocumentGenerator.generateAndSaveDocument(documentData, userId, tx);
+    });
+
+    // Log audit trail (outside transaction for safety)
+    await logAudit({
+      tenantId,
+      userId,
+      module: 'inventory-items',
+      action: 'approve',
+      resourceType: 'adjustment',
+      resourceId: id,
+      description: `Approved adjustment ${adjustment.adjustmentNumber}`,
+      ipAddress: getClientIp(req),
+    });
 
     res.json({
       success: true,
