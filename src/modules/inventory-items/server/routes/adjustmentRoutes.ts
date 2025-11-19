@@ -154,7 +154,8 @@ router.get('/adjustments/:id/document', authorized('ADMIN', 'inventory-items.vie
     }
 
     // Extract HTML file path from files JSONB column
-    const documentPath = document.files?.html?.path || null;
+    const files = document.files as any;
+    const documentPath = files?.html?.path || null;
 
     if (!documentPath) {
       return res.status(404).json({
@@ -168,7 +169,7 @@ router.get('/adjustments/:id/document', authorized('ADMIN', 'inventory-items.vie
       data: {
         documentPath,
         documentNumber: document.documentNumber,
-        generatedAt: document.files?.html?.generated_at,
+        generatedAt: files?.html?.generated_at,
       },
     });
   } catch (error) {

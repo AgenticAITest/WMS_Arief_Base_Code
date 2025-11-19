@@ -4,6 +4,7 @@ import InventoryItemsAdd from '../pages/InventoryItemsAdd';
 import StockInformation from '../pages/StockInformation';
 import { AdjustmentCreate } from '../pages/AdjustmentCreate';
 import { AdjustmentApprove } from '../pages/AdjustmentApprove';
+import { AdjustmentHistory } from '../pages/AdjustmentHistory';
 import Relocate from '../pages/Relocate';
 import CycleCountCreate from '../pages/CycleCountCreate';
 import CycleCountApprove from '../pages/CycleCountApprove';
@@ -24,6 +25,7 @@ export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
          },
          { path: 'create', Component: AdjustmentCreate },
          { path: 'approve', Component: AdjustmentApprove },
+         { path: 'history', Component: AdjustmentHistory },
        ]},
       { path: 'relocate', Component: Relocate },
       { 
