@@ -9,11 +9,12 @@ import {
   TableRow,
 } from '@client/components/ui/table';
 import { Badge } from '@client/components/ui/badge';
-import { Plus, Trash2, Eye } from 'lucide-react';
+import { Plus, Trash2, Eye, Pencil } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { CreateAdjustmentModal } from '../components/CreateAdjustmentModal';
 import { ViewAdjustmentModal } from '../components/ViewAdjustmentModal';
+import { EditAdjustmentModal } from '../components/EditAdjustmentModal';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -41,6 +42,7 @@ export const AdjustmentCreate: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [selectedAdjustmentId, setSelectedAdjustmentId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<Adjustment | null>(null);
@@ -90,6 +92,17 @@ export const AdjustmentCreate: React.FC = () => {
     }
   };
 
+  const handleEditCount = (id: string) => {
+    setSelectedAdjustmentId(id);
+    setEditModalOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpen(false);
+    setSelectedAdjustmentId(null);
+    fetchAdjustments();
+  };
+  
   const handleDelete = (item: Adjustment) => {
     setDeletingItem(item);
     setDeleteDialogOpen(true);
@@ -196,6 +209,17 @@ export const AdjustmentCreate: React.FC = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleEditCount(adjustment.id)}
+                        title="Edit"
+                        disabled={adjustment.status !== 'created'}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      
                       {adjustment.status === 'created' && (
                         <Button
                           size="sm"
@@ -221,12 +245,21 @@ export const AdjustmentCreate: React.FC = () => {
       />
 
       {selectedAdjustmentId && (
-        <ViewAdjustmentModal
-          open={viewModalOpen}
-          onOpenChange={setViewModalOpen}
-          adjustmentId={selectedAdjustmentId}
-          onSuccess={fetchAdjustments}
-        />
+        <>
+          <ViewAdjustmentModal
+            open={viewModalOpen}
+            onOpenChange={setViewModalOpen}
+            adjustmentId={selectedAdjustmentId}
+            onSuccess={fetchAdjustments}
+          />
+  
+          <EditAdjustmentModal
+            open={editModalOpen}
+            onOpenChange={setEditModalOpen}
+            adjustmentId={selectedAdjustmentId}
+            onSuccess={handleEditSuccess}
+          />
+        </>
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
