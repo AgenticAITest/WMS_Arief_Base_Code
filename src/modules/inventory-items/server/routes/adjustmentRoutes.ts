@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '@server/lib/db';
 import { adjustments, adjustmentItems } from '../lib/db/schemas/adjustment';
 import { inventoryItems } from '../lib/db/schemas/inventoryItems';
+import { cycleCounts } from '../lib/db/schemas/cycleCount';
 import { products } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { bins, shelves, aisles, zones, warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { documentNumberConfig } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
@@ -644,6 +645,189 @@ router.delete('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'),
   } catch (error) {
     console.error('Error deleting adjustment:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/modules/inventory-items/adjustments/:id/reject
+ * Reject an adjustment (only if status is 'created')
+ */
+router.post('/adjustments/:id/reject', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    // Check if adjustment exists and belongs to tenant
+    const [adjustment] = await db
+      .select()
+      .from(adjustments)
+      .where(and(eq(adjustments.id, id), eq(adjustments.tenantId, tenantId)))
+      .limit(1);
+
+    if (!adjustment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Adjustment not found',
+      });
+    }
+
+    // Only allow rejecting if status is 'created'
+    if (adjustment.status !== 'created') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot reject adjustment with status '${adjustment.status}'. Only 'created' adjustments can be rejected.`,
+      });
+    }
+
+    // Reject adjustment in transaction
+    await db.transaction(async (tx) => {
+      // Update adjustment status to 'rejected'
+      await tx
+        .update(adjustments)
+        .set({
+          status: 'rejected',
+          appliedAt: new Date(),
+          approvedBy: userId,
+        })
+        .where(eq(adjustments.id, id));
+
+      // If this is a cycle count adjustment, update the cycle count status
+      if (adjustment.cycleCountId && adjustment.type === 'cycle_count') {
+        await tx
+          .update(cycleCounts)
+          .set({
+            status: 'rejected',
+            completedDate: new Date().toISOString().split('T')[0],
+            approvedBy: userId,
+          })
+          .where(eq(cycleCounts.id, adjustment.cycleCountId));
+      }
+
+      // Log audit trail
+      await logAudit({
+        tenantId,
+        userId,
+        module: 'inventory-items',
+        action: 'reject',
+        resourceType: 'adjustment',
+        resourceId: id,
+        description: `Rejected adjustment ${adjustment.adjustmentNumber}`,
+        ipAddress: getClientIp(req),
+      });
+    });
+
+    res.json({
+      success: true,
+      message: 'Adjustment rejected successfully',
+    });
+  } catch (error: any) {
+    console.error('Error rejecting adjustment:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * POST /api/modules/inventory-items/adjustments/:id/approve
+ * Approve an adjustment (only if status is 'created')
+ * This will update inventory, generate document, and update cycle count if applicable
+ */
+router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    // Check if adjustment exists and belongs to tenant
+    const [adjustment] = await db
+      .select()
+      .from(adjustments)
+      .where(and(eq(adjustments.id, id), eq(adjustments.tenantId, tenantId)))
+      .limit(1);
+
+    if (!adjustment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Adjustment not found',
+      });
+    }
+
+    // Only allow approving if status is 'created'
+    if (adjustment.status !== 'created') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot approve adjustment with status '${adjustment.status}'. Only 'created' adjustments can be approved.`,
+      });
+    }
+
+    // Approve adjustment in transaction
+    await db.transaction(async (tx) => {
+      // Get all adjustment items
+      const items = await tx
+        .select()
+        .from(adjustmentItems)
+        .where(eq(adjustmentItems.adjustmentId, id));
+
+      // Apply each adjustment to inventory
+      for (const item of items) {
+        await tx
+          .update(inventoryItems)
+          .set({ availableQuantity: item.newQuantity })
+          .where(eq(inventoryItems.id, item.inventoryItemId));
+      }
+
+      // Update adjustment status to 'approved'
+      await tx
+        .update(adjustments)
+        .set({
+          status: 'approved',
+          appliedAt: new Date(),
+          approvedBy: userId,
+        })
+        .where(eq(adjustments.id, id));
+
+      // If this is a cycle count adjustment, update the cycle count status
+      if (adjustment.cycleCountId && adjustment.type === 'cycle_count') {
+        await tx
+          .update(cycleCounts)
+          .set({
+            status: 'approved',
+            completedDate: new Date().toISOString().split('T')[0],
+            approvedBy: userId,
+          })
+          .where(eq(cycleCounts.id, adjustment.cycleCountId));
+      }
+
+      // Log audit trail
+      await logAudit({
+        tenantId,
+        userId,
+        module: 'inventory-items',
+        action: 'approve',
+        resourceType: 'adjustment',
+        resourceId: id,
+        description: `Approved adjustment ${adjustment.adjustmentNumber}`,
+        ipAddress: getClientIp(req),
+      });
+    });
+
+    // Generate HTML document (after transaction completes successfully)
+    // This will be implemented in the next step with the AdjustmentDocumentGenerator
+    // For now, we'll add a placeholder
+
+    res.json({
+      success: true,
+      message: 'Adjustment approved successfully',
+    });
+  } catch (error: any) {
+    console.error('Error approving adjustment:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Internal server error' 
+    });
   }
 });
 
