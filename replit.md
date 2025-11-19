@@ -16,10 +16,17 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
 - `docs/WORKFLOW_LOGIC_ANALYSIS.md` - Comprehensive issue tracker separating actual bugs, incomplete features, and design improvements
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
 
-**🔄 Recent Changes (2025-11-18):**
-- Implemented Inventory Adjustment feature: Create adjustments with SKU search, reason codes, and quantity updates
-- Menu structure: Adjustment menu positioned between Inventory Items and Cycle Count with "Create" submenu
-- Adjustment workflow: Created → Applied (simplified workflow without approval step)
+**🔄 Recent Changes (2025-11-19):**
+- Implemented Inventory Adjustment Approve feature: Approve/Reject adjustments with transactional atomicity
+- Menu structure: Added "Approve" submenu to Adjustment menu for reviewing pending adjustments
+- Adjustment workflow: Created → Approved/Rejected (with inventory updates and HTML document generation)
+- Transactional integrity: All database operations (adjustment, inventory, cycle count, document metadata) wrapped in atomic transactions
+- Cycle count integration: Approving/rejecting cycle_count type adjustments automatically updates related cycle count status
+- Document generation: HTML documents stored in `storage/inventory/adjustment/tenants/{tenantId}/{yyyy}/` with metadata in `generated_documents` table
+
+**🔄 Previous Changes (2025-11-18):**
+- Implemented Inventory Adjustment Create feature: Create adjustments with SKU search, reason codes, and quantity updates
+- Document numbering: STOCKADJ-[PERIOD]-WH1-#### format
 
 **🔄 Previous Changes (2025-11-11):**
 - Implemented Sales Order Ship workflow: package-to-location assignment, transporter selection, inventory deduction, HTML document generation
