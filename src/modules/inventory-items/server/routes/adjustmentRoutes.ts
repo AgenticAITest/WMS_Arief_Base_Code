@@ -11,6 +11,8 @@ import { authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, sql, or, inArray } from 'drizzle-orm';
 import { logAudit, getClientIp } from '@server/services/auditService';
 import { v4 as uuidv4 } from 'uuid';
+import { AdjustmentDocumentGenerator } from '../services/adjustmentDocumentGenerator';
+import { user } from '@server/lib/db/schemas/system';
 
 const router = express.Router();
 
@@ -815,8 +817,90 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
     });
 
     // Generate HTML document (after transaction completes successfully)
-    // This will be implemented in the next step with the AdjustmentDocumentGenerator
-    // For now, we'll add a placeholder
+    try {
+      // Fetch detailed data for document generation
+      const adjustmentItems = await db
+        .select({
+          adjustmentItem: adjustmentItems,
+          product: products,
+          bin: bins,
+          shelf: shelves,
+          aisle: aisles,
+          zone: zones,
+          warehouse: warehouses,
+          inventoryItem: inventoryItems,
+        })
+        .from(adjustmentItems)
+        .leftJoin(inventoryItems, eq(adjustmentItems.inventoryItemId, inventoryItems.id))
+        .leftJoin(products, eq(inventoryItems.productId, products.id))
+        .leftJoin(bins, eq(inventoryItems.binId, bins.id))
+        .leftJoin(shelves, eq(bins.shelfId, shelves.id))
+        .leftJoin(aisles, eq(shelves.aisleId, aisles.id))
+        .leftJoin(zones, eq(aisles.zoneId, zones.id))
+        .leftJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+        .where(eq(adjustmentItems.adjustmentId, id));
+
+      // Fetch user names
+      const [createdByUser] = await db
+        .select({ firstName: user.firstName, lastName: user.lastName })
+        .from(user)
+        .where(eq(user.id, adjustment.createdBy))
+        .limit(1);
+
+      const [approvedByUser] = await db
+        .select({ firstName: user.firstName, lastName: user.lastName })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1);
+
+      // Prepare document data
+      const documentData = {
+        adjustmentNumber: adjustment.adjustmentNumber,
+        tenantId,
+        adjustmentId: id,
+        status: 'approved',
+        type: adjustment.type,
+        createdDate: adjustment.createdAt.toISOString(),
+        approvedDate: new Date().toISOString(),
+        createdBy: createdByUser
+          ? `${createdByUser.firstName} ${createdByUser.lastName}`
+          : 'Unknown',
+        approvedBy: approvedByUser
+          ? `${approvedByUser.firstName} ${approvedByUser.lastName}`
+          : 'Unknown',
+        notes: adjustment.notes,
+        items: adjustmentItems.map((item) => {
+          const locationPath = [
+            item.warehouse?.name,
+            item.zone?.name,
+            item.aisle?.name,
+            item.shelf?.name,
+            item.bin?.name,
+          ]
+            .filter(Boolean)
+            .join(' > ');
+
+          return {
+            productSku: item.product?.sku || 'N/A',
+            productName: item.product?.name || 'N/A',
+            binName: item.bin?.name || 'N/A',
+            location: locationPath || 'N/A',
+            systemQuantity: item.adjustmentItem.currentQuantity,
+            adjustedQuantity: item.adjustmentItem.newQuantity,
+            quantityDifference:
+              item.adjustmentItem.newQuantity - item.adjustmentItem.currentQuantity,
+            reasonCode: item.adjustmentItem.reasonCode,
+          };
+        }),
+      };
+
+      // Generate and save document
+      await AdjustmentDocumentGenerator.generateAndSaveDocument(documentData, userId);
+    } catch (docError) {
+      console.error('Error generating adjustment document:', docError);
+      // Don't fail the entire operation if document generation fails
+      // The adjustment is already approved
+    }
 
     res.json({
       success: true,
