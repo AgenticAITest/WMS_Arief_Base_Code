@@ -3,7 +3,6 @@ import InventoryItemsList from '../pages/InventoryItemsList';
 import InventoryItemsAdd from '../pages/InventoryItemsAdd';
 import StockInformation from '../pages/StockInformation';
 import { AdjustmentCreate } from '../pages/AdjustmentCreate';
-import AdjustmentDetail from '../pages/AdjustmentDetail';
 import Relocate from '../pages/Relocate';
 import CycleCountCreate from '../pages/CycleCountCreate';
 import CycleCountApprove from '../pages/CycleCountApprove';
@@ -23,7 +22,6 @@ export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
            loader: async () => redirect(`${basePath}/adjustment/create`)
          },
          { path: 'create', Component: AdjustmentCreate },
-         { path: ':id', Component: AdjustmentDetail },
        ]},
       { path: 'relocate', Component: Relocate },
       { 
