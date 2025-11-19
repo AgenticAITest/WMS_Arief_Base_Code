@@ -4,11 +4,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@client/components/ui/dialog';
 import { Label } from '@client/components/ui/label';
 import { Input } from '@client/components/ui/input';
-import { Button } from '@client/components/ui/button';
 import {
   Table,
   TableBody,
@@ -18,21 +16,10 @@ import {
   TableRow,
 } from '@client/components/ui/table';
 import { Badge } from '@client/components/ui/badge';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@client/components/ui/alert-dialog';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { Search, Edit, CheckCircle } from 'lucide-react';
-import { EditAdjustmentModal } from './EditAdjustmentModal';
+import { Search } from 'lucide-react';
 
 interface ViewAdjustmentModalProps {
   open: boolean;
@@ -51,9 +38,6 @@ export const ViewAdjustmentModal: React.FC<ViewAdjustmentModalProps> = ({
   const [adjustment, setAdjustment] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
-  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     if (open && adjustmentId) {
@@ -83,27 +67,6 @@ export const ViewAdjustmentModal: React.FC<ViewAdjustmentModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleApply = async () => {
-    try {
-      setApplying(true);
-      await axios.post(`/api/modules/inventory-items/adjustments/${adjustmentId}/apply`);
-      toast.success('Adjustment applied successfully');
-      await fetchAdjustmentDetails();
-      if (onSuccess) onSuccess();
-    } catch (error: any) {
-      console.error('Error applying adjustment:', error);
-      toast.error(error.response?.data?.message || 'Failed to apply adjustment');
-    } finally {
-      setApplying(false);
-      setApplyDialogOpen(false);
-    }
-  };
-
-  const handleEditSuccess = async () => {
-    await fetchAdjustmentDetails();
-    if (onSuccess) onSuccess();
   };
 
   const filteredItems = useMemo(() => {
@@ -268,50 +231,10 @@ export const ViewAdjustmentModal: React.FC<ViewAdjustmentModalProps> = ({
                 )}
               </div>
 
-              {adjustment.status === 'created' && (
-                <DialogFooter className="border-t pt-4">
-                  <Button variant="outline" onClick={() => setEditModalOpen(true)}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button onClick={() => setApplyDialogOpen(true)}>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Apply Adjustment
-                  </Button>
-                </DialogFooter>
-              )}
             </div>
           ) : null}
         </DialogContent>
       </Dialog>
-
-      {adjustment?.status === 'created' && (
-        <EditAdjustmentModal
-          open={editModalOpen}
-          onOpenChange={setEditModalOpen}
-          adjustmentId={adjustmentId}
-          onSuccess={handleEditSuccess}
-        />
-      )}
-
-      <AlertDialog open={applyDialogOpen} onOpenChange={setApplyDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Apply Adjustment</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to apply adjustment{' '}
-              <span className="font-mono font-semibold">{adjustment?.adjustmentNumber}</span>?
-              This will update the inventory quantities and cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={applying}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApply} disabled={applying}>
-              {applying ? 'Applying...' : 'Apply'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 };
