@@ -804,7 +804,7 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
       .limit(1);
 
     // Approve adjustment in transaction (ensures atomic operation)
-    await db.transaction(async (tx) => {
+    const documentPath = await db.transaction(async (tx) => {
       // Get all adjustment items
       const items = await tx
         .select()
@@ -879,7 +879,8 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
       };
 
       // Generate and save document (inside transaction for atomicity)
-      await AdjustmentDocumentGenerator.generateAndSaveDocument(documentData, userId, tx);
+      const path = await AdjustmentDocumentGenerator.generateAndSaveDocument(documentData, userId, tx);
+      return path;
     });
 
     // Log audit trail (outside transaction for safety)
@@ -892,6 +893,7 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
       resourceId: id,
       description: `Approved adjustment ${adjustment.adjustmentNumber}`,
       ipAddress: getClientIp(req),
+      documentPath,
     });
 
     res.json({
