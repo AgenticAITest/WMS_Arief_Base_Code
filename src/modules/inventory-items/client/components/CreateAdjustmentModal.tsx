@@ -75,7 +75,10 @@ export const CreateAdjustmentModal: React.FC<CreateAdjustmentModalProps> = ({
       inventoryItemId: string;
       binId: string;
       binName: string;
-      location: string;
+      shelfName: string;
+      aisleName: string;
+      zoneName: string;
+      warehouseName: string;
       availableQuantity: number;
     }>;
   } | null>(null);
@@ -136,7 +139,7 @@ export const CreateAdjustmentModal: React.FC<CreateAdjustmentModalProps> = ({
       productSku: skuSearchResults.product.sku,
       productName: skuSearchResults.product.name,
       binName: bin.binName,
-      location: bin.location,
+      location: `${bin.warehouseName} → ${bin.zoneName} → ${bin.aisleName} → ${bin.shelfName}`,
       systemQuantity: bin.availableQuantity,
       newQuantity: null,
       reasonCode: '',
@@ -286,49 +289,55 @@ export const CreateAdjustmentModal: React.FC<CreateAdjustmentModalProps> = ({
 
             {/* Search Results */}
             {skuSearchResults && (
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <div className="mb-3">
-                  <div className="font-semibold">{skuSearchResults.product.sku}</div>
-                  <div className="text-sm text-gray-600">{skuSearchResults.product.name}</div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">Select Bins:</div>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {skuSearchResults.bins.map((bin) => (
-                      <label
-                        key={bin.binId}
-                        className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedSkuBins.includes(bin.binId)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedSkuBins([...selectedSkuBins, bin.binId]);
-                            } else {
-                              setSelectedSkuBins(
-                                selectedSkuBins.filter((id) => id !== bin.binId)
-                              );
-                            }
-                          }}
-                          className="rounded"
-                        />
-                        <span className="text-sm flex-1">{bin.location}</span>
-                        <Badge variant="secondary">Qty: {bin.availableQuantity}</Badge>
-                      </label>
-                    ))}
+              <div className="border rounded-lg p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <div className="font-medium">{skuSearchResults.product.name}</div>
+                    <div className="text-sm text-muted-foreground">SKU: {skuSearchResults.product.sku}</div>
                   </div>
                   <Button
                     type="button"
+                    size="sm"
                     onClick={handleAddSelectedBins}
                     disabled={selectedSkuBins.length === 0}
-                    size="sm"
-                    className="w-full mt-2"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Selected ({selectedSkuBins.length})
                   </Button>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {skuSearchResults.bins.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No bins with stock found</p>
+                  ) : (
+                    skuSearchResults.bins.map((bin) => (
+                      <div
+                        key={bin.binId}
+                        className={`p-2 rounded border cursor-pointer ${
+                          selectedSkuBins.includes(bin.binId)
+                            ? 'bg-primary/10 border-primary'
+                            : 'hover:bg-accent border-transparent'
+                        }`}
+                        onClick={() => {
+                          if (selectedSkuBins.includes(bin.binId)) {
+                            setSelectedSkuBins(selectedSkuBins.filter((id) => id !== bin.binId));
+                          } else {
+                            setSelectedSkuBins([...selectedSkuBins, bin.binId]);
+                          }
+                        }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="text-sm font-medium">{bin.binName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {bin.warehouseName} → {bin.zoneName} → {bin.aisleName} → {bin.shelfName}
+                            </div>
+                          </div>
+                          <div className="text-sm font-medium">Qty: {bin.availableQuantity}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             )}
