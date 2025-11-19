@@ -15,7 +15,14 @@ export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
       { index: true, Component: InventoryItemsList },
       { path: 'add', Component: InventoryItemsAdd },
       { path: 'stock-information', Component: StockInformation },
-      { path: 'adjustment', Component: AdjustmentCreate },
+      { path: 'adjustment', 
+       children: [
+         { 
+           index: true, 
+           loader: async () => redirect(`${basePath}/adjustment/create`)
+         },
+         { path: 'create', Component: AdjustmentCreate },
+       ]},
       { path: 'relocate', Component: Relocate },
       { 
         path: 'cycle-count', 
