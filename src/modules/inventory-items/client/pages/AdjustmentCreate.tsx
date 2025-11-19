@@ -13,6 +13,7 @@ import { Plus, Trash2, Eye } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { CreateAdjustmentModal } from '../components/CreateAdjustmentModal';
+import { ViewAdjustmentModal } from '../components/ViewAdjustmentModal';
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -39,6 +40,8 @@ export const AdjustmentCreate: React.FC = () => {
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedAdjustmentId, setSelectedAdjustmentId] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<Adjustment | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -187,7 +190,8 @@ export const AdjustmentCreate: React.FC = () => {
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          window.location.href = `/console/modules/inventory-items/adjustment/${adjustment.id}`;
+                          setSelectedAdjustmentId(adjustment.id);
+                          setViewModalOpen(true);
                         }}
                       >
                         <Eye className="w-4 h-4" />
@@ -215,6 +219,15 @@ export const AdjustmentCreate: React.FC = () => {
         onOpenChange={setModalOpen}
         onSuccess={fetchAdjustments}
       />
+
+      {selectedAdjustmentId && (
+        <ViewAdjustmentModal
+          open={viewModalOpen}
+          onOpenChange={setViewModalOpen}
+          adjustmentId={selectedAdjustmentId}
+          onSuccess={fetchAdjustments}
+        />
+      )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
