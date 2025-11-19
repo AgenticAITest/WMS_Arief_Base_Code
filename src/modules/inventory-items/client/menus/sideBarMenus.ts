@@ -48,6 +48,13 @@ export const adjustmentSidebarMenus = {
       roles: "ADMIN",
       permissions: "inventory-items.view",
     },
+    {
+      id: "adjustment-history",
+      title: "History",
+      url: "/console/modules/inventory-items/adjustment/history",
+      roles: "ADMIN",
+      permissions: "inventory-items.view",
+    },
   ],
 };
 
