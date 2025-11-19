@@ -5,7 +5,7 @@ import { inventoryItems } from '../lib/db/schemas/inventoryItems';
 import { cycleCounts } from '../lib/db/schemas/cycleCount';
 import { products } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { bins, shelves, aisles, zones, warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
-import { documentNumberConfig } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
+import { documentNumberConfig, generatedDocuments } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
 import { generateDocumentNumber } from '@modules/document-numbering/server/services/documentNumberService';
 import { authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, sql, or, inArray } from 'drizzle-orm';
@@ -105,6 +105,74 @@ router.get('/adjustments/:id', authorized('ADMIN', 'inventory-items.view'), asyn
     });
   } catch (error) {
     console.error('Error fetching adjustment:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/modules/inventory-items/adjustments/:id/document
+ * Get generated document path for an adjustment
+ */
+router.get('/adjustments/:id/document', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { id } = req.params;
+
+    // Verify adjustment belongs to tenant
+    const [adjustment] = await db
+      .select()
+      .from(adjustments)
+      .where(and(eq(adjustments.id, id), eq(adjustments.tenantId, tenantId)))
+      .limit(1);
+
+    if (!adjustment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Adjustment not found',
+      });
+    }
+
+    // Fetch document from generated_documents table
+    const [document] = await db
+      .select()
+      .from(generatedDocuments)
+      .where(
+        and(
+          eq(generatedDocuments.tenantId, tenantId),
+          eq(generatedDocuments.referenceType, 'adjustment'),
+          eq(generatedDocuments.referenceId, id),
+          eq(generatedDocuments.documentType, 'ADJUSTMENT')
+        )
+      )
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found for this adjustment',
+      });
+    }
+
+    // Extract HTML file path from files JSONB column
+    const documentPath = document.files?.html?.path || null;
+
+    if (!documentPath) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document path not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        documentPath,
+        documentNumber: document.documentNumber,
+        generatedAt: document.files?.html?.generated_at,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching adjustment document:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
