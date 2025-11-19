@@ -155,8 +155,8 @@ export const AdjustmentHistory: React.FC = () => {
                 <TableHead>Items</TableHead>
                 <TableHead>Created Date</TableHead>
                 <TableHead>Processed Date</TableHead>
-                <TableHead>Created By</TableHead>
-                <TableHead>Processed By</TableHead>
+                <TableHead hidden>Created By</TableHead>
+                <TableHead hidden>Processed By</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -175,8 +175,8 @@ export const AdjustmentHistory: React.FC = () => {
                       ? format(new Date(adjustment.appliedAt), 'MMM dd, yyyy HH:mm')
                       : '-'}
                   </TableCell>
-                  <TableCell>{adjustment.createdBy}</TableCell>
-                  <TableCell>{adjustment.approvedBy || '-'}</TableCell>
+                  <TableCell hidden>{adjustment.createdBy}</TableCell>
+                  <TableCell hidden>{adjustment.approvedBy || '-'}</TableCell>
                   <TableCell>{getStatusBadge(adjustment.status)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
