@@ -138,7 +138,7 @@ router.get('/adjustments/:id/items', authorized('ADMIN', 'inventory-items.view')
       .where(eq(adjustmentItems.adjustmentId, id));
 
     // Get paginated items with full details
-    const items = await db
+    const itemsData = await db
       .select({
         id: adjustmentItems.id,
         adjustmentId: adjustmentItems.adjustmentId,
@@ -174,6 +174,19 @@ router.get('/adjustments/:id/items', authorized('ADMIN', 'inventory-items.view')
       .orderBy(adjustmentItems.createdAt)
       .limit(limit)
       .offset(offset);
+
+    // Map to frontend-friendly format
+    const items = itemsData.map((item) => {
+      const locationParts = [item.warehouseName, item.zoneName, item.aisleName, item.shelfName].filter(Boolean);
+      return {
+        ...item,
+        systemQuantity: item.oldQuantity,
+        adjustedQuantity: item.newQuantity,
+        location: locationParts.join(' → ') || '-',
+        reasonCode: item.reasonCode || '',
+        notes: item.notes || '',
+      };
+    });
 
     res.json({
       success: true,

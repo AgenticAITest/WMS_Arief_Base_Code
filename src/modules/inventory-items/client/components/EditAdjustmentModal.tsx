@@ -115,10 +115,10 @@ export const EditAdjustmentModal: React.FC<EditAdjustmentModalProps> = ({
           productSku: item.productSku,
           productName: item.productName,
           binName: item.binName,
-          location: item.location,
-          systemQuantity: item.systemQuantity,
-          newQuantity: item.adjustedQuantity,
-          reasonCode: item.reasonCode,
+          location: item.location || '-',
+          systemQuantity: item.systemQuantity || item.oldQuantity || 0,
+          newQuantity: item.adjustedQuantity || item.newQuantity,
+          reasonCode: item.reasonCode || '',
           notes: item.notes || '',
         }))
       );
