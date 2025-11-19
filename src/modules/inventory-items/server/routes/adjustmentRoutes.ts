@@ -792,13 +792,13 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
 
     // Fetch user names
     const [createdByUser] = await db
-      .select({ firstName: user.firstName, lastName: user.lastName })
+      .select({ fullname: user.fullname })
       .from(user)
       .where(eq(user.id, adjustment.createdBy))
       .limit(1);
 
     const [approvedByUser] = await db
-      .select({ firstName: user.firstName, lastName: user.lastName })
+      .select({ fullname: user.fullname })
       .from(user)
       .where(eq(user.id, userId))
       .limit(1);
@@ -850,12 +850,8 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
         type: adjustment.type,
         createdDate: adjustment.createdAt.toISOString(),
         approvedDate: new Date().toISOString(),
-        createdBy: createdByUser
-          ? `${createdByUser.firstName} ${createdByUser.lastName}`
-          : 'Unknown',
-        approvedBy: approvedByUser
-          ? `${approvedByUser.firstName} ${approvedByUser.lastName}`
-          : 'Unknown',
+        createdBy: createdByUser?.fullname || 'Unknown',
+        approvedBy: approvedByUser?.fullname || 'Unknown',
         notes: adjustment.notes,
         items: adjustmentItemsData.map((item) => {
           const locationPath = [
@@ -873,10 +869,10 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
             productName: item.product?.name || 'N/A',
             binName: item.bin?.name || 'N/A',
             location: locationPath || 'N/A',
-            systemQuantity: item.adjustmentItem.currentQuantity,
+            systemQuantity: item.adjustmentItem.oldQuantity,
             adjustedQuantity: item.adjustmentItem.newQuantity,
             quantityDifference:
-              item.adjustmentItem.newQuantity - item.adjustmentItem.currentQuantity,
+              item.adjustmentItem.newQuantity - item.adjustmentItem.oldQuantity,
             reasonCode: item.adjustmentItem.reasonCode,
           };
         }),
