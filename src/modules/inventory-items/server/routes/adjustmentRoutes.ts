@@ -357,6 +357,226 @@ router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async
 });
 
 /**
+ * PUT /api/modules/inventory-items/adjustments/:id
+ * Update an adjustment (only if status is 'created')
+ */
+router.put('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+    const { id } = req.params;
+    const { notes, items } = req.body;
+
+    // Check if adjustment exists and belongs to tenant
+    const [adjustment] = await db
+      .select()
+      .from(adjustments)
+      .where(and(eq(adjustments.id, id), eq(adjustments.tenantId, tenantId)))
+      .limit(1);
+
+    if (!adjustment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Adjustment not found',
+      });
+    }
+
+    // Only allow editing if status is 'created'
+    if (adjustment.status !== 'created') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot edit adjustment with status '${adjustment.status}'. Only 'created' adjustments can be edited.`,
+      });
+    }
+
+    if (!items || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one adjustment item is required',
+      });
+    }
+
+    // Validate items structure
+    for (const item of items) {
+      if (!item.inventoryItemId || item.newQuantity === undefined || !item.reasonCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'Each item must have inventoryItemId, newQuantity, and reasonCode',
+        });
+      }
+      if (item.newQuantity < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'New quantity cannot be negative',
+        });
+      }
+    }
+
+    // Update adjustment in transaction
+    await db.transaction(async (tx) => {
+      // Update adjustment notes
+      await tx
+        .update(adjustments)
+        .set({ notes })
+        .where(eq(adjustments.id, id));
+
+      // Delete existing items
+      await tx
+        .delete(adjustmentItems)
+        .where(eq(adjustmentItems.adjustmentId, id));
+
+      // Process and insert new items
+      const itemsToInsert = [];
+
+      for (const item of items) {
+        // Get current inventory item to capture old quantity
+        const [inventoryItem] = await tx
+          .select()
+          .from(inventoryItems)
+          .where(
+            and(
+              eq(inventoryItems.id, item.inventoryItemId),
+              eq(inventoryItems.tenantId, tenantId)
+            )
+          )
+          .limit(1);
+
+        if (!inventoryItem) {
+          throw new Error(`Inventory item ${item.inventoryItemId} not found`);
+        }
+
+        const oldQuantity = inventoryItem.availableQuantity;
+        const newQuantity = item.newQuantity;
+        const quantityDifference = newQuantity - oldQuantity;
+
+        // Prepare adjustment item
+        itemsToInsert.push({
+          id: uuidv4(),
+          adjustmentId: id,
+          tenantId,
+          inventoryItemId: item.inventoryItemId,
+          oldQuantity,
+          newQuantity,
+          quantityDifference,
+          reasonCode: item.reasonCode,
+          notes: item.notes || null,
+        });
+      }
+
+      // Insert all adjustment items
+      await tx.insert(adjustmentItems).values(itemsToInsert);
+
+      // Log audit trail
+      await logAudit({
+        tenantId,
+        userId,
+        module: 'inventory-items',
+        action: 'adjustment.update',
+        resourceType: 'adjustment',
+        resourceId: id,
+        description: `Updated adjustment ${adjustment.adjustmentNumber}`,
+        ipAddress: getClientIp(req),
+      });
+    });
+
+    res.json({
+      success: true,
+      message: 'Adjustment updated successfully',
+    });
+  } catch (error: any) {
+    console.error('Error updating adjustment:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Internal server error' 
+    });
+  }
+});
+
+/**
+ * POST /api/modules/inventory-items/adjustments/:id/apply
+ * Apply an adjustment to inventory (only if status is 'created')
+ */
+router.post('/adjustments/:id/apply', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+    const { id } = req.params;
+
+    // Check if adjustment exists and belongs to tenant
+    const [adjustment] = await db
+      .select()
+      .from(adjustments)
+      .where(and(eq(adjustments.id, id), eq(adjustments.tenantId, tenantId)))
+      .limit(1);
+
+    if (!adjustment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Adjustment not found',
+      });
+    }
+
+    // Only allow applying if status is 'created'
+    if (adjustment.status !== 'created') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot apply adjustment with status '${adjustment.status}'. Only 'created' adjustments can be applied.`,
+      });
+    }
+
+    // Apply adjustment in transaction
+    await db.transaction(async (tx) => {
+      // Get all adjustment items
+      const items = await tx
+        .select()
+        .from(adjustmentItems)
+        .where(eq(adjustmentItems.adjustmentId, id));
+
+      // Apply each adjustment to inventory
+      for (const item of items) {
+        await tx
+          .update(inventoryItems)
+          .set({ availableQuantity: item.newQuantity })
+          .where(eq(inventoryItems.id, item.inventoryItemId));
+      }
+
+      // Update adjustment status to 'applied'
+      await tx
+        .update(adjustments)
+        .set({
+          status: 'applied',
+          appliedAt: new Date(),
+          appliedBy: userId,
+        })
+        .where(eq(adjustments.id, id));
+
+      // Log audit trail
+      await logAudit({
+        tenantId,
+        userId,
+        module: 'inventory-items',
+        action: 'adjustment.apply',
+        resourceType: 'adjustment',
+        resourceId: id,
+        description: `Applied adjustment ${adjustment.adjustmentNumber} to inventory`,
+        ipAddress: getClientIp(req),
+      });
+    });
+
+    res.json({
+      success: true,
+      message: 'Adjustment applied to inventory successfully',
+    });
+  } catch (error: any) {
+    console.error('Error applying adjustment:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Internal server error' 
+    });
+  }
+});
+
+/**
  * DELETE /api/modules/inventory-items/adjustments/:id
  * Delete an adjustment (only if status is 'created')
  */

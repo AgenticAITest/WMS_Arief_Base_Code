@@ -187,7 +187,7 @@ export const AdjustmentCreate: React.FC = () => {
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          window.location.href = `/modules/inventory-items/adjustments/${adjustment.id}`;
+                          window.location.href = `/console/modules/inventory-items/adjustment/${adjustment.id}`;
                         }}
                       >
                         <Eye className="w-4 h-4" />
