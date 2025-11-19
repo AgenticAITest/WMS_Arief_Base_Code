@@ -69,7 +69,16 @@ export const CreateAdjustmentModal: React.FC<CreateAdjustmentModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [skuInput, setSkuInput] = useState('');
   const [skuSearching, setSkuSearching] = useState(false);
-  const [skuSearchResults, setSkuSearchResults] = useState<any>(null);
+  const [skuSearchResults, setSkuSearchResults] = useState<{
+    product: { id: string; sku: string; name: string };
+    bins: Array<{
+      inventoryItemId: string;
+      binId: string;
+      binName: string;
+      location: string;
+      availableQuantity: number;
+    }>;
+  } | null>(null);
   const [selectedSkuBins, setSelectedSkuBins] = useState<string[]>([]);
   const [adjustmentItems, setAdjustmentItems] = useState<AdjustmentItem[]>([]);
   const [notes, setNotes] = useState('');
@@ -94,10 +103,10 @@ export const CreateAdjustmentModal: React.FC<CreateAdjustmentModalProps> = ({
         params: { sku: skuInput.trim() },
       });
 
-      const results = response.data.data;
-      if (results && results.length > 0) {
-        setSkuSearchResults(results[0]); // Take the first product
+      if (response.data.success) {
+        setSkuSearchResults(response.data.data);
         setSelectedSkuBins([]);
+        toast.success(`Found ${response.data.data.bins.length} bins with stock for SKU ${skuInput.trim()}`);
       }
     } catch (error: any) {
       console.error('Error searching SKU:', error);
@@ -118,14 +127,14 @@ export const CreateAdjustmentModal: React.FC<CreateAdjustmentModalProps> = ({
       return;
     }
 
-    const selectedBinData = skuSearchResults.bins.filter((bin: any) =>
-      selectedSkuBins.includes(bin.inventoryItemId)
+    const selectedBinData = skuSearchResults.bins.filter((bin) =>
+      selectedSkuBins.includes(bin.binId)
     );
 
-    const newItems: AdjustmentItem[] = selectedBinData.map((bin: any) => ({
+    const newItems: AdjustmentItem[] = selectedBinData.map((bin) => ({
       inventoryItemId: bin.inventoryItemId,
-      productSku: skuSearchResults.productSku,
-      productName: skuSearchResults.productName,
+      productSku: skuSearchResults.product.sku,
+      productName: skuSearchResults.product.name,
       binName: bin.binName,
       location: bin.location,
       systemQuantity: bin.availableQuantity,
@@ -279,27 +288,27 @@ export const CreateAdjustmentModal: React.FC<CreateAdjustmentModalProps> = ({
             {skuSearchResults && (
               <div className="border rounded-lg p-4 bg-gray-50">
                 <div className="mb-3">
-                  <div className="font-semibold">{skuSearchResults.productSku}</div>
-                  <div className="text-sm text-gray-600">{skuSearchResults.productName}</div>
+                  <div className="font-semibold">{skuSearchResults.product.sku}</div>
+                  <div className="text-sm text-gray-600">{skuSearchResults.product.name}</div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="text-sm font-medium">Select Bins:</div>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {skuSearchResults.bins.map((bin: any) => (
+                    {skuSearchResults.bins.map((bin) => (
                       <label
-                        key={bin.inventoryItemId}
+                        key={bin.binId}
                         className="flex items-center gap-2 p-2 rounded hover:bg-gray-100 cursor-pointer"
                       >
                         <input
                           type="checkbox"
-                          checked={selectedSkuBins.includes(bin.inventoryItemId)}
+                          checked={selectedSkuBins.includes(bin.binId)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setSelectedSkuBins([...selectedSkuBins, bin.inventoryItemId]);
+                              setSelectedSkuBins([...selectedSkuBins, bin.binId]);
                             } else {
                               setSelectedSkuBins(
-                                selectedSkuBins.filter((id) => id !== bin.inventoryItemId)
+                                selectedSkuBins.filter((id) => id !== bin.binId)
                               );
                             }
                           }}
