@@ -559,7 +559,6 @@ router.post('/adjustments/:id/apply', authorized('ADMIN', 'inventory-items.manag
         .set({
           status: 'applied',
           appliedAt: new Date(),
-          appliedBy: userId,
         })
         .where(eq(adjustments.id, id));
 
