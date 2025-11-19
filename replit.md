@@ -25,10 +25,12 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
   - Links adjustment to cycle count via `cycleCountId` field
   - Generates adjustment HTML document for auto-created adjustments
   - Uses existing reason codes: STOCK_FOUND (positive variance) / STOCK_LOST (negative variance)
-  - All operations wrapped in atomic transaction with comprehensive audit trail
+  - **Transaction Atomicity**: All operations (status update, document generation, adjustment creation, inventory validation) within single database transaction
+  - **Error Handling**: Missing inventory items validated before adjustment creation; file write failures trigger transaction rollback
+  - **Audit Trail**: Comprehensive logging for both cycle count approval and auto-created adjustments
 - **Adjustment History**: Added History submenu to view approved/rejected adjustments with document viewer
 - **Adjustment Approve**: Approve/Reject adjustments with transactional atomicity and inventory updates
-- **Menu structure**: Fixed duplicate React key warnings by assigning unique IDs to sidebar menu items
+- **Menu structure**: Fixed duplicate React key warnings by assigning unique IDs to sidebar menu items (inventory-items, adjustment, cycle-count)
 
 **🔄 Previous Changes (2025-11-18):**
 - Implemented Inventory Adjustment Create feature: Create adjustments with SKU search, reason codes, and quantity updates
