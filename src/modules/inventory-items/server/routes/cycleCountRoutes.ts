@@ -2,6 +2,7 @@ import express from 'express';
 import { db } from '@server/lib/db';
 import { cycleCounts, cycleCountItems } from '../lib/db/schemas/cycleCount';
 import { inventoryItems } from '../lib/db/schemas/inventoryItems';
+import { adjustments, adjustmentItems } from '../lib/db/schemas/adjustment';
 import { products, productTypes } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { bins, shelves, aisles, zones, warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { documentNumberConfig } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
@@ -10,6 +11,9 @@ import { authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, sql, or, inArray } from 'drizzle-orm';
 import { logAudit, getClientIp } from '@server/services/auditService';
 import { v4 as uuidv4 } from 'uuid';
+import { user } from '@server/lib/db/schema/system';
+import { CycleCountDocumentGenerator } from '../services/cycleCountDocumentGenerator';
+import { AdjustmentDocumentGenerator } from '../services/adjustmentDocumentGenerator';
 
 const router = express.Router();
 // Note: authenticated() and checkModuleAuthorization() are already applied by parent router
@@ -880,7 +884,7 @@ router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), a
 
 /**
  * PUT /api/modules/inventory-items/cycle-counts/:id/approve
- * Approve a cycle count
+ * Approve a cycle count, generate document, and auto-create adjustment for items with variances
  */
 router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -914,18 +918,229 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
       });
     }
 
-    // Update status to approved
-    await db
-      .update(cycleCounts)
-      .set({
-        status: 'approved',
-        completedDate: sql`CURRENT_DATE`,
-        approvedBy: userId,
-        updatedAt: new Date(),
-      })
-      .where(eq(cycleCounts.id, id));
+    // Execute transaction for approval, document generation, and adjustment creation
+    const result = await db.transaction(async (tx) => {
+      // Get cycle count items with full details (inside transaction)
+      const cycleCountItemsData = await tx
+        .select({
+          item: cycleCountItems,
+          product: products,
+          bin: bins,
+          shelf: shelves,
+          aisle: aisles,
+          zone: zones,
+          warehouse: warehouses,
+          inventoryItem: inventoryItems,
+        })
+        .from(cycleCountItems)
+        .innerJoin(products, eq(cycleCountItems.productId, products.id))
+        .innerJoin(bins, eq(cycleCountItems.binId, bins.id))
+        .innerJoin(shelves, eq(bins.shelfId, shelves.id))
+        .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
+        .innerJoin(zones, eq(aisles.zoneId, zones.id))
+        .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+        .leftJoin(inventoryItems, and(
+          eq(inventoryItems.productId, cycleCountItems.productId),
+          eq(inventoryItems.binId, cycleCountItems.binId),
+          eq(inventoryItems.tenantId, tenantId)
+        ))
+        .where(eq(cycleCountItems.cycleCountId, id));
 
-    // Audit log
+      if (cycleCountItemsData.length === 0) {
+        throw new Error('Cycle count has no items');
+      }
+
+      // Get user information for document (inside transaction)
+      const [creator, approver] = await Promise.all([
+        tx.select({ email: user.email }).from(user).where(eq(user.id, cycleCount.createdBy!)).limit(1),
+        tx.select({ email: user.email }).from(user).where(eq(user.id, userId)).limit(1)
+      ]);
+
+      const creatorEmail = creator?.[0]?.email || 'Unknown';
+      const approverEmail = approver?.[0]?.email || 'Unknown';
+      // Update cycle count status to approved
+      await tx
+        .update(cycleCounts)
+        .set({
+          status: 'approved',
+          completedDate: sql`CURRENT_DATE`,
+          approvedBy: userId,
+          updatedAt: new Date(),
+        })
+        .where(eq(cycleCounts.id, id));
+
+      // Generate cycle count document
+      const cycleCountDocData = {
+        cycleCountId: cycleCount.id,
+        countNumber: cycleCount.countNumber,
+        tenantId,
+        countType: cycleCount.countType || 'partial',
+        scheduledDate: cycleCount.scheduledDate || new Date(),
+        createdDate: cycleCount.createdAt,
+        approvedDate: new Date(),
+        createdBy: creatorEmail,
+        approvedBy: approverEmail,
+        notes: cycleCount.notes,
+        items: cycleCountItemsData.map(({ item, product, bin, shelf, aisle, zone, warehouse }) => ({
+          productSku: product.sku,
+          productName: product.name,
+          binName: bin.name,
+          shelfName: shelf.name,
+          aisleName: aisle.name,
+          zoneName: zone.name,
+          warehouseName: warehouse.name,
+          systemQuantity: item.systemQuantity,
+          countedQuantity: item.countedQuantity,
+          varianceQuantity: item.varianceQuantity,
+          reasonCode: item.reasonCode,
+          reasonDescription: item.reasonDescription,
+        })),
+      };
+
+      const cycleCountDocPath = await CycleCountDocumentGenerator.generateAndSave(cycleCountDocData, userId, tx);
+
+      // Filter items with variances (only create adjustment if there are differences)
+      const itemsWithVariances = cycleCountItemsData.filter(({ item }) => item.varianceQuantity !== null && item.varianceQuantity !== 0);
+
+      let adjustmentId: string | null = null;
+      let adjustmentNumber: string | null = null;
+      let adjustmentDocPath: string | null = null;
+
+      if (itemsWithVariances.length > 0) {
+        // Generate adjustment number
+        const [adjDocConfig] = await tx
+          .select()
+          .from(documentNumberConfig)
+          .where(
+            and(
+              eq(documentNumberConfig.tenantId, tenantId),
+              eq(documentNumberConfig.documentType, 'STOCKADJ'),
+              eq(documentNumberConfig.isActive, true)
+            )
+          )
+          .limit(1);
+
+        if (!adjDocConfig) {
+          throw new Error('Document numbering configuration not found for STOCKADJ');
+        }
+
+        const docNumberResult = await generateDocumentNumber({
+          tenantId,
+          documentType: 'STOCKADJ',
+          prefix1: adjDocConfig.prefix1DefaultValue || null,
+          prefix2: adjDocConfig.prefix2DefaultValue || null,
+          documentTableName: 'adjustments',
+          userId,
+        });
+
+        adjustmentNumber = docNumberResult.documentNumber;
+
+        // Create adjustment record
+        const [adjustment] = await tx
+          .insert(adjustments)
+          .values({
+            id: uuidv4(),
+            tenantId,
+            adjustmentNumber,
+            status: 'created',
+            type: 'cycle_count',
+            cycleCountId: id,
+            notes: `Auto-created from cycle count ${cycleCount.countNumber}`,
+            createdBy: userId,
+          })
+          .returning();
+
+        adjustmentId = adjustment.id;
+
+        // Validate all inventory items exist before creating adjustment items
+        const missingInventoryItems = itemsWithVariances.filter(({ inventoryItem }) => !inventoryItem);
+        if (missingInventoryItems.length > 0) {
+          const missingDetails = missingInventoryItems
+            .map(({ item, product }) => `${product?.sku || 'Unknown SKU'} in bin ${item.binId}`)
+            .join(', ');
+          throw new Error(`Cannot create adjustment: inventory records missing for: ${missingDetails}`);
+        }
+
+        // Create adjustment items (only for items with variances)
+        const adjustmentItemsToInsert = itemsWithVariances.map(({ item, inventoryItem }) => {
+          const quantityDifference = item.varianceQuantity!;
+          const reasonCode = quantityDifference > 0 ? 'STOCK_FOUND' : 'STOCK_LOST';
+
+          return {
+            id: uuidv4(),
+            adjustmentId: adjustment.id,
+            tenantId,
+            inventoryItemId: inventoryItem!.id,
+            oldQuantity: item.systemQuantity,
+            newQuantity: item.countedQuantity!,
+            quantityDifference,
+            reasonCode,
+            notes: item.reasonDescription || `Variance detected during cycle count ${cycleCount.countNumber}`,
+          };
+        });
+
+        await tx.insert(adjustmentItems).values(adjustmentItemsToInsert);
+
+        // Generate adjustment document
+        const adjustmentDocData = {
+          adjustmentId: adjustment.id,
+          adjustmentNumber,
+          tenantId,
+          type: 'cycle_count',
+          status: 'created',
+          createdDate: new Date().toISOString(),
+          approvedDate: null,
+          createdBy: approverEmail,
+          approvedBy: null,
+          notes: adjustment.notes,
+          items: await Promise.all(
+            adjustmentItemsToInsert.map(async (adjItem) => {
+              const [invDetails] = await tx
+                .select({
+                  product: products,
+                  bin: bins,
+                  shelf: shelves,
+                  aisle: aisles,
+                  zone: zones,
+                  warehouse: warehouses,
+                })
+                .from(inventoryItems)
+                .innerJoin(products, eq(inventoryItems.productId, products.id))
+                .innerJoin(bins, eq(inventoryItems.binId, bins.id))
+                .innerJoin(shelves, eq(bins.shelfId, shelves.id))
+                .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
+                .innerJoin(zones, eq(aisles.zoneId, zones.id))
+                .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
+                .where(eq(inventoryItems.id, adjItem.inventoryItemId))
+                .limit(1);
+
+              return {
+                productSku: invDetails.product.sku,
+                productName: invDetails.product.name,
+                binName: invDetails.bin.name,
+                location: `${invDetails.warehouse.name} / ${invDetails.zone.name} / ${invDetails.aisle.name} / ${invDetails.shelf.name} / ${invDetails.bin.name}`,
+                systemQuantity: adjItem.oldQuantity,
+                adjustedQuantity: adjItem.newQuantity,
+                quantityDifference: adjItem.quantityDifference,
+                reasonCode: adjItem.reasonCode,
+              };
+            })
+          ),
+        };
+
+        adjustmentDocPath = await AdjustmentDocumentGenerator.generateAndSaveDocument(adjustmentDocData, userId, tx);
+      }
+
+      return {
+        cycleCountDocPath,
+        adjustmentId,
+        adjustmentNumber,
+        adjustmentDocPath,
+        varianceCount: itemsWithVariances.length,
+      };
+    });
+
+    // Audit log for cycle count approval
     await logAudit({
       tenantId,
       userId,
@@ -934,12 +1149,44 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
       resourceType: 'cycle_count',
       resourceId: id,
       description: `Approved cycle count ${cycleCount.countNumber}`,
+      documentPath: result.cycleCountDocPath,
+      changedFields: {
+        itemsWithVariance: result.varianceCount,
+        adjustmentCreated: result.adjustmentId ? true : false,
+        adjustmentNumber: result.adjustmentNumber,
+      },
       ipAddress: getClientIp(req),
     });
+
+    // Audit log for auto-created adjustment (if created)
+    if (result.adjustmentId && result.adjustmentNumber) {
+      await logAudit({
+        tenantId,
+        userId,
+        module: 'inventory-items',
+        action: 'create',
+        resourceType: 'adjustment',
+        resourceId: result.adjustmentId,
+        description: `Auto-created adjustment ${result.adjustmentNumber} from cycle count ${cycleCount.countNumber}`,
+        documentPath: result.adjustmentDocPath || undefined,
+        changedFields: {
+          sourceType: 'cycle_count',
+          sourceCycleCount: cycleCount.countNumber,
+          itemsCount: result.varianceCount,
+        },
+        ipAddress: getClientIp(req),
+      });
+    }
 
     res.json({
       success: true,
       message: 'Cycle count approved successfully',
+      data: {
+        cycleCountDocument: result.cycleCountDocPath,
+        adjustmentCreated: result.adjustmentId ? true : false,
+        adjustmentNumber: result.adjustmentNumber,
+        itemsWithVariance: result.varianceCount,
+      },
     });
   } catch (error) {
     console.error('Error approving cycle count:', error);

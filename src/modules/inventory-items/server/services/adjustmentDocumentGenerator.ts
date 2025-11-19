@@ -10,9 +10,9 @@ interface AdjustmentDocumentData {
   status: string;
   type: string;
   createdDate: string;
-  approvedDate: string;
+  approvedDate: string | null;
   createdBy: string;
-  approvedBy: string;
+  approvedBy: string | null;
   notes: string | null;
   items: Array<{
     productSku: string;
@@ -439,8 +439,9 @@ export class AdjustmentDocumentGenerator {
       // Generate HTML content
       const htmlContent = this.generateHTML(adjustmentData);
 
-      // Extract year from approval date
-      const approvalYear = new Date(adjustmentData.approvedDate).getFullYear().toString();
+      // Extract year from approval date (or created date if not approved yet)
+      const dateForYear = adjustmentData.approvedDate || adjustmentData.createdDate;
+      const approvalYear = new Date(dateForYear).getFullYear().toString();
 
       // Create directory structure: storage/inventory/adjustment/tenants/{tenantId}/{yyyy}
       const dirPath = path.join(

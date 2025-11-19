@@ -17,12 +17,18 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
 
 **🔄 Recent Changes (2025-11-19):**
-- Implemented Inventory Adjustment Approve feature: Approve/Reject adjustments with transactional atomicity
-- Menu structure: Added "Approve" submenu to Adjustment menu for reviewing pending adjustments
-- Adjustment workflow: Created → Approved/Rejected (with inventory updates and HTML document generation)
-- Transactional integrity: All database operations (adjustment, inventory, cycle count, document metadata) wrapped in atomic transactions
-- Cycle count integration: Approving/rejecting cycle_count type adjustments automatically updates related cycle count status
-- Document generation: HTML documents stored in `storage/inventory/adjustment/tenants/{tenantId}/{yyyy}/` with metadata in `generated_documents` table
+- **Cycle Count Approval Enhancement**: Auto-creates adjustments when cycle count is approved
+  - Generates cycle count HTML document with variance details
+  - Document path: `storage/inventory/cycle-count/tenants/{tenantId}/{yyyy}/CYCCOUNT-{NUMBER}.html`
+  - Filters items with quantity differences (`varianceQuantity != 0`)
+  - Auto-creates adjustment (type='cycle_count', status='created') ONLY if variances exist
+  - Links adjustment to cycle count via `cycleCountId` field
+  - Generates adjustment HTML document for auto-created adjustments
+  - Uses existing reason codes: STOCK_FOUND (positive variance) / STOCK_LOST (negative variance)
+  - All operations wrapped in atomic transaction with comprehensive audit trail
+- **Adjustment History**: Added History submenu to view approved/rejected adjustments with document viewer
+- **Adjustment Approve**: Approve/Reject adjustments with transactional atomicity and inventory updates
+- **Menu structure**: Fixed duplicate React key warnings by assigning unique IDs to sidebar menu items
 
 **🔄 Previous Changes (2025-11-18):**
 - Implemented Inventory Adjustment Create feature: Create adjustments with SKU search, reason codes, and quantity updates
