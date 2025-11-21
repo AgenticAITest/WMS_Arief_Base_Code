@@ -678,7 +678,7 @@ router.get('/cycle-counts/:id/document', authorized('ADMIN', 'inventory-items.vi
           eq(generatedDocuments.tenantId, tenantId),
           eq(generatedDocuments.referenceType, 'cycle_count'),
           eq(generatedDocuments.referenceId, id),
-          eq(generatedDocuments.documentType, 'CYCLE_COUNT')
+          eq(generatedDocuments.documentType, 'CYCCOUNT')
         )
       )
       .limit(1);
