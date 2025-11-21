@@ -13,7 +13,6 @@ import { logAudit, getClientIp } from '@server/services/auditService';
 import { v4 as uuidv4 } from 'uuid';
 import { user } from '@server/lib/db/schema/system';
 import { CycleCountDocumentGenerator } from '../services/cycleCountDocumentGenerator';
-import { AdjustmentDocumentGenerator } from '../services/adjustmentDocumentGenerator';
 
 const router = express.Router();
 // Note: authenticated() and checkModuleAuthorization() are already applied by parent router
