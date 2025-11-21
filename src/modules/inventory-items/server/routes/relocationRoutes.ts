@@ -840,6 +840,7 @@ router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.man
         resourceId: updatedRelocation.id,
         description: `Approved relocation ${updatedRelocation.relocationNumber}`,
         ipAddress: getClientIp(req),
+        documentPath,
       });
 
       return { relocation: updatedRelocation, documentPath };
