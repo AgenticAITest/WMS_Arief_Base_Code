@@ -466,7 +466,7 @@ router.get('/cycle-counts/search-sku', authorized('ADMIN', 'inventory-items.view
       .where(
         and(
           eq(products.tenantId, tenantId),
-          eq(products.sku, sku.trim())
+          ilike(products.sku, `${sku.trim()}`)
         )
       )
       .limit(1);
