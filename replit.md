@@ -17,6 +17,13 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
 
 **🔄 Recent Changes (2025-11-21):**
+- **History Page UX Enhancements**: Unified document viewing pattern across all inventory history pages
+  - **Consistent Button Pattern**: Eye icon for viewing details, FileText icon for viewing generated documents
+  - **AdjustmentHistory**: Added ViewAdjustmentModal for details view, FileText button shows only for status='approved'
+  - **CycleCountHistory**: Added FileText button for document viewer, shows for status='approved' OR status='completed'
+  - **RelocationHistory**: Already follows same pattern (Eye for details, FileText for documents)
+  - **Backend Endpoints**: GET /api/modules/inventory-items/cycle-counts/:id/document to fetch cycle count document paths
+  - **Document Query**: All document endpoints query generated_documents table, validate tenant ownership, and return HTML file path from files JSONB column
 - **Inventory Relocation Feature**: Complete implementation for moving inventory between bins
   - **Database Schema**: relocations and relocation_items tables with UUID primary keys, proper indexes, tenant scoping
   - **Document Numbering**: RELOC-[PERIOD]-WH1-#### format configured
