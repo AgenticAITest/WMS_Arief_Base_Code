@@ -121,7 +121,7 @@ export const EditRelocationModal: React.FC<EditRelocationModalProps> = ({
           fromBinId: item.fromBinId,
           fromBinName: item.fromBinName,
           fromLocation: item.fromLocation,
-          availableQuantity: item.quantity,
+          availableQuantity: item.currentAvailableQuantity || 0,
           toBinId: item.toBinId,
           toBinName: item.toBinName,
           toLocation: item.toLocation,

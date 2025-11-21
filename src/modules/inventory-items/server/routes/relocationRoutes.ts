@@ -312,10 +312,12 @@ router.get('/relocations/:id/items', authorized('ADMIN', 'inventory-items.view')
       .select({
         id: relocationItems.id,
         relocationId: relocationItems.relocationId,
+        inventoryItemId: relocationItems.inventoryItemId,
         productId: relocationItems.productId,
         productSku: products.sku,
         productName: products.name,
         quantity: relocationItems.quantity,
+        currentAvailableQuantity: inventoryItems.availableQuantity,
         // From location
         fromBinId: relocationItems.fromBinId,
         fromBinName: sql<string>`from_bin.name`,
@@ -334,6 +336,7 @@ router.get('/relocations/:id/items', authorized('ADMIN', 'inventory-items.view')
       })
       .from(relocationItems)
       .leftJoin(products, eq(relocationItems.productId, products.id))
+      .leftJoin(inventoryItems, eq(relocationItems.inventoryItemId, inventoryItems.id))
       .leftJoin(sql`${bins} as from_bin`, sql`${relocationItems.fromBinId} = from_bin.id`)
       .leftJoin(sql`${shelves} as from_shelf`, sql`from_bin.shelf_id = from_shelf.id`)
       .leftJoin(sql`${aisles} as from_aisle`, sql`from_shelf.aisle_id = from_aisle.id`)
