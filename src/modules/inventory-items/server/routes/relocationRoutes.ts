@@ -633,31 +633,59 @@ router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.man
         .from(relocationItems)
         .where(eq(relocationItems.relocationId, id));
 
-      // Update inventory for each item
+      // Update inventory for each item with validation and locking
       for (const item of items) {
-        // Subtract from source bin
+        // Lock and validate source inventory in a single query
         const [fromInventory] = await tx
-          .select()
+          .select({
+            id: inventoryItems.id,
+            availableQuantity: inventoryItems.availableQuantity,
+            expiryDate: inventoryItems.expiryDate,
+            batchNumber: inventoryItems.batchNumber,
+            lotNumber: inventoryItems.lotNumber,
+            receivedDate: inventoryItems.receivedDate,
+            costPerUnit: inventoryItems.costPerUnit,
+            productSku: products.sku,
+            productName: products.name,
+            binName: bins.name,
+          })
           .from(inventoryItems)
+          .leftJoin(products, eq(inventoryItems.productId, products.id))
+          .leftJoin(bins, eq(inventoryItems.binId, bins.id))
           .where(eq(inventoryItems.id, item.inventoryItemId))
+          .for('update')
           .limit(1);
 
         if (!fromInventory) {
-          throw new Error(`Inventory item ${item.inventoryItemId} not found`);
+          throw new Error(`Inventory item not found in source bin`);
         }
 
+        // Validate current available quantity is sufficient
         if (fromInventory.availableQuantity < item.quantity) {
-          throw new Error(`Insufficient quantity in source bin for product ${item.productId}`);
+          throw new Error(
+            `Insufficient inventory for SKU "${fromInventory.productSku}" (${fromInventory.productName}) in bin "${fromInventory.binName}". ` +
+            `Current available: ${fromInventory.availableQuantity}, Required: ${item.quantity}. ` +
+            `Please edit the relocation to adjust quantities or cancel this relocation.`
+          );
         }
 
-        // Update source inventory (subtract quantity)
+        // Calculate new quantity and validate it won't be negative
+        const newQuantity = fromInventory.availableQuantity - item.quantity;
+        if (newQuantity < 0) {
+          throw new Error(
+            `Relocation would result in negative inventory for SKU "${fromInventory.productSku}" (${fromInventory.productName}) in bin "${fromInventory.binName}". ` +
+            `Current: ${fromInventory.availableQuantity}, Attempting to move: ${item.quantity}`
+          );
+        }
+
+        // Update source inventory (subtract quantity) using validated newQuantity
         await tx
           .update(inventoryItems)
           .set({
-            availableQuantity: fromInventory.availableQuantity - item.quantity,
+            availableQuantity: newQuantity,
             updatedAt: new Date(),
           })
-          .where(eq(inventoryItems.id, item.inventoryItemId));
+          .where(eq(inventoryItems.id, fromInventory.id));
 
         // Check if destination inventory exists
         const [toInventory] = await tx
