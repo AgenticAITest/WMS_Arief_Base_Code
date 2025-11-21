@@ -722,7 +722,8 @@ router.get('/cycle-counts/:id/items', authorized('ADMIN', 'inventory-items.view'
     // Format response
     const formattedItems = items.map(({ item, product, bin, shelf, aisle, zone, warehouse }) => ({
       id: item.id,
-      binLocation: `${zone.name}.${aisle.name}.${shelf.name}.${bin.name}`,
+      binLocation: `${warehouse.name} → ${zone.name} → ${aisle.name} → ${shelf.name}`,
+      binName: bin.name,
       binId: bin.id,
       productSku: product.sku,
       productName: product.name,

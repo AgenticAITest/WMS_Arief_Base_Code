@@ -225,7 +225,8 @@ export const EditCountModal: React.FC<EditCountModalProps> = ({
                             <TableCell className="font-medium">{item.productSku}</TableCell>
                             <TableCell>{item.productName}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {item.binLocation}
+                              <div className="font-medium">{item.binName}</div>
+                              <div className="text-xs">{item.binLocation}</div>
                             </TableCell>
                             <TableCell className="text-right">{item.systemQuantity}</TableCell>
                             <TableCell className="text-right">
