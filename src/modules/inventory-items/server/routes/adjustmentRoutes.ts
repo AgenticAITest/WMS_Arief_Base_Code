@@ -467,6 +467,14 @@ router.put('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'), as
       });
     }
 
+    // Prevent editing of system-generated cycle count adjustments
+    if (adjustment.type === 'cycle_count') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot edit cycle count adjustments. These are system-generated and linked to cycle count audits.',
+      });
+    }
+
     // Only allow editing if status is 'created'
     if (adjustment.status !== 'created') {
       return res.status(400).json({
@@ -682,6 +690,14 @@ router.delete('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'),
       return res.status(404).json({
         success: false,
         message: 'Adjustment not found',
+      });
+    }
+
+    // Prevent deletion of system-generated cycle count adjustments
+    if (adjustment.type === 'cycle_count') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete cycle count adjustments. These are system-generated and linked to cycle count audits.',
       });
     }
 
