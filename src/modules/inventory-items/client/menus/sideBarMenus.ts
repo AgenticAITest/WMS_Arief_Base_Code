@@ -74,6 +74,20 @@ export const relocateSidebarMenus = {
       roles: "ADMIN",
       permissions: "inventory-items.view",
     },
+    {
+      id: "relocate-approve",
+      title: "Approve",
+      url: "/console/modules/inventory-items/relocate/approve",
+      roles: "ADMIN",
+      permissions: "inventory-items.view",
+    },
+    {
+      id: "relocate-history",
+      title: "History",
+      url: "/console/modules/inventory-items/relocate/history",
+      roles: "ADMIN",
+      permissions: "inventory-items.view",
+    },
   ],
 };
 

@@ -1,0 +1,31 @@
+
+CREATE TABLE relocation (
+    id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL REFERENCES sys_tenant(id),
+    relocation_number VARCHAR(100) NOT NULL UNIQUE,
+    status varchar(50) [not null, note: "created, approved, rejected"]
+    created_by INTEGER REFERENCES sys_user(id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    approved_by INTEGER REFERENCES sys_user(id),
+    completed_at TIMESTAMP,
+
+    INDEX (tenant_id, relocation_number),
+    INDEX (from_bin_id),
+    INDEX (to_bin_id),
+    INDEX (product_id)
+);
+
+CREATE TABLE relocation_items (
+    id SERIAL PRIMARY KEY,
+    relocation_id integer [ref: > relocation.id, not null]
+    tenant_id INTEGER NOT NULL REFERENCES sys_tenant(id),
+    inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id),
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    quantity INTEGER NOT NULL,
+    from_bin_id INTEGER NOT NULL REFERENCES bins(id),
+    to_bin_id INTEGER NOT NULL REFERENCES bins(id),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+
+    INDEX (tenant_id)
+);
+
