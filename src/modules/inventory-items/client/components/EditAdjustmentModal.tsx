@@ -292,7 +292,10 @@ export const EditAdjustmentModal: React.FC<EditAdjustmentModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+          className="max-w-[90rem] sm:max-w-[90rem] max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
         <DialogHeader>
           <DialogTitle>Edit Inventory Adjustment</DialogTitle>
         </DialogHeader>

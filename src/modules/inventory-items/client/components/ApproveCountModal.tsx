@@ -235,7 +235,7 @@ export const ApproveCountModal: React.FC<ApproveCountModalProps> = ({
                             <TableCell className="font-medium">{item.productSku}</TableCell>
                             <TableCell>{item.productName}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {item.locationPath}
+                              {item.binLocation}
                             </TableCell>
                             <TableCell className="text-right">{item.systemQuantity}</TableCell>
                             <TableCell className="text-right">
