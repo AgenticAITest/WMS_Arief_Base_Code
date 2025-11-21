@@ -9,11 +9,12 @@ import {
 } from '@client/components/ui/table';
 import { Badge } from '@client/components/ui/badge';
 import { Button } from '@client/components/ui/button';
-import { Eye } from 'lucide-react';
+import { Eye, FileText } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
+import { ViewAdjustmentModal } from '../components/ViewAdjustmentModal';
 
 interface Adjustment {
   id: string;
@@ -33,6 +34,8 @@ export const AdjustmentHistory: React.FC = () => {
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
   const [selectedDocumentPath, setSelectedDocumentPath] = useState<string>('');
   const [selectedDocumentNumber, setSelectedDocumentNumber] = useState<string>('');
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedAdjustmentId, setSelectedAdjustmentId] = useState<string | null>(null);
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -79,6 +82,11 @@ export const AdjustmentHistory: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewAdjustment = (id: string) => {
+    setSelectedAdjustmentId(id);
+    setViewModalOpen(true);
   };
 
   const handleViewDocument = async (adjustmentId: string, adjustmentNumber: string) => {
@@ -181,14 +189,23 @@ export const AdjustmentHistory: React.FC = () => {
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        onClick={() => handleViewDocument(adjustment.id, adjustment.adjustmentNumber)}
-                        title="View Document"
+                        onClick={() => handleViewAdjustment(adjustment.id)}
+                        title="View Details"
                       >
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
+                        <Eye className="w-4 h-4" />
                       </Button>
+                      {adjustment.status === 'approved' && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewDocument(adjustment.id, adjustment.adjustmentNumber)}
+                          title="View Document"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -196,6 +213,14 @@ export const AdjustmentHistory: React.FC = () => {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {selectedAdjustmentId && (
+        <ViewAdjustmentModal
+          open={viewModalOpen}
+          onOpenChange={setViewModalOpen}
+          adjustmentId={selectedAdjustmentId}
+        />
       )}
 
       <DocumentViewerModal
