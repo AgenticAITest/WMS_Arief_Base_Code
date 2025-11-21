@@ -16,15 +16,22 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
 - `docs/WORKFLOW_LOGIC_ANALYSIS.md` - Comprehensive issue tracker separating actual bugs, incomplete features, and design improvements
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
 
-**🔄 Recent Changes (2025-11-19):**
+**🔄 Recent Changes (2025-11-21):**
+- **Cycle Count Adjustment Improvements**: Enhanced workflow for system-generated adjustments
+  - **Protection**: cycle_count type adjustments cannot be edited or deleted (backend validation + UI controls)
+  - **Reason Code Preservation**: Uses original reason code from cycle count item, not auto-assigned STOCK_FOUND/STOCK_LOST
+  - **Deferred Document Generation**: Adjustment HTML only generated when approved, not during cycle count approval
+  - Backend: Added type='cycle_count' validation to edit/delete endpoints
+  - Frontend: Edit/delete buttons hidden for cycle_count adjustments in AdjustmentCreate page
+  - Audit trail updated to reflect deferred document generation
+
+**🔄 Previous Changes (2025-11-19):**
 - **Cycle Count Approval Enhancement**: Auto-creates adjustments when cycle count is approved
   - Generates cycle count HTML document with variance details
   - Document path: `storage/inventory/cycle-count/tenants/{tenantId}/{yyyy}/CYCCOUNT-{NUMBER}.html`
   - Filters items with quantity differences (`varianceQuantity != 0`)
   - Auto-creates adjustment (type='cycle_count', status='created') ONLY if variances exist
   - Links adjustment to cycle count via `cycleCountId` field
-  - Generates adjustment HTML document for auto-created adjustments
-  - Uses existing reason codes: STOCK_FOUND (positive variance) / STOCK_LOST (negative variance)
   - **Transaction Atomicity**: All operations (status update, document generation, adjustment creation, inventory validation) within single database transaction
   - **Error Handling**: Missing inventory items validated before adjustment creation; file write failures trigger transaction rollback
   - **Audit Trail**: Comprehensive logging for both cycle count approval and auto-created adjustments
