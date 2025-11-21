@@ -6,6 +6,9 @@ import { AdjustmentCreate } from '../pages/AdjustmentCreate';
 import { AdjustmentApprove } from '../pages/AdjustmentApprove';
 import { AdjustmentHistory } from '../pages/AdjustmentHistory';
 import Relocate from '../pages/Relocate';
+import RelocationCreate from '../pages/RelocationCreate';
+import RelocationApprove from '../pages/RelocationApprove';
+import RelocationHistory from '../pages/RelocationHistory';
 import CycleCountCreate from '../pages/CycleCountCreate';
 import CycleCountApprove from '../pages/CycleCountApprove';
 import CycleCountHistory from '../pages/CycleCountHistory';
@@ -27,7 +30,18 @@ export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
          { path: 'approve', Component: AdjustmentApprove },
          { path: 'history', Component: AdjustmentHistory },
        ]},
-      { path: 'relocate', Component: Relocate },
+      { 
+        path: 'relocate', 
+        children: [
+          { 
+            index: true, 
+            loader: async () => redirect(`${basePath}/relocate/create`)
+          },
+          { path: 'create', Component: RelocationCreate },
+          { path: 'approve', Component: RelocationApprove },
+          { path: 'history', Component: RelocationHistory },
+        ]
+      },
       { 
         path: 'cycle-count', 
         children: [
