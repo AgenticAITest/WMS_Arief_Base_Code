@@ -26,7 +26,7 @@ export const inventoryItemsSidebarMenus = {
   };
 
 export const adjustmentSidebarMenus = {
-  id: 'inventory-items',
+  id: 'adjustment',
   moduleId: 'inventory-items',
   title: 'Adjustment',
   url: '/console/modules/inventory-items/adjustment',
@@ -59,7 +59,7 @@ export const adjustmentSidebarMenus = {
 };
 
 export const relocateSidebarMenus = {
-  id: 'inventory-items',
+  id: 'relocate',
   moduleId: 'inventory-items',
   title: 'Relocate',
   url: '/console/modules/inventory-items/relocate',
@@ -92,7 +92,7 @@ export const relocateSidebarMenus = {
 };
 
 export const cycleCountSidebarMenus = {
-  id: 'inventory-items',
+  id: 'cycle-count',
   moduleId: 'inventory-items',
   title: 'Cycle Count / Audit',
   url: '/console/modules/inventory-items/cycle-count',

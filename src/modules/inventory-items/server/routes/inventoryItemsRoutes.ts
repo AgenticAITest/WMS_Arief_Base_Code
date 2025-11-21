@@ -8,6 +8,7 @@ import { eq, and, desc, count, ilike, sql, or } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 import cycleCountRoutes from './cycleCountRoutes';
 import adjustmentRoutes from './adjustmentRoutes';
+import relocationRoutes from './relocationRoutes';
 
 const router = express.Router();
 router.use(authenticated());
@@ -18,6 +19,9 @@ router.use(cycleCountRoutes);
 
 // Mount adjustment routes
 router.use(adjustmentRoutes);
+
+// Mount relocation routes
+router.use(relocationRoutes);
 
 /**
  * @swagger
