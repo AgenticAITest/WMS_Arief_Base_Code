@@ -15,18 +15,11 @@ export const inventoryItemsSidebarMenus = {
         roles: "ADMIN",
         permissions: "inventory-items.view",
       },
-      {
-        id: "inventory-relocate",
-        title: "Relocate",
-        url: "/console/modules/inventory-items/relocate",
-        roles: "ADMIN",
-        permissions: "inventory-items.view",
-      },
     ],
   };
 
 export const adjustmentSidebarMenus = {
-  id: 'adjustment',
+  id: 'inventory-items',
   moduleId: 'inventory-items',
   title: 'Adjustment',
   url: '/console/modules/inventory-items/adjustment',
@@ -59,7 +52,7 @@ export const adjustmentSidebarMenus = {
 };
 
 export const relocateSidebarMenus = {
-  id: 'relocate',
+  id: 'inventory-items',
   moduleId: 'inventory-items',
   title: 'Relocate',
   url: '/console/modules/inventory-items/relocate',
@@ -92,7 +85,7 @@ export const relocateSidebarMenus = {
 };
 
 export const cycleCountSidebarMenus = {
-  id: 'cycle-count',
+  id: 'inventory-items',
   moduleId: 'inventory-items',
   title: 'Cycle Count / Audit',
   url: '/console/modules/inventory-items/cycle-count',
