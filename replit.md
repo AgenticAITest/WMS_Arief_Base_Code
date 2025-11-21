@@ -24,11 +24,13 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
   - **SKU Search**: Reuses cycle-count endpoint for consistency
   - **Bin Selection**: FROM bin (checkbox from search results), TO bin (dropdown, filtered to exclude from bin)
   - **Quantity Validation**: Cannot exceed available stock in FROM bin
-  - **Atomic Transactions**: All operations (inventory deduction from FROM bin, addition to TO bin, document generation, status changes) within single database transaction
+  - **Atomic Transactions**: All operations (inventory deduction from FROM bin, addition to TO bin, document generation, status changes) within single database transaction with row-level locking
   - **Document Generation**: HTML relocation documents only generated when relocation is approved (not during creation)
   - **Frontend Pages**: RelocationCreate (status='created'), RelocationApprove (pending), RelocationHistory (processed)
   - **Menu Structure**: Fixed duplicate React key warnings by assigning unique IDs to all sidebar menu items (inventory-items, inventory-relocate, adjustment, relocate, cycle-count)
   - **Audit Trail**: Comprehensive logging for relocation creation, updates, approvals, rejections
+  - **Edit Modal Enhancement**: Displays current available quantity from inventory_items (not saved relocation quantity) for accurate stock visibility
+  - **Approval Validation**: Row-level locking (SELECT FOR UPDATE) prevents negative inventory under concurrent approvals; detailed error messages show SKU, product name, bin name, current quantity, and requested quantity
 - **Cycle Count Adjustment Improvements**: Enhanced workflow for system-generated adjustments
   - **Protection**: cycle_count type adjustments cannot be edited or deleted (backend validation + UI controls)
   - **Reason Code Preservation**: Uses original reason code from cycle count item, not auto-assigned STOCK_FOUND/STOCK_LOST
