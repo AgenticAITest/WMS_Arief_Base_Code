@@ -1064,7 +1064,6 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
         // Create adjustment items (only for items with variances)
         const adjustmentItemsToInsert = itemsWithVariances.map(({ item, inventoryItem }) => {
           const quantityDifference = item.varianceQuantity!;
-          const reasonCode = quantityDifference > 0 ? 'STOCK_FOUND' : 'STOCK_LOST';
 
           return {
             id: uuidv4(),
@@ -1074,7 +1073,7 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
             oldQuantity: item.systemQuantity,
             newQuantity: item.countedQuantity!,
             quantityDifference,
-            reasonCode,
+            reasonCode: item.reasonCode || 'UNKNOWN',
             notes: item.reasonDescription || `Variance detected during cycle count ${cycleCount.countNumber}`,
           };
         });
