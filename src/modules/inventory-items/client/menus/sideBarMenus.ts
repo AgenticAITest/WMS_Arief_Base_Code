@@ -16,7 +16,7 @@ export const inventoryItemsSidebarMenus = {
         permissions: "inventory-items.view",
       },
       {
-        id: "relocate",
+        id: "inventory-relocate",
         title: "Relocate",
         url: "/console/modules/inventory-items/relocate",
         roles: "ADMIN",

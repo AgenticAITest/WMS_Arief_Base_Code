@@ -17,6 +17,18 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
 
 **🔄 Recent Changes (2025-11-21):**
+- **Inventory Relocation Feature**: Complete implementation for moving inventory between bins
+  - **Database Schema**: relocations and relocation_items tables with UUID primary keys, proper indexes, tenant scoping
+  - **Document Numbering**: RELOC-[PERIOD]-WH1-#### format configured
+  - **Workflow**: Create (status='created', editable/deletable) → Approve (inventory moved, document generated, status='approved') OR Reject (status='rejected', no inventory changes)
+  - **SKU Search**: Reuses cycle-count endpoint for consistency
+  - **Bin Selection**: FROM bin (checkbox from search results), TO bin (dropdown, filtered to exclude from bin)
+  - **Quantity Validation**: Cannot exceed available stock in FROM bin
+  - **Atomic Transactions**: All operations (inventory deduction from FROM bin, addition to TO bin, document generation, status changes) within single database transaction
+  - **Document Generation**: HTML relocation documents only generated when relocation is approved (not during creation)
+  - **Frontend Pages**: RelocationCreate (status='created'), RelocationApprove (pending), RelocationHistory (processed)
+  - **Menu Structure**: Fixed duplicate React key warnings by assigning unique IDs to all sidebar menu items (inventory-items, inventory-relocate, adjustment, relocate, cycle-count)
+  - **Audit Trail**: Comprehensive logging for relocation creation, updates, approvals, rejections
 - **Cycle Count Adjustment Improvements**: Enhanced workflow for system-generated adjustments
   - **Protection**: cycle_count type adjustments cannot be edited or deleted (backend validation + UI controls)
   - **Reason Code Preservation**: Uses original reason code from cycle count item, not auto-assigned STOCK_FOUND/STOCK_LOST
