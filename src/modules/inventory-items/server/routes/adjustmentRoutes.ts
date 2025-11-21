@@ -876,11 +876,13 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
       .where(eq(adjustmentItems.adjustmentId, id));
 
     // Fetch user names
-    const [createdByUser] = await db
-      .select({ fullname: user.fullname })
-      .from(user)
-      .where(eq(user.id, adjustment.createdBy))
-      .limit(1);
+    const [createdByUser] = adjustment.createdBy
+      ? await db
+          .select({ fullname: user.fullname })
+          .from(user)
+          .where(eq(user.id, adjustment.createdBy))
+          .limit(1)
+      : [null];
 
     const [approvedByUser] = await db
       .select({ fullname: user.fullname })

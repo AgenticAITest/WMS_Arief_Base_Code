@@ -1004,7 +1004,6 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
 
       let adjustmentId: string | null = null;
       let adjustmentNumber: string | null = null;
-      let adjustmentDocPath: string | null = null;
 
       if (itemsWithVariances.length > 0) {
         // Generate adjustment number
@@ -1080,61 +1079,13 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
 
         await tx.insert(adjustmentItems).values(adjustmentItemsToInsert);
 
-        // Generate adjustment document
-        const adjustmentDocData = {
-          adjustmentId: adjustment.id,
-          adjustmentNumber,
-          tenantId,
-          type: 'cycle_count',
-          status: 'created',
-          createdDate: new Date().toISOString(),
-          approvedDate: null,
-          createdBy: approverEmail,
-          approvedBy: null,
-          notes: adjustment.notes,
-          items: await Promise.all(
-            adjustmentItemsToInsert.map(async (adjItem) => {
-              const [invDetails] = await tx
-                .select({
-                  product: products,
-                  bin: bins,
-                  shelf: shelves,
-                  aisle: aisles,
-                  zone: zones,
-                  warehouse: warehouses,
-                })
-                .from(inventoryItems)
-                .innerJoin(products, eq(inventoryItems.productId, products.id))
-                .innerJoin(bins, eq(inventoryItems.binId, bins.id))
-                .innerJoin(shelves, eq(bins.shelfId, shelves.id))
-                .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
-                .innerJoin(zones, eq(aisles.zoneId, zones.id))
-                .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
-                .where(eq(inventoryItems.id, adjItem.inventoryItemId))
-                .limit(1);
-
-              return {
-                productSku: invDetails.product.sku,
-                productName: invDetails.product.name,
-                binName: invDetails.bin.name,
-                location: `${invDetails.warehouse.name} / ${invDetails.zone.name} / ${invDetails.aisle.name} / ${invDetails.shelf.name} / ${invDetails.bin.name}`,
-                systemQuantity: adjItem.oldQuantity,
-                adjustedQuantity: adjItem.newQuantity,
-                quantityDifference: adjItem.quantityDifference,
-                reasonCode: adjItem.reasonCode,
-              };
-            })
-          ),
-        };
-
-        adjustmentDocPath = await AdjustmentDocumentGenerator.generateAndSaveDocument(adjustmentDocData, userId, tx);
+        // Note: Adjustment document will be generated when the adjustment is approved
       }
 
       return {
         cycleCountDocPath,
         adjustmentId,
         adjustmentNumber,
-        adjustmentDocPath,
         varianceCount: itemsWithVariances.length,
       };
     });
@@ -1166,8 +1117,7 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
         action: 'create',
         resourceType: 'adjustment',
         resourceId: result.adjustmentId,
-        description: `Auto-created adjustment ${result.adjustmentNumber} from cycle count ${cycleCount.countNumber}`,
-        documentPath: result.adjustmentDocPath || undefined,
+        description: `Auto-created adjustment ${result.adjustmentNumber} from cycle count ${cycleCount.countNumber} (document will be generated upon approval)`,
         changedFields: {
           sourceType: 'cycle_count',
           sourceCycleCount: cycleCount.countNumber,
