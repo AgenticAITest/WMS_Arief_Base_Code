@@ -210,17 +210,19 @@ export const AdjustmentCreate: React.FC = () => {
                         <Eye className="w-4 h-4" />
                       </Button>
 
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleEditCount(adjustment.id)}
-                        title="Edit"
-                        disabled={adjustment.status !== 'created'}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      {adjustment.type !== 'cycle_count' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditCount(adjustment.id)}
+                          title="Edit"
+                          disabled={adjustment.status !== 'created'}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
                       
-                      {adjustment.status === 'created' && (
+                      {adjustment.status === 'created' && adjustment.type !== 'cycle_count' && (
                         <Button
                           size="sm"
                           variant="ghost"
