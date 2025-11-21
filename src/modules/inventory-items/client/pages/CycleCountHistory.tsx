@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@client/components/ui/card';
-import { Eye } from 'lucide-react';
+import { Eye, FileText } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -16,12 +16,16 @@ import { Badge } from '@client/components/ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 
 const CycleCountHistory: React.FC = () => {
   const [cycleCounts, setCycleCounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCountId, setSelectedCountId] = useState<string | null>(null);
+  const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
+  const [selectedDocumentPath, setSelectedDocumentPath] = useState<string>('');
+  const [selectedDocumentNumber, setSelectedDocumentNumber] = useState<string>('');
 
   useEffect(() => {
     fetchCycleCounts();
@@ -52,6 +56,23 @@ const CycleCountHistory: React.FC = () => {
   const handleViewCount = (id: string) => {
     setSelectedCountId(id);
     setIsViewModalOpen(true);
+  };
+
+  const handleViewDocument = async (cycleCountId: string, countNumber: string) => {
+    try {
+      const response = await axios.get(`/api/modules/inventory-items/cycle-counts/${cycleCountId}/document`);
+
+      if (response.data.success && response.data.data?.documentPath) {
+        setSelectedDocumentPath(response.data.data.documentPath);
+        setSelectedDocumentNumber(countNumber);
+        setDocumentViewerOpen(true);
+      } else {
+        toast.error('Document not found');
+      }
+    } catch (error: any) {
+      console.error('Error fetching document:', error);
+      toast.error(error.response?.data?.message || 'Failed to load document');
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -126,13 +147,23 @@ const CycleCountHistory: React.FC = () => {
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleViewCount(count.id)}
+                            title="View Details"
                           >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
+                            <Eye className="h-4 w-4" />
                           </Button>
+                          {(count.status === 'approved' || count.status === 'completed') && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleViewDocument(count.id, count.countNumber)}
+                              title="View Document"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -151,6 +182,13 @@ const CycleCountHistory: React.FC = () => {
           countId={selectedCountId}
         />
       )}
+
+      <DocumentViewerModal
+        isOpen={documentViewerOpen}
+        onClose={() => setDocumentViewerOpen(false)}
+        documentPath={selectedDocumentPath}
+        documentNumber={selectedDocumentNumber}
+      />
     </div>
   );
 };

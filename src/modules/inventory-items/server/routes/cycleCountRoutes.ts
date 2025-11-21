@@ -5,7 +5,7 @@ import { inventoryItems } from '../lib/db/schemas/inventoryItems';
 import { adjustments, adjustmentItems } from '../lib/db/schemas/adjustment';
 import { products, productTypes } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { bins, shelves, aisles, zones, warehouses } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
-import { documentNumberConfig } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
+import { documentNumberConfig, generatedDocuments } from '@modules/document-numbering/server/lib/db/schemas/documentNumbering';
 import { generateDocumentNumber } from '@modules/document-numbering/server/services/documentNumberService';
 import { authorized } from '@server/middleware/authMiddleware';
 import { eq, and, desc, count, ilike, sql, or, inArray } from 'drizzle-orm';
@@ -642,6 +642,75 @@ router.get('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.view'), asy
     });
   } catch (error) {
     console.error('Error fetching cycle count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
+ * GET /api/modules/inventory-items/cycle-counts/:id/document
+ * Get generated document path for a cycle count
+ */
+router.get('/cycle-counts/:id/document', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const { id } = req.params;
+
+    // Verify cycle count belongs to tenant
+    const [cycleCount] = await db
+      .select()
+      .from(cycleCounts)
+      .where(and(eq(cycleCounts.id, id), eq(cycleCounts.tenantId, tenantId)))
+      .limit(1);
+
+    if (!cycleCount) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cycle count not found',
+      });
+    }
+
+    // Fetch document from generated_documents table
+    const [document] = await db
+      .select()
+      .from(generatedDocuments)
+      .where(
+        and(
+          eq(generatedDocuments.tenantId, tenantId),
+          eq(generatedDocuments.referenceType, 'cycle_count'),
+          eq(generatedDocuments.referenceId, id),
+          eq(generatedDocuments.documentType, 'CYCLE_COUNT')
+        )
+      )
+      .limit(1);
+
+    if (!document) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found for this cycle count',
+      });
+    }
+
+    // Extract HTML file path from files JSONB column
+    const files = document.files as any;
+    const documentPath = files?.html?.path || null;
+
+    if (!documentPath) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document path not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        documentPath,
+        documentNumber: document.documentNumber,
+        generatedAt: files?.html?.generated_at,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching cycle count document:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
