@@ -21,7 +21,7 @@ export const inventoryItemsSidebarMenus = {
 export const adjustmentSidebarMenus = {
   id: 'inventory-items',
   moduleId: 'inventory-items',
-  title: 'Adjustment',
+  title: 'Adjustments',
   url: '/console/modules/inventory-items/adjustment',
   icon: Settings,
   roles: 'ADMIN',
@@ -54,7 +54,7 @@ export const adjustmentSidebarMenus = {
 export const relocateSidebarMenus = {
   id: 'inventory-items',
   moduleId: 'inventory-items',
-  title: 'Relocate',
+  title: 'Relocations',
   url: '/console/modules/inventory-items/relocate',
   icon: Combine,
   roles: 'ADMIN',
