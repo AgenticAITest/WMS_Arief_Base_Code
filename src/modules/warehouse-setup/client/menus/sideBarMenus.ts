@@ -15,12 +15,12 @@ export const warehouseSetupSidebarMenus = {
         roles: "ADMIN",
         permissions: "warehouse-setup.view",
       },
-      {
-        id: "warehouse-setup-list",
-        title: "Warehouse Setup List",
-        url: "/console/modules/warehouse-setup",
-        roles: "ADMIN",
-        permissions: "warehouse-setup.view",
-      },
+      // {
+      //   id: "warehouse-setup-list",
+      //   title: "Warehouse Setup List",
+      //   url: "/console/modules/warehouse-setup",
+      //   roles: "ADMIN",
+      //   permissions: "warehouse-setup.view",
+      // },
     ],
   };

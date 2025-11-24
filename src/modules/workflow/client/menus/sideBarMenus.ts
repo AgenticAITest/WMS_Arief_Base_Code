@@ -8,13 +8,13 @@ export const workflowSidebarMenus = {
     roles: 'ADMIN', 
     permissions: ['workflow.view'],
     items: [
-      {
-        id: "workflow-list",
-        title: "Workflow List",
-        url: "/console/modules/workflow",
-        roles: "ADMIN",
-        permissions: "workflow.view",
-      },
+      // {
+      //   id: "workflow-list",
+      //   title: "Workflow List",
+      //   url: "/console/modules/workflow",
+      //   roles: "ADMIN",
+      //   permissions: "workflow.view",
+      // },
       {
         id: "workflow-settings",
         title: "Workflow Settings",

@@ -1,33 +1,39 @@
-import {
-  BookOpen,
-  Puzzle,
-  Settings2,
-  SquareTerminal
-} from "lucide-react"
-import * as React from "react"
+import { BookOpen, Puzzle, Settings2, SquareTerminal } from "lucide-react";
+import * as React from "react";
 
-import { NavMain } from "@client/components/nav-main"
-import { NavUser } from "@client/components/nav-user"
-import { TeamSwitcher } from "@client/components/team-switcher"
+import { NavMain } from "@client/components/nav-main";
+import { NavUser } from "@client/components/nav-user";
+import { TeamSwitcher } from "@client/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@client/components/ui/sidebar"
-import { sampleModuleSidebarMenus } from "../../modules/sample-module/client/menus/sideBarMenus"
+} from "@client/components/ui/sidebar";
+import { sampleModuleSidebarMenus } from "../../modules/sample-module/client/menus/sideBarMenus";
 
-import { masterDataSidebarMenus } from "../../modules/master-data/client/menus/sideBarMenus"
-import { warehouseSetupSidebarMenus } from "../../modules/warehouse-setup/client/menus/sideBarMenus"
-import { inventoryItemsSidebarMenus, adjustmentSidebarMenus, relocateSidebarMenus, cycleCountSidebarMenus } from "../../modules/inventory-items/client/menus/sideBarMenus"
-import { purchaseOrderSidebarMenus, createPurchaseOrderSidebarMenus } from "../../modules/purchase-order/client/menus/sideBarMenus"
-import { usePurchaseOrderWorkflowSteps } from "../../modules/purchase-order/client/hooks/usePurchaseOrderWorkflowSteps"
-import { salesOrderSidebarMenus, createSalesOrderSidebarMenus } from "../../modules/sales-order/client/menus/sideBarMenus"
-import { useSalesOrderWorkflowSteps } from "../../modules/sales-order/client/hooks/useSalesOrderWorkflowSteps"
-import { workflowSidebarMenus } from "../../modules/workflow/client/menus/sideBarMenus"
-import { reportsSidebarMenus } from "../../modules/reports/client/menus/sideBarMenus"
-import { generalSidebarMenus } from "../../modules/general/client/menus/sideBarMenus"
+import { masterDataSidebarMenus } from "../../modules/master-data/client/menus/sideBarMenus";
+import { warehouseSetupSidebarMenus } from "../../modules/warehouse-setup/client/menus/sideBarMenus";
+import {
+  inventoryItemsSidebarMenus,
+  adjustmentSidebarMenus,
+  relocateSidebarMenus,
+  cycleCountSidebarMenus,
+} from "../../modules/inventory-items/client/menus/sideBarMenus";
+import {
+  purchaseOrderSidebarMenus,
+  createPurchaseOrderSidebarMenus,
+} from "../../modules/purchase-order/client/menus/sideBarMenus";
+import { usePurchaseOrderWorkflowSteps } from "../../modules/purchase-order/client/hooks/usePurchaseOrderWorkflowSteps";
+import {
+  salesOrderSidebarMenus,
+  createSalesOrderSidebarMenus,
+} from "../../modules/sales-order/client/menus/sideBarMenus";
+import { useSalesOrderWorkflowSteps } from "../../modules/sales-order/client/hooks/useSalesOrderWorkflowSteps";
+import { workflowSidebarMenus } from "../../modules/workflow/client/menus/sideBarMenus";
+import { reportsSidebarMenus } from "../../modules/reports/client/menus/sideBarMenus";
+import { generalSidebarMenus } from "../../modules/general/client/menus/sideBarMenus";
 // This is sample data.
 const data = {
   // teams: [
@@ -96,7 +102,13 @@ const data = {
       title: "System",
       url: "/console/system",
       icon: Settings2,
-      permissions: ["system.tenant.view", "system.permission.view", "system.role.view", "system.user.view", "system.option.view"],
+      permissions: [
+        "system.tenant.view",
+        "system.permission.view",
+        "system.role.view",
+        "system.user.view",
+        "system.option.view",
+      ],
       items: [
         {
           id: "tenant",
@@ -143,91 +155,80 @@ const data = {
         },
       ],
     },
+
+    purchaseOrderSidebarMenus,
+    salesOrderSidebarMenus,
+
+    inventoryItemsSidebarMenus,
+    adjustmentSidebarMenus,
+    relocateSidebarMenus,
+    cycleCountSidebarMenus,
+
     masterDataSidebarMenus,
 
     warehouseSetupSidebarMenus,
-
-
-    inventoryItemsSidebarMenus,
-
-    
-
-    purchaseOrderSidebarMenus,
-
-
-
 
     workflowSidebarMenus,
 
     reportsSidebarMenus,
 
-
-
-
-
-
     generalSidebarMenus,
-
-
-
-
-
-
 
     sampleModuleSidebarMenus,
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { steps: salesOrderSteps, loading: salesOrderLoading } = useSalesOrderWorkflowSteps();
-  const { steps: purchaseOrderSteps, loading: purchaseOrderLoading } = usePurchaseOrderWorkflowSteps();
+  // const { steps: salesOrderSteps, loading: salesOrderLoading } = useSalesOrderWorkflowSteps();
+  // const { steps: purchaseOrderSteps, loading: purchaseOrderLoading } = usePurchaseOrderWorkflowSteps();
 
-  const dynamicSalesOrderMenu = React.useMemo(() => {
-    if (salesOrderLoading || salesOrderSteps.length === 0) {
-      return salesOrderSidebarMenus;
-    }
-    return createSalesOrderSidebarMenus(salesOrderSteps);
-  }, [salesOrderSteps, salesOrderLoading]);
+  // const dynamicSalesOrderMenu = React.useMemo(() => {
+  //   if (salesOrderLoading || salesOrderSteps.length === 0) {
+  //     return salesOrderSidebarMenus;
+  //   }
+  //   return createSalesOrderSidebarMenus(salesOrderSteps);
+  // }, [salesOrderSteps, salesOrderLoading]);
 
-  const dynamicPurchaseOrderMenu = React.useMemo(() => {
-    if (purchaseOrderLoading || purchaseOrderSteps.length === 0) {
-      return purchaseOrderSidebarMenus;
-    }
-    return createPurchaseOrderSidebarMenus(purchaseOrderSteps);
-  }, [purchaseOrderSteps, purchaseOrderLoading]);
+  // const dynamicPurchaseOrderMenu = React.useMemo(() => {
+  //   if (purchaseOrderLoading || purchaseOrderSteps.length === 0) {
+  //     return purchaseOrderSidebarMenus;
+  //   }
+  //   return createPurchaseOrderSidebarMenus(purchaseOrderSteps);
+  // }, [purchaseOrderSteps, purchaseOrderLoading]);
 
-  const navItems = React.useMemo(() => {
-    const staticItems = data.navMain.filter(item => item.id !== 'sales-order' && item.id !== 'purchase-order');
-    const inventoryItemsIndex = staticItems.findIndex(item => item.id === 'inventory-items');
+  // const navItems = React.useMemo(() => {
+  //   const staticItems = data.navMain.filter(item => item.id !== 'sales-order' && item.id !== 'purchase-order');
+  //   const inventoryItemsIndex = staticItems.findIndex(item => item.id === 'inventory-items');
 
-    if (inventoryItemsIndex >= 0) {
-      return [
-        ...staticItems.slice(0, inventoryItemsIndex + 1),
-        adjustmentSidebarMenus,
-        relocateSidebarMenus,
-        cycleCountSidebarMenus,
-        dynamicPurchaseOrderMenu,
-        dynamicSalesOrderMenu,
-        ...staticItems.slice(inventoryItemsIndex + 1),
-      ];
-    }
+  //   if (inventoryItemsIndex >= 0) {
+  //     return [
+  //       ...staticItems.slice(0, inventoryItemsIndex + 1),
+  //       adjustmentSidebarMenus,
+  //       relocateSidebarMenus,
+  //       cycleCountSidebarMenus,
+  //       dynamicPurchaseOrderMenu,
+  //       dynamicSalesOrderMenu,
+  //       ...staticItems.slice(inventoryItemsIndex + 1),
+  //     ];
+  //   }
 
-    return [...staticItems, adjustmentSidebarMenus, relocateSidebarMenus, cycleCountSidebarMenus, dynamicPurchaseOrderMenu, dynamicSalesOrderMenu];
-  }, [dynamicPurchaseOrderMenu, dynamicSalesOrderMenu]);
+  //   return [...staticItems, adjustmentSidebarMenus, relocateSidebarMenus, cycleCountSidebarMenus, dynamicPurchaseOrderMenu, dynamicSalesOrderMenu];
+  // }, [dynamicPurchaseOrderMenu, dynamicSalesOrderMenu]);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
-        <TeamSwitcher/>
+        <TeamSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
+        {/* <NavMain items={navItems} /> */}
+        <NavMain items={data.navMain} />
         {/* <NavProjects projects={data.projects} /> */}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser/>
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

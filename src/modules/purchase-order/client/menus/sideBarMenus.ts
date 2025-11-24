@@ -33,5 +33,34 @@ export const purchaseOrderSidebarMenus = {
   url: '/console/modules/purchase-order',
   icon: ShoppingCart,
   permissions: 'purchase-order.view',
-  items: [],
+  items: [
+    {
+      id: "purchase-order-create",
+      title: "Create",
+      url: "/console/modules/purchase-order/create",
+      roles: "ADMIN",
+      permissions: "purchase-order.view",
+    },
+    {
+      id: "purchase-order-approve",
+      title: "Approve",
+      url: "/console/modules/purchase-order/approve",
+      roles: "ADMIN",
+      permissions: "purchase-order.view",
+    },
+    {
+      id: "purchase-order-receive",
+      title: "Receive",
+      url: "/console/modules/purchase-order/receive",
+      roles: "ADMIN",
+      permissions: "purchase-order.view",
+    },
+    {
+      id: "purchase-order-putaway",
+      title: "Putaway",
+      url: "/console/modules/purchase-order/putaway",
+      roles: "ADMIN",
+      permissions: "purchase-order.view",
+    },
+  ],
 };

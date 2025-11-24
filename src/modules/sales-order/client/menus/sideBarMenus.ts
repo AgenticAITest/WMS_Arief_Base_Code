@@ -35,5 +35,49 @@ export const salesOrderSidebarMenus = {
   url: "/console/modules/sales-order",
   icon: ShoppingCart,
   permissions: "sales-order.view",
-  items: [],
+  items: [
+    
+    {
+      id: "sales-order-create",
+      title: "Create",
+      url: "/console/modules/sales-order/create",
+      roles: "ADMIN",
+      permissions: "sales-order.view",
+    },
+    {
+      id: "sales-order-allocate",
+      title: "Allocate",
+      url: "/console/modules/sales-order/allocate",
+      roles: "ADMIN",
+      permissions: "sales-order.view",
+    },
+    {
+      id: "sales-order-pick",
+      title: "Pick",
+      url: "/console/modules/sales-order/pick",
+      roles: "ADMIN",
+      permissions: "sales-order.view",
+    },
+    {
+      id: "sales-order-pack",
+      title: "Pack",
+      url: "/console/modules/sales-order/pack",
+      roles: "ADMIN",
+      permissions: "sales-order.view",
+    },
+    {
+      id: "sales-order-ship",
+      title: "Ship",
+      url: "/console/modules/sales-order/ship",
+      roles: "ADMIN",
+      permissions: "sales-order.view",
+    },
+    {
+      id: "sales-order-deliver",
+      title: "Deliver",
+      url: "/console/modules/sales-order/deliver",
+      roles: "ADMIN",
+      permissions: "sales-order.view",
+    },
+  ],
 };

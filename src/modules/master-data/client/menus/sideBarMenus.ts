@@ -22,12 +22,12 @@ export const masterDataSidebarMenus = {
         roles: "ADMIN",
         permissions: "master-data.view",
       },
-      {
-        id: "master-data-list",
-        title: "Master Data List",
-        url: "/console/modules/master-data",
-        roles: "ADMIN",
-        permissions: "master-data.view",
-      },
+      // {
+      //   id: "master-data-list",
+      //   title: "Master Data List",
+      //   url: "/console/modules/master-data",
+      //   roles: "ADMIN",
+      //   permissions: "master-data.view",
+      // },
     ],
   };
