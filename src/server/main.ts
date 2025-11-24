@@ -29,6 +29,7 @@ import {
 } from '../modules/sales-order/server/routes';
 import workflowRoutes from '../modules/workflow/server/routes/workflowRoutes';
 import reportsRoutes from '../modules/reports/server/routes/reportsRoutes';
+import generalRoutes from '../modules/general/server/routes/generalRoutes';
 import ViteExpress from "vite-express";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -166,6 +167,9 @@ app.use('/api/modules/workflow', workflowRoutes);
 
 // reports routes
 app.use('/api/modules/reports', reportsRoutes);
+
+// general routes
+app.use('/api/modules/general', generalRoutes);
 
 ViteExpress.listen(app, 5000, () =>
   console.log("Server is listening on port 5000..."),

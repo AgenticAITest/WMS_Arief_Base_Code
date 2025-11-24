@@ -17,6 +17,7 @@ import { purchaseOrderReactRoutes } from '../modules/purchase-order/client/route
 import { salesOrderReactRoutes } from '../modules/sales-order/client/routes/salesOrderReactRoutes';
 import { workflowReactRoutes } from '../modules/workflow/client/routes/workflowReactRoutes';
 import { reportsReactRoutes } from '../modules/reports/client/routes/reportsReactRoutes';
+import { generalReactRoutes } from '../modules/general/client/routes/generalReactRoutes';
 import ForgetPassword from "./pages/auth/ForgetPassword";
 import RegisterTenant from "./pages/auth/RegisterTenant";
 import ResetPassword from "./pages/auth/ResetPassword";
@@ -174,6 +175,7 @@ export const router = createBrowserRouter([
             salesOrderReactRoutes("modules/sales-order"),
             workflowReactRoutes("modules/workflow"),
             reportsReactRoutes("reports"),
+            generalReactRoutes("modules/general"),
 ],
       },
     ],

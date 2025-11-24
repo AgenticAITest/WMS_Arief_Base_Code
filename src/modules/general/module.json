@@ -1,0 +1,63 @@
+{
+  "id": "general",
+  "name": "General",
+  "owner": "NFI",
+  "description": "General Setting",
+  "version": "1.0.0",
+  "metadata": {
+    "category": "Business",
+    "tags": [
+      "general",
+      "crud",
+      "module"
+    ],
+    "dependencies": {
+      "requires": [
+        "authentication",
+        "multi-tenant"
+      ],
+      "optional": []
+    },
+    "permissions": [
+      "general.view",
+      "general.create",
+      "general.edit",
+      "general.delete"
+    ],
+    "routes": {
+      "api": "/api/modules/general",
+      "client": "/console/modules/general"
+    },
+    "database": {
+      "tables": [
+        "general"
+      ],
+      "relations": [
+        "tenant"
+      ]
+    },
+    "features": [
+      "Create, Read, Update, Delete operations",
+      "Server-side pagination",
+      "Client-side search and filtering",
+      "Form validation",
+      "Multi-tenant support",
+      "TypeScript support",
+      "Modern UI with shadcn/ui components",
+      "Responsive design"
+    ]
+  },
+  "author": {
+    "name": "NFI",
+    "email": "developer@neo-fusion.com",
+    "url": "https://github.com/your-org/react-admin"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/react-admin.git",
+    "directory": "src/modules/general"
+  },
+  "license": "MIT",
+  "createdAt": "2025-11-23T05:28:22.832Z",
+  "updatedAt": "2025-11-23T05:28:22.832Z"
+}

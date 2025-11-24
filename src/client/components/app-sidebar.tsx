@@ -27,6 +27,7 @@ import { salesOrderSidebarMenus, createSalesOrderSidebarMenus } from "../../modu
 import { useSalesOrderWorkflowSteps } from "../../modules/sales-order/client/hooks/useSalesOrderWorkflowSteps"
 import { workflowSidebarMenus } from "../../modules/workflow/client/menus/sideBarMenus"
 import { reportsSidebarMenus } from "../../modules/reports/client/menus/sideBarMenus"
+import { generalSidebarMenus } from "../../modules/general/client/menus/sideBarMenus"
 // This is sample data.
 const data = {
   // teams: [
@@ -159,6 +160,14 @@ const data = {
     workflowSidebarMenus,
 
     reportsSidebarMenus,
+
+
+
+
+
+
+    generalSidebarMenus,
+
 
 
 

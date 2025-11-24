@@ -13,3 +13,4 @@ export * from '@modules/purchase-order/server/lib/db/schemas/purchaseOrder';
 export * from '@modules/sales-order/server/lib/db/schemas/salesOrder';
 export * from '@modules/workflow/server/lib/db/schemas/workflow';
 export * from '@modules/reports/server/lib/db/schemas/reports';
+export * from '@modules/general/server/lib/db/schemas/general';
