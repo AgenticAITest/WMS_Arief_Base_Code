@@ -16,7 +16,21 @@ This project is a comprehensive admin dashboard built with React, TypeScript, Vi
 - `docs/WORKFLOW_LOGIC_ANALYSIS.md` - Comprehensive issue tracker separating actual bugs, incomplete features, and design improvements
 - `docs/WORKFLOW_PSEUDOCODE_REFERENCE.md` - Complete workflow pseudocode with implementation status markers
 
-**🔄 Recent Changes (2025-11-21):**
+**🔄 Recent Changes (2025-11-25):**
+- **Movement History Feature**: Centralized tracking of all inventory movements across warehouse operations
+  - **Database Schema**: movement_history table with tenant_id, user_id, inventory_item_id, bin_id, quantity_changed, movement_type, reference_type, reference_id, reference_number, notes, created_at
+  - **Movement Types**: putaway, pick, adjustment, relocation
+  - **Integration**: All workflows log movements atomically within transactions using raw SQL INSERT
+    - Putaway: Logs positive quantity when inventory enters bins
+    - Pick: Logs negative quantity when inventory leaves bins
+    - Adjustment: Logs quantity difference (positive or negative) when approved
+    - Relocation: Logs TWO records per item (FROM bin negative, TO bin positive)
+  - **API Endpoints**: GET /movement-history (paginated list with search/filters), GET /movement-history/:id (single record), GET /movement-history/export/csv (full export)
+  - **Frontend**: MovementHistory page with search by SKU/product name, filter by movement type and date range, pagination, CSV export
+  - **ViewMovementModal**: Detailed movement view showing bin location path, product info, quantity changed (color-coded), reference document link
+  - **Menu**: Added under Inventory Items → Movement History
+
+**🔄 Previous Changes (2025-11-21):**
 - **History Page UX Enhancements**: Unified document viewing pattern across all inventory history pages
   - **Consistent Button Pattern**: Eye icon for viewing details, FileText icon for viewing generated documents
   - **AdjustmentHistory**: Added ViewAdjustmentModal for details view, FileText button shows only for status='approved'
@@ -128,6 +142,7 @@ None specified yet
   - Document numbering: STOCKADJ-[PERIOD]-WH1-#### format.
   - Status: created (editable/deletable) → applied (inventory updated, terminal).
 - **Audit Logging**: Comprehensive audit trail for user actions and data modifications with queryable APIs.
+- **Movement History**: Centralized tracking of all inventory movements (putaway, pick, adjustment, relocation) with search, filters, pagination, and CSV export.
 - **Document Viewer Integration**: UI allows viewing generated HTML documents (PO, GRN, PUTAWAY, ALLOCATION, PICK, PACK, SHIP) in a modal.
 
 ### System Design Choices
