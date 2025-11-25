@@ -9,6 +9,7 @@ import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddlewar
 import cycleCountRoutes from './cycleCountRoutes';
 import adjustmentRoutes from './adjustmentRoutes';
 import relocationRoutes from './relocationRoutes';
+import movementHistoryRoutes from './movementHistoryRoutes';
 
 const router = express.Router();
 router.use(authenticated());
@@ -22,6 +23,9 @@ router.use(adjustmentRoutes);
 
 // Mount relocation routes
 router.use(relocationRoutes);
+
+// Mount movement history routes
+router.use(movementHistoryRoutes);
 
 /**
  * @swagger

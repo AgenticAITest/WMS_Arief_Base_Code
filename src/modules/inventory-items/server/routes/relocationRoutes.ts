@@ -691,7 +691,7 @@ router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.man
           .where(eq(inventoryItems.id, fromInventory.id));
 
         // Check if destination inventory exists
-        const [toInventory] = await tx
+        let [toInventory] = await tx
           .select()
           .from(inventoryItems)
           .where(
