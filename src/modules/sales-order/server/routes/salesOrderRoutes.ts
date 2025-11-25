@@ -22,6 +22,7 @@ import { SODocumentGenerator } from '../services/soDocumentGenerator';
 import { AllocationDocumentGenerator } from '../services/allocationDocumentGenerator';
 import { PickDocumentGenerator } from '../services/pickDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
+import { logMovement } from '@modules/inventory-items/server/services/movementHistoryService';
 
 const router = express.Router();
 router.use(authenticated());
@@ -793,6 +794,11 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
     // Perform pick in transaction
     const result = await db.transaction(async (tx) => {
       const pickRecords = [];
+      const movementRecords: Array<{
+        inventoryItemId: string;
+        binId: string;
+        quantity: number;
+      }> = [];
 
       for (const item of soItems) {
         const allocatedQty = Number(item.allocatedQuantity);
@@ -849,6 +855,13 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
             locationPath: invItem.location_path,
           });
 
+          // Store for movement logging
+          movementRecords.push({
+            inventoryItemId: allocation.inventoryItemId,
+            binId: invItem.bin_id,
+            quantity: allocQty,
+          });
+
           // Update inventory: reduce reserved, nothing else changes (available already reduced during allocation)
           await tx
             .update(inventoryItems)
@@ -898,7 +911,7 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
         })
         .where(eq(salesOrders.id, id));
 
-      return { pickRecords, nextWorkflowState: nextStep };
+      return { pickRecords, movementRecords, nextWorkflowState: nextStep };
     });
 
     // Generate pick document number
@@ -909,6 +922,22 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
     );
 
     const pickNumber = pickDocNumber.data.documentNumber;
+
+    // Log movement history for all picked items
+    for (const movement of result.movementRecords) {
+      await logMovement({
+        tenantId,
+        userId,
+        inventoryItemId: movement.inventoryItemId,
+        binId: movement.binId,
+        quantityChanged: -movement.quantity, // Negative for pick (inventory reduction)
+        movementType: 'pick',
+        referenceType: 'sales_order',
+        referenceId: so.id,
+        referenceNumber: pickNumber,
+        notes: `Pick from SO ${so.orderNumber}`,
+      });
+    }
 
     // Fetch additional data for document generation
     const [customerData] = await db
