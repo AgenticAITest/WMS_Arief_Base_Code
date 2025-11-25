@@ -1,0 +1,20 @@
+
+Table movement_history {
+  id UUID [pk]
+  tenant_id UUID [ref: > tenants.id, not null]
+  user_id UUID [ref: > users.id, not null]
+  inventory_items_id UUID [ref: > inventory_items.id, not null]
+  bin_id UUID [ref: > bins.id, not null]
+  quantity_changed integer [not null]
+  movement_type varchar(50) [not null, note: "putaway, pick, adjustment, relocate"]
+  reference_type varchar(50) [note: "sales_order, purchase_order, adjustment, relocation"]
+  reference_id UUID
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    tenant_id
+    product_id
+  }
+}
+
+
