@@ -16,6 +16,7 @@ import { PODocumentGenerator } from '../services/poDocumentGenerator';
 import { GRNDocumentGenerator } from '../services/grnDocumentGenerator';
 import { PutawayDocumentGenerator } from '../services/putawayDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
+import { logMovement } from '@modules/inventory-items/server/services/movementHistoryService';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -3362,12 +3363,18 @@ router.post('/putaway/:id/confirm', async (req, res) => {
       const binMap = new Map(binDetails.map(b => [b.bin.id, b]));
 
       // 4. Create inventory items for each putaway
+      const createdInventoryItems: Array<{
+        inventoryItemId: string;
+        binId: string;
+        quantity: number;
+      }> = [];
+
       for (const putawayItem of items) {
         const receiptItemData = receiptItemsData.find(ri => ri.receiptItem.id === putawayItem.receiptItemId);
         if (!receiptItemData) continue;
 
         // Create inventory item
-        await tx.insert(inventoryItems).values({
+        const [createdInventoryItem] = await tx.insert(inventoryItems).values({
           tenantId,
           productId: receiptItemData.poItem!.productId,
           binId: putawayItem.binId,
@@ -3375,6 +3382,13 @@ router.post('/putaway/:id/confirm', async (req, res) => {
           reservedQuantity: 0,
           receivedDate: new Date().toISOString().split('T')[0],
           costPerUnit: receiptItemData.poItem!.unitCost,
+        }).returning();
+
+        // Store for movement logging
+        createdInventoryItems.push({
+          inventoryItemId: createdInventoryItem.id,
+          binId: putawayItem.binId,
+          quantity: receiptItemData.receiptItem.receivedQuantity,
         });
 
         // Update bin capacity (add to currentVolume/currentWeight)
@@ -3398,6 +3412,23 @@ router.post('/putaway/:id/confirm', async (req, res) => {
       );
 
       const putawayNumber = docNumberResponse.data.documentNumber;
+
+      // 5a. Log movement history for all putaway items
+      for (const item of createdInventoryItems) {
+        await logMovement({
+          tenantId,
+          userId,
+          inventoryItemId: item.inventoryItemId,
+          binId: item.binId,
+          quantityChanged: item.quantity,
+          movementType: 'putaway',
+          referenceType: 'purchase_order',
+          referenceId: receiptData.po?.id,
+          referenceNumber: putawayNumber,
+          notes: `Putaway from PO ${receiptData.po?.orderNumber || 'N/A'}`,
+          tx,
+        });
+      }
 
       // 6. Prepare putaway document data
       const putawayDocData = {
