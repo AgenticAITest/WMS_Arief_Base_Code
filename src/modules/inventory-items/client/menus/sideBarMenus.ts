@@ -15,6 +15,13 @@ export const inventoryItemsSidebarMenus = {
         roles: "ADMIN",
         permissions: "inventory-items.view",
       },
+      {
+        id: "movement-history",
+        title: "Movement History",
+        url: "/console/modules/inventory-items/movement-history",
+        roles: "ADMIN",
+        permissions: "inventory-items.view",
+      },
     ],
   };
 
