@@ -16,7 +16,6 @@ import { PODocumentGenerator } from '../services/poDocumentGenerator';
 import { GRNDocumentGenerator } from '../services/grnDocumentGenerator';
 import { PutawayDocumentGenerator } from '../services/putawayDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
-import { logMovement } from '@modules/inventory-items/server/services/movementHistoryService';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -3415,19 +3414,17 @@ router.post('/putaway/:id/confirm', async (req, res) => {
 
       // 5a. Log movement history for all putaway items
       for (const item of createdInventoryItems) {
-        await logMovement({
-          tenantId,
-          userId,
-          inventoryItemId: item.inventoryItemId,
-          binId: item.binId,
-          quantityChanged: item.quantity,
-          movementType: 'putaway',
-          referenceType: 'purchase_order',
-          referenceId: receiptData.po?.id,
-          referenceNumber: putawayNumber,
-          notes: `Putaway from PO ${receiptData.po?.orderNumber || 'N/A'}`,
-          tx,
-        });
+        await tx.execute(sql`
+          INSERT INTO movement_history (
+            tenant_id, user_id, inventory_item_id, bin_id, 
+            quantity_changed, movement_type, reference_type, 
+            reference_id, reference_number, notes
+          ) VALUES (
+            ${tenantId}, ${userId}, ${item.inventoryItemId}, ${item.binId},
+            ${item.quantity}, 'putaway', 'purchase_order',
+            ${receiptData.po?.id || ''}, ${putawayNumber}, ${'Putaway from PO ' + (receiptData.po?.orderNumber || 'N/A')}
+          )
+        `);
       }
 
       // 6. Prepare putaway document data

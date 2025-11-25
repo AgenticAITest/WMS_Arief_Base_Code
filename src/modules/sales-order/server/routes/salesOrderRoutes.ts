@@ -22,7 +22,6 @@ import { SODocumentGenerator } from '../services/soDocumentGenerator';
 import { AllocationDocumentGenerator } from '../services/allocationDocumentGenerator';
 import { PickDocumentGenerator } from '../services/pickDocumentGenerator';
 import { logAudit, getClientIp } from '@server/services/auditService';
-import { logMovement } from '@modules/inventory-items/server/services/movementHistoryService';
 
 const router = express.Router();
 router.use(authenticated());
@@ -911,33 +910,34 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
         })
         .where(eq(salesOrders.id, id));
 
-      return { pickRecords, movementRecords, nextWorkflowState: nextStep };
+      // Generate pick document number
+      const pickDocNumber = await axios.post(
+        `${req.protocol}://${req.get('host')}/api/modules/document-numbering/generate`,
+        { documentType: 'PICK', options: {} },
+        { headers: { Authorization: req.headers.authorization } }
+      );
+
+      const pickNumber = pickDocNumber.data.documentNumber;
+
+      // Log movement history for all picked items
+      for (const movement of movementRecords) {
+        await tx.execute(sql`
+          INSERT INTO movement_history (
+            tenant_id, user_id, inventory_item_id, bin_id, 
+            quantity_changed, movement_type, reference_type, 
+            reference_id, reference_number, notes
+          ) VALUES (
+            ${tenantId}, ${userId}, ${movement.inventoryItemId}, ${movement.binId},
+            ${-movement.quantity}, 'pick', 'sales_order',
+            ${so.id}, ${pickNumber}, ${'Pick from SO ' + so.orderNumber}
+          )
+        `);
+      }
+
+      return { pickRecords, nextWorkflowState: nextStep, pickNumber };
     });
 
-    // Generate pick document number
-    const pickDocNumber = await axios.post(
-      `${req.protocol}://${req.get('host')}/api/modules/document-numbering/generate`,
-      { documentType: 'PICK', options: {} },
-      { headers: { Authorization: req.headers.authorization } }
-    );
-
-    const pickNumber = pickDocNumber.data.documentNumber;
-
-    // Log movement history for all picked items
-    for (const movement of result.movementRecords) {
-      await logMovement({
-        tenantId,
-        userId,
-        inventoryItemId: movement.inventoryItemId,
-        binId: movement.binId,
-        quantityChanged: -movement.quantity, // Negative for pick (inventory reduction)
-        movementType: 'pick',
-        referenceType: 'sales_order',
-        referenceId: so.id,
-        referenceNumber: pickNumber,
-        notes: `Pick from SO ${so.orderNumber}`,
-      });
-    }
+    const pickNumber = result.pickNumber;
 
     // Fetch additional data for document generation
     const [customerData] = await db

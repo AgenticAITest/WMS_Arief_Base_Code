@@ -714,8 +714,9 @@ router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.man
             .where(eq(inventoryItems.id, toInventory.id));
         } else {
           // Create new destination inventory
+          const newToInventoryId = uuidv4();
           await tx.insert(inventoryItems).values({
-            id: uuidv4(),
+            id: newToInventoryId,
             tenantId,
             productId: item.productId,
             binId: item.toBinId,
@@ -727,7 +728,36 @@ router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.man
             receivedDate: fromInventory.receivedDate,
             costPerUnit: fromInventory.costPerUnit,
           });
+
+          // Store TO inventory ID for movement logging
+          toInventory = { id: newToInventoryId } as any;
         }
+
+        // Log movement history - FROM bin (negative quantity)
+        await tx.execute(sql`
+          INSERT INTO movement_history (
+            tenant_id, user_id, inventory_item_id, bin_id, 
+            quantity_changed, movement_type, reference_type, 
+            reference_id, reference_number, notes
+          ) VALUES (
+            ${tenantId}, ${userId}, ${fromInventory.id}, ${item.fromBinId},
+            ${-item.quantity}, 'relocation', 'relocation',
+            ${id}, ${relocation.relocationNumber}, ${'Relocation FROM bin'}
+          )
+        `);
+
+        // Log movement history - TO bin (positive quantity)
+        await tx.execute(sql`
+          INSERT INTO movement_history (
+            tenant_id, user_id, inventory_item_id, bin_id, 
+            quantity_changed, movement_type, reference_type, 
+            reference_id, reference_number, notes
+          ) VALUES (
+            ${tenantId}, ${userId}, ${toInventory.id}, ${item.toBinId},
+            ${item.quantity}, 'relocation', 'relocation',
+            ${id}, ${relocation.relocationNumber}, ${'Relocation TO bin'}
+          )
+        `);
       }
 
       // Update relocation status
