@@ -626,12 +626,39 @@ router.post('/adjustments/:id/apply', authorized('ADMIN', 'inventory-items.manag
         .from(adjustmentItems)
         .where(eq(adjustmentItems.adjustmentId, id));
 
-      // Apply each adjustment to inventory
+      // Apply each adjustment to inventory and log movements
       for (const item of items) {
+        // Get inventory item details (for bin_id)
+        const [invItem] = await tx
+          .select({
+            binId: inventoryItems.binId,
+          })
+          .from(inventoryItems)
+          .where(eq(inventoryItems.id, item.inventoryItemId))
+          .limit(1);
+
+        if (!invItem) {
+          throw new Error(`Inventory item not found: ${item.inventoryItemId}`);
+        }
+
+        // Update inventory
         await tx
           .update(inventoryItems)
           .set({ availableQuantity: item.newQuantity })
           .where(eq(inventoryItems.id, item.inventoryItemId));
+
+        // Log movement history
+        await tx.execute(sql`
+          INSERT INTO movement_history (
+            tenant_id, user_id, inventory_item_id, bin_id, 
+            quantity_changed, movement_type, reference_type, 
+            reference_id, reference_number, notes
+          ) VALUES (
+            ${tenantId}, ${userId}, ${item.inventoryItemId}, ${invItem.binId},
+            ${item.quantityDifference}, 'adjustment', 'adjustment',
+            ${id}, ${adjustment.adjustmentNumber}, ${'Adjustment from ' + adjustment.adjustmentNumber}
+          )
+        `);
       }
 
       // Update adjustment status to 'applied'

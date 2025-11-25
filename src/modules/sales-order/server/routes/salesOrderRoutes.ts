@@ -858,7 +858,7 @@ router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async
           // Store for movement logging
           movementRecords.push({
             inventoryItemId: allocation.inventoryItemId,
-            binId: invItem.bin_id,
+            binId: invItem.bin_id as string,
             quantity: allocQty,
           });
 
