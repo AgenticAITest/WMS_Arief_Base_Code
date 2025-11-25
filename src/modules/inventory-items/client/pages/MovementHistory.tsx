@@ -60,15 +60,15 @@ const MovementHistory: React.FC = () => {
   });
   const [search, setSearch] = useState('');
   const [movementType, setMovementType] = useState<string>('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedMovementId, setSelectedMovementId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchMovements();
-  }, [pagination.page, search, movementType, startDate, endDate]);
+  }, [pagination.page, search, movementType, dateFrom, dateTo]);
 
   const fetchMovements = async () => {
     try {
@@ -80,8 +80,8 @@ const MovementHistory: React.FC = () => {
 
       if (search) params.search = search;
       if (movementType && movementType !== 'all') params.movementType = movementType;
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
+      if (dateFrom) params.dateFrom = dateFrom;
+      if (dateTo) params.dateTo = dateTo;
 
       const response = await axios.get('/api/modules/inventory-items/movement-history', {
         params,
@@ -110,10 +110,10 @@ const MovementHistory: React.FC = () => {
       const params: any = {};
       if (search) params.search = search;
       if (movementType && movementType !== 'all') params.movementType = movementType;
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
+      if (dateFrom) params.dateFrom = dateFrom;
+      if (dateTo) params.dateTo = dateTo;
 
-      const response = await axios.get('/api/modules/inventory-items/movement-history/export', {
+      const response = await axios.get('/api/modules/inventory-items/movement-history/export/csv', {
         params,
         responseType: 'blob',
       });
@@ -162,13 +162,13 @@ const MovementHistory: React.FC = () => {
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  const handleStartDateChange = (value: string) => {
-    setStartDate(value);
+  const handleDateFromChange = (value: string) => {
+    setDateFrom(value);
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  const handleEndDateChange = (value: string) => {
-    setEndDate(value);
+  const handleDateToChange = (value: string) => {
+    setDateTo(value);
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
@@ -212,17 +212,17 @@ const MovementHistory: React.FC = () => {
         <div>
           <Input
             type="date"
-            placeholder="Start Date"
-            value={startDate}
-            onChange={(e) => handleStartDateChange(e.target.value)}
+            placeholder="From Date"
+            value={dateFrom}
+            onChange={(e) => handleDateFromChange(e.target.value)}
           />
         </div>
         <div>
           <Input
             type="date"
-            placeholder="End Date"
-            value={endDate}
-            onChange={(e) => handleEndDateChange(e.target.value)}
+            placeholder="To Date"
+            value={dateTo}
+            onChange={(e) => handleDateToChange(e.target.value)}
           />
         </div>
       </div>
