@@ -626,8 +626,17 @@ router.post('/adjustments/:id/apply', authorized('ADMIN', 'inventory-items.manag
         .from(adjustmentItems)
         .where(eq(adjustmentItems.adjustmentId, id));
 
+      console.log('[ADJUSTMENT-APPLY-DEBUG] Total items to process:', items.length);
+
       // Apply each adjustment to inventory and log movements
       for (const item of items) {
+        console.log('[ADJUSTMENT-APPLY-DEBUG] Processing item:', {
+          inventoryItemId: item.inventoryItemId,
+          oldQuantity: item.oldQuantity,
+          newQuantity: item.newQuantity,
+          quantityDifference: item.quantityDifference,
+        });
+
         // Get inventory item details (for bin_id)
         const [invItem] = await tx
           .select({
@@ -641,24 +650,34 @@ router.post('/adjustments/:id/apply', authorized('ADMIN', 'inventory-items.manag
           throw new Error(`Inventory item not found: ${item.inventoryItemId}`);
         }
 
+        console.log('[ADJUSTMENT-APPLY-DEBUG] Found bin:', invItem.binId);
+
         // Update inventory
         await tx
           .update(inventoryItems)
           .set({ availableQuantity: item.newQuantity })
           .where(eq(inventoryItems.id, item.inventoryItemId));
 
+        console.log('[ADJUSTMENT-APPLY-DEBUG] Updated inventory, now inserting movement history...');
+
         // Log movement history
-        await tx.execute(sql`
-          INSERT INTO movement_history (
-            tenant_id, user_id, inventory_item_id, bin_id, 
-            quantity_changed, movement_type, reference_type, 
-            reference_id, reference_number, notes
-          ) VALUES (
-            ${tenantId}, ${userId}, ${item.inventoryItemId}, ${invItem.binId},
-            ${item.quantityDifference}, 'adjustment', 'adjustment',
-            ${id}, ${adjustment.adjustmentNumber}, ${'Adjustment from ' + adjustment.adjustmentNumber}
-          )
-        `);
+        try {
+          await tx.execute(sql`
+            INSERT INTO movement_history (
+              tenant_id, user_id, inventory_item_id, bin_id, 
+              quantity_changed, movement_type, reference_type, 
+              reference_id, reference_number, notes
+            ) VALUES (
+              ${tenantId}, ${userId}, ${item.inventoryItemId}, ${invItem.binId},
+              ${item.quantityDifference}, 'adjustment', 'adjustment',
+              ${id}, ${adjustment.adjustmentNumber}, ${'Adjustment from ' + adjustment.adjustmentNumber}
+            )
+          `);
+          console.log('[ADJUSTMENT-APPLY-DEBUG] ✅ Movement history inserted successfully');
+        } catch (error) {
+          console.error('[ADJUSTMENT-APPLY-DEBUG] ❌ Error inserting movement history:', error);
+          throw error;
+        }
       }
 
       // Update adjustment status to 'applied'
