@@ -99,9 +99,12 @@ export const ViewMovementModal: React.FC<ViewMovementModalProps> = ({
                 <Label className="text-muted-foreground">Product Name</Label>
                 <div>{movement.productName}</div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 col-span-2">
                 <Label className="text-muted-foreground">Bin Location</Label>
-                <div>{movement.binName}</div>
+                <div className="font-semibold">{movement.binName}</div>
+                {movement.locationPath && (
+                  <div className="text-sm text-muted-foreground">{movement.locationPath}</div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Reference Type</Label>
