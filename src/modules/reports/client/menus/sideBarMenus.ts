@@ -30,7 +30,13 @@ export const reportsSidebarMenus = {
         url: "/console/reports/audit-log",
         roles: "ADMIN",
         permissions: "reports.audit-log.view",
-
+      },
+      {
+        id: "financial-report",
+        title: "Financial Report",
+        url: "/console/reports/financial-report",
+        roles: "ADMIN",
+        permissions: "reports.financial-report.view",
       },
     ],
   };

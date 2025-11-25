@@ -119,7 +119,6 @@ const CycleCountHistory: React.FC = () => {
                     <TableHead>Scheduled Date</TableHead>
                     <TableHead>Completed Date</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Total Variance</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -139,11 +138,6 @@ const CycleCountHistory: React.FC = () => {
                           : '-'}
                       </TableCell>
                       <TableCell>{getStatusBadge(count.status)}</TableCell>
-                      <TableCell>
-                        {count.totalVarianceAmount
-                          ? parseFloat(count.totalVarianceAmount).toFixed(2)
-                          : '0.00'}
-                      </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
