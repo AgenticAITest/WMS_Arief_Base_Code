@@ -12,6 +12,7 @@ import RelocationHistory from '../pages/RelocationHistory';
 import CycleCountCreate from '../pages/CycleCountCreate';
 import CycleCountApprove from '../pages/CycleCountApprove';
 import CycleCountHistory from '../pages/CycleCountHistory';
+import MovementHistory from '../pages/MovementHistory';
 
 export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
   return {
@@ -54,6 +55,7 @@ export const inventoryItemsReactRoutes = (basePath: string): RouteObject => {
           { path: 'history', Component: CycleCountHistory },
         ]
       },
+      { path: 'movement-history', Component: MovementHistory },
     ]
   };
 };
