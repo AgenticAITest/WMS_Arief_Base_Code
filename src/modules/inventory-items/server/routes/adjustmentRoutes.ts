@@ -587,135 +587,6 @@ router.put('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'), as
 });
 
 /**
- * POST /api/modules/inventory-items/adjustments/:id/apply
- * Apply an adjustment to inventory (only if status is 'created')
- */
-router.post('/adjustments/:id/apply', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
-  try {
-    const tenantId = req.user!.activeTenantId;
-    const userId = req.user!.id;
-    const { id } = req.params;
-
-    // Check if adjustment exists and belongs to tenant
-    const [adjustment] = await db
-      .select()
-      .from(adjustments)
-      .where(and(eq(adjustments.id, id), eq(adjustments.tenantId, tenantId)))
-      .limit(1);
-
-    if (!adjustment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Adjustment not found',
-      });
-    }
-
-    // Only allow applying if status is 'created'
-    if (adjustment.status !== 'created') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot apply adjustment with status '${adjustment.status}'. Only 'created' adjustments can be applied.`,
-      });
-    }
-
-    // Apply adjustment in transaction
-    await db.transaction(async (tx) => {
-      // Get all adjustment items
-      const items = await tx
-        .select()
-        .from(adjustmentItems)
-        .where(eq(adjustmentItems.adjustmentId, id));
-
-      console.log('[ADJUSTMENT-APPLY-DEBUG] Total items to process:', items.length);
-
-      // Apply each adjustment to inventory and log movements
-      for (const item of items) {
-        console.log('[ADJUSTMENT-APPLY-DEBUG] Processing item:', {
-          inventoryItemId: item.inventoryItemId,
-          oldQuantity: item.oldQuantity,
-          newQuantity: item.newQuantity,
-          quantityDifference: item.quantityDifference,
-        });
-
-        // Get inventory item details (for bin_id)
-        const [invItem] = await tx
-          .select({
-            binId: inventoryItems.binId,
-          })
-          .from(inventoryItems)
-          .where(eq(inventoryItems.id, item.inventoryItemId))
-          .limit(1);
-
-        if (!invItem) {
-          throw new Error(`Inventory item not found: ${item.inventoryItemId}`);
-        }
-
-        console.log('[ADJUSTMENT-APPLY-DEBUG] Found bin:', invItem.binId);
-
-        // Update inventory
-        await tx
-          .update(inventoryItems)
-          .set({ availableQuantity: item.newQuantity })
-          .where(eq(inventoryItems.id, item.inventoryItemId));
-
-        console.log('[ADJUSTMENT-APPLY-DEBUG] Updated inventory, now inserting movement history...');
-
-        // Log movement history
-        try {
-          await tx.execute(sql`
-            INSERT INTO movement_history (
-              tenant_id, user_id, inventory_item_id, bin_id, 
-              quantity_changed, movement_type, reference_type, 
-              reference_id, reference_number, notes
-            ) VALUES (
-              ${tenantId}, ${userId}, ${item.inventoryItemId}, ${invItem.binId},
-              ${item.quantityDifference}, 'adjustment', 'adjustment',
-              ${id}, ${adjustment.adjustmentNumber}, ${'Adjustment from ' + adjustment.adjustmentNumber}
-            )
-          `);
-          console.log('[ADJUSTMENT-APPLY-DEBUG] ✅ Movement history inserted successfully');
-        } catch (error) {
-          console.error('[ADJUSTMENT-APPLY-DEBUG] ❌ Error inserting movement history:', error);
-          throw error;
-        }
-      }
-
-      // Update adjustment status to 'applied'
-      await tx
-        .update(adjustments)
-        .set({
-          status: 'applied',
-          appliedAt: new Date(),
-        })
-        .where(eq(adjustments.id, id));
-
-      // Log audit trail
-      await logAudit({
-        tenantId,
-        userId,
-        module: 'inventory-items',
-        action: 'apply',
-        resourceType: 'adjustment',
-        resourceId: id,
-        description: `Applied adjustment ${adjustment.adjustmentNumber} to inventory`,
-        ipAddress: getClientIp(req),
-      });
-    });
-
-    res.json({
-      success: true,
-      message: 'Adjustment applied to inventory successfully',
-    });
-  } catch (error: any) {
-    console.error('Error applying adjustment:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Internal server error' 
-    });
-  }
-});
-
-/**
  * DELETE /api/modules/inventory-items/adjustments/:id
  * Delete an adjustment (only if status is 'created')
  */
@@ -944,16 +815,8 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
         .from(adjustmentItems)
         .where(eq(adjustmentItems.adjustmentId, id));
 
-      console.log('[ADJUSTMENT-APPROVE-DEBUG] Total items to process:', items.length);
-
       // Apply each adjustment to inventory and log movements
       for (const item of items) {
-        console.log('[ADJUSTMENT-APPROVE-DEBUG] Processing item:', {
-          inventoryItemId: item.inventoryItemId,
-          oldQuantity: item.oldQuantity,
-          newQuantity: item.newQuantity,
-          quantityDifference: item.quantityDifference,
-        });
 
         // Get inventory item details (for bin_id)
         const [invItem] = await tx
@@ -968,15 +831,11 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
           throw new Error(`Inventory item not found: ${item.inventoryItemId}`);
         }
 
-        console.log('[ADJUSTMENT-APPROVE-DEBUG] Found bin:', invItem.binId);
-
         // Update inventory
         await tx
           .update(inventoryItems)
           .set({ availableQuantity: item.newQuantity })
           .where(eq(inventoryItems.id, item.inventoryItemId));
-
-        console.log('[ADJUSTMENT-APPROVE-DEBUG] Updated inventory, now inserting movement history...');
 
         // Log movement history
         try {
@@ -991,9 +850,7 @@ router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.man
               ${id}, ${adjustment.adjustmentNumber}, ${'Adjustment from ' + adjustment.adjustmentNumber}
             )
           `);
-          console.log('[ADJUSTMENT-APPROVE-DEBUG] ✅ Movement history inserted successfully');
         } catch (error) {
-          console.error('[ADJUSTMENT-APPROVE-DEBUG] ❌ Error inserting movement history:', error);
           throw error;
         }
       }
