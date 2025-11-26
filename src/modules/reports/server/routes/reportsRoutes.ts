@@ -7,7 +7,7 @@ import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddlewar
 import { salesOrders, salesOrderItems } from '@modules/sales-order/server/lib/db/schemas/salesOrder';
 import { purchaseOrders, purchaseOrderItems } from '@modules/purchase-order/server/lib/db/schemas/purchaseOrder';
 import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
-import { products } from '@modules/master-data/server/lib/db/schemas/masterData';
+import { products, customers } from '@modules/master-data/server/lib/db/schemas/masterData';
 
 const router = express.Router();
 router.use(authenticated());
@@ -472,6 +472,258 @@ router.get('/financial/summary', authorized('ADMIN', 'reports.view'), async (req
     });
   } catch (error) {
     console.error('Error fetching financial summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/modules/reports/financial/order-profitability:
+ *   get:
+ *     summary: Get order-level profitability analysis
+ *     tags: [Reports]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: integer
+ *         description: Filter by year
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: integer
+ *         description: Filter by month (1-12)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 20
+ *         description: Records per page (max 20)
+ *     responses:
+ *       200:
+ *         description: Order profitability data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       orderId:
+ *                         type: string
+ *                       orderNumber:
+ *                         type: string
+ *                       customerName:
+ *                         type: string
+ *                       revenue:
+ *                         type: number
+ *                       cogs:
+ *                         type: number
+ *                       grossProfit:
+ *                         type: number
+ *                       marginPercent:
+ *                         type: number
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 period:
+ *                   type: object
+ *                   properties:
+ *                     year:
+ *                       type: integer
+ *                     month:
+ *                       type: integer
+ *                     label:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/financial/order-profitability', authorized('ADMIN', 'reports.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const year = req.query.year ? parseInt(req.query.year as string) : null;
+    const month = req.query.month ? parseInt(req.query.month as string) : null;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 20);
+    const offset = (page - 1) * limit;
+
+    // Build period label
+    let periodLabel = 'All Time';
+    if (year && month) {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+      periodLabel = `${monthNames[month - 1]} ${year}`;
+    } else if (year) {
+      periodLabel = `${year}`;
+    }
+
+    // Build date range for filtering
+    let startDate: string | null = null;
+    let endDate: string | null = null;
+    
+    if (year && month) {
+      startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+    } else if (year) {
+      startDate = `${year}-01-01`;
+      endDate = `${year}-12-31`;
+    }
+
+    // Build where conditions for sales orders
+    const whereConditions = [
+      eq(salesOrders.tenantId, tenantId),
+      inArray(salesOrders.status, ['shipped', 'delivered'])
+    ];
+
+    if (startDate && endDate) {
+      whereConditions.push(gte(salesOrders.orderDate, startDate));
+      whereConditions.push(lte(salesOrders.orderDate, endDate));
+    }
+
+    // Get total count for pagination
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(salesOrders)
+      .where(and(...whereConditions));
+
+    const total = totalResult?.count || 0;
+    const totalPages = Math.ceil(total / limit);
+
+    // Get paginated sales orders with customer info
+    const orders = await db
+      .select({
+        id: salesOrders.id,
+        orderNumber: salesOrders.orderNumber,
+        customerId: salesOrders.customerId,
+        customerName: customers.name,
+        totalAmount: salesOrders.totalAmount,
+        orderDate: salesOrders.orderDate,
+      })
+      .from(salesOrders)
+      .leftJoin(customers, eq(salesOrders.customerId, customers.id))
+      .where(and(...whereConditions))
+      .orderBy(desc(salesOrders.orderDate))
+      .limit(limit)
+      .offset(offset);
+
+    // Get last purchase price for each product (same as summary endpoint)
+    const lastPurchasePrices = await db.execute(sql`
+      WITH latest_po_items AS (
+        SELECT DISTINCT ON (poi.product_id)
+          poi.product_id,
+          poi.unit_cost
+        FROM purchase_order_items poi
+        JOIN purchase_orders po ON poi.purchase_order_id = po.id
+        WHERE po.tenant_id = ${tenantId}
+          AND poi.tenant_id = ${tenantId}
+          AND po.status IN ('approved', 'received', 'completed')
+          AND poi.unit_cost IS NOT NULL
+        ORDER BY poi.product_id, po.created_at DESC
+      )
+      SELECT product_id, unit_cost FROM latest_po_items
+    `);
+
+    const lastPriceMap = new Map<string, number>();
+    for (const row of lastPurchasePrices as unknown as Array<{ product_id: string; unit_cost: string }>) {
+      lastPriceMap.set(row.product_id, parseFloat(row.unit_cost));
+    }
+
+    // Get all order IDs for COGS calculation
+    const orderIds = orders.map(o => o.id);
+
+    // Get sales order items for these orders to calculate COGS
+    let orderItemsData: Array<{ sales_order_id: string; product_id: string; ordered_quantity: string }> = [];
+    if (orderIds.length > 0) {
+      const orderItemsResult = await db.execute(sql`
+        SELECT 
+          soi.sales_order_id,
+          soi.product_id,
+          soi.ordered_quantity
+        FROM sales_order_items soi
+        WHERE soi.tenant_id = ${tenantId}
+          AND soi.sales_order_id = ANY(${orderIds})
+      `);
+      orderItemsData = orderItemsResult as unknown as Array<{ sales_order_id: string; product_id: string; ordered_quantity: string }>;
+    }
+
+    // Calculate COGS per order
+    const orderCogsMap = new Map<string, number>();
+    for (const item of orderItemsData) {
+      const orderId = item.sales_order_id;
+      const qty = parseFloat(item.ordered_quantity);
+      const lastPrice = lastPriceMap.get(item.product_id) || 0;
+      const itemCogs = qty * lastPrice;
+      
+      const currentCogs = orderCogsMap.get(orderId) || 0;
+      orderCogsMap.set(orderId, currentCogs + itemCogs);
+    }
+
+    // Build response data with profitability metrics
+    const data = orders.map(order => {
+      const revenue = parseFloat(order.totalAmount || '0');
+      const cogs = orderCogsMap.get(order.id) || 0;
+      const grossProfit = revenue - cogs;
+      const marginPercent = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+
+      return {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        customerName: order.customerName || 'Unknown',
+        orderDate: order.orderDate,
+        revenue: parseFloat(revenue.toFixed(2)),
+        cogs: parseFloat(cogs.toFixed(2)),
+        grossProfit: parseFloat(grossProfit.toFixed(2)),
+        marginPercent: parseFloat(marginPercent.toFixed(2)),
+      };
+    });
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+      period: {
+        year,
+        month,
+        label: periodLabel,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching order profitability:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
