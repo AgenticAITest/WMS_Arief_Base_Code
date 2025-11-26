@@ -7,6 +7,7 @@ import ReportsAdd from '../pages/ReportsAdd';
 // import ReportsEdit from '../pages/ReportsEdit';
 
 import AuditLog from '../pages/AuditLog';
+import FinancialReport from '../pages/FinancialReport';
 
 
 export const reportsReactRoutes = (basePath: string): RouteObject => {
@@ -21,6 +22,7 @@ export const reportsReactRoutes = (basePath: string): RouteObject => {
       // { path: ':id/edit', Component: ReportsEdit },
 
       { path: 'audit-log', Component: AuditLog },
+      { path: 'financial-report', Component: FinancialReport },
 
     ]
   };
