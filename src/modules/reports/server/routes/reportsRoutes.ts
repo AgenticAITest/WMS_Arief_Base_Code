@@ -484,7 +484,7 @@ router.get('/financial/summary', authorized('ADMIN', 'reports.view'), async (req
  * /api/modules/reports/financial/order-profitability:
  *   get:
  *     summary: Get order-level profitability analysis
- *     tags: [Reports]
+ *     tags: [Reports - Financial]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -660,26 +660,28 @@ router.get('/financial/order-profitability', authorized('ADMIN', 'reports.view')
     const orderIds = orders.map(o => o.id);
 
     // Get sales order items for these orders to calculate COGS
-    let orderItemsData: Array<{ sales_order_id: string; product_id: string; ordered_quantity: string }> = [];
+    let orderItemsData: Array<{ salesOrderId: string; productId: string; orderedQuantity: string }> = [];
     if (orderIds.length > 0) {
-      const orderItemsResult = await db.execute(sql`
-        SELECT 
-          soi.sales_order_id,
-          soi.product_id,
-          soi.ordered_quantity
-        FROM sales_order_items soi
-        WHERE soi.tenant_id = ${tenantId}
-          AND soi.sales_order_id = ANY(${orderIds})
-      `);
-      orderItemsData = orderItemsResult as unknown as Array<{ sales_order_id: string; product_id: string; ordered_quantity: string }>;
+      const orderItemsResult = await db
+        .select({
+          salesOrderId: salesOrderItems.salesOrderId,
+          productId: salesOrderItems.productId,
+          orderedQuantity: salesOrderItems.orderedQuantity,
+        })
+        .from(salesOrderItems)
+        .where(and(
+          eq(salesOrderItems.tenantId, tenantId),
+          inArray(salesOrderItems.salesOrderId, orderIds)
+        ));
+      orderItemsData = orderItemsResult as Array<{ salesOrderId: string; productId: string; orderedQuantity: string }>;
     }
 
     // Calculate COGS per order
     const orderCogsMap = new Map<string, number>();
     for (const item of orderItemsData) {
-      const orderId = item.sales_order_id;
-      const qty = parseFloat(item.ordered_quantity);
-      const lastPrice = lastPriceMap.get(item.product_id) || 0;
+      const orderId = item.salesOrderId;
+      const qty = parseFloat(item.orderedQuantity);
+      const lastPrice = lastPriceMap.get(item.productId) || 0;
       const itemCogs = qty * lastPrice;
       
       const currentCogs = orderCogsMap.get(orderId) || 0;
