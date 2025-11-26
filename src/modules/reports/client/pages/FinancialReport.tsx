@@ -97,6 +97,7 @@ const FinancialReport: React.FC = () => {
     hasNext: false,
     hasPrev: false,
   });
+  const [orderProfitabilityExporting, setOrderProfitabilityExporting] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -210,6 +211,75 @@ const FinancialReport: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     toast.success('Financial report exported successfully');
+  };
+
+  const handleExportOrderProfitability = async () => {
+    try {
+      setOrderProfitabilityExporting(true);
+
+      const params: { year?: number; month?: number; page: number; limit: number } = {
+        page: 1,
+        limit: 10000,
+      };
+
+      if (periodFilter !== 'all') {
+        const parts = periodFilter.split('-');
+        params.year = parseInt(parts[0]);
+        if (parts.length > 1) {
+          params.month = parseInt(parts[1]);
+        }
+      }
+
+      const response = await axios.get<OrderProfitabilityResponse>(
+        '/api/modules/reports/financial/order-profitability',
+        { params }
+      );
+
+      if (!response.data.success || response.data.data.length === 0) {
+        toast.error('No order profitability data to export');
+        return;
+      }
+
+      const orders = response.data.data;
+      const periodLabel = response.data.period.label;
+
+      const escapeCSV = (value: string): string => {
+        if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      const csvContent = [
+        ['Order ID', 'Customer', 'Revenue', 'COGS', 'Gross Profit', 'Margin %'],
+        ...orders.map(order => [
+          escapeCSV(order.orderNumber),
+          escapeCSV(order.customerName),
+          order.revenue.toString(),
+          order.cogs.toString(),
+          order.grossProfit.toString(),
+          order.marginPercent.toFixed(2),
+        ]),
+      ]
+        .map((row) => row.join(','))
+        .join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `order-profitability-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exported ${orders.length} orders (${periodLabel})`);
+    } catch (error: any) {
+      console.error('Error exporting order profitability:', error);
+      toast.error('Failed to export order profitability data');
+    } finally {
+      setOrderProfitabilityExporting(false);
+    }
   };
 
   const formatCurrency = (value: number): string => {
@@ -376,9 +446,20 @@ const FinancialReport: React.FC = () => {
         <TabsContent value="order-profitability" className="mt-4">
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-xl font-semibold">Order-Level Profitability Analysis</h2>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold">Order-Level Profitability Analysis</h2>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleExportOrderProfitability}
+                  disabled={orderProfitabilityLoading || orderProfitabilityExporting || orderProfitabilityData.length === 0}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {orderProfitabilityExporting ? 'Exporting...' : 'Export Data'}
+                </Button>
               </div>
 
               {orderProfitabilityLoading ? (
