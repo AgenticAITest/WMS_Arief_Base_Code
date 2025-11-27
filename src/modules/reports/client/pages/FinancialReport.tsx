@@ -81,6 +81,35 @@ interface OrderProfitabilityResponse {
   };
 }
 
+interface ProductAnalysis {
+  productId: string;
+  sku: string;
+  productName: string;
+  unitSold: number;
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+  marginPercent: number;
+}
+
+interface ProductAnalysisResponse {
+  success: boolean;
+  data: ProductAnalysis[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  period: {
+    year: number | null;
+    month: number | null;
+    label: string;
+  };
+}
+
 const FinancialReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FinancialSummary | null>(null);
@@ -98,6 +127,18 @@ const FinancialReport: React.FC = () => {
     hasPrev: false,
   });
   const [orderProfitabilityExporting, setOrderProfitabilityExporting] = useState(false);
+
+  const [productAnalysisLoading, setProductAnalysisLoading] = useState(false);
+  const [productAnalysisData, setProductAnalysisData] = useState<ProductAnalysis[]>([]);
+  const [productAnalysisPagination, setProductAnalysisPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  });
+  const [productAnalysisExporting, setProductAnalysisExporting] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -119,6 +160,7 @@ const FinancialReport: React.FC = () => {
   useEffect(() => {
     fetchFinancialData();
     fetchOrderProfitability(1);
+    fetchProductAnalysis(1);
   }, [periodFilter]);
 
   const fetchFinancialData = async () => {
@@ -279,6 +321,110 @@ const FinancialReport: React.FC = () => {
       toast.error('Failed to export order profitability data');
     } finally {
       setOrderProfitabilityExporting(false);
+    }
+  };
+
+  const fetchProductAnalysis = async (page: number) => {
+    try {
+      setProductAnalysisLoading(true);
+
+      const params: { year?: number; month?: number; page: number; limit: number } = {
+        page,
+        limit: 20,
+      };
+
+      if (periodFilter !== 'all') {
+        const parts = periodFilter.split('-');
+        params.year = parseInt(parts[0]);
+        if (parts.length > 1) {
+          params.month = parseInt(parts[1]);
+        }
+      }
+
+      const response = await axios.get<ProductAnalysisResponse>(
+        '/api/modules/reports/financial/product-analysis',
+        { params }
+      );
+
+      if (response.data.success) {
+        setProductAnalysisData(response.data.data);
+        setProductAnalysisPagination(response.data.pagination);
+      }
+    } catch (error: any) {
+      console.error('Error fetching product analysis:', error);
+      toast.error('Failed to fetch product analysis data');
+    } finally {
+      setProductAnalysisLoading(false);
+    }
+  };
+
+  const handleExportProductAnalysis = async () => {
+    try {
+      setProductAnalysisExporting(true);
+
+      const params: { year?: number; month?: number; page: number; limit: number } = {
+        page: 1,
+        limit: 10000,
+      };
+
+      if (periodFilter !== 'all') {
+        const parts = periodFilter.split('-');
+        params.year = parseInt(parts[0]);
+        if (parts.length > 1) {
+          params.month = parseInt(parts[1]);
+        }
+      }
+
+      const response = await axios.get<ProductAnalysisResponse>(
+        '/api/modules/reports/financial/product-analysis',
+        { params }
+      );
+
+      if (!response.data.success || response.data.data.length === 0) {
+        toast.error('No product analysis data to export');
+        return;
+      }
+
+      const products = response.data.data;
+      const periodLabel = response.data.period.label;
+
+      const escapeCSV = (value: string): string => {
+        if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      const csvContent = [
+        ['SKU', 'Product Name', 'Unit Sold', 'Revenue', 'COGS', 'Gross Profit', 'Margin %'],
+        ...products.map(product => [
+          escapeCSV(product.sku),
+          escapeCSV(product.productName),
+          product.unitSold.toString(),
+          product.revenue.toString(),
+          product.cogs.toString(),
+          product.grossProfit.toString(),
+          product.marginPercent.toFixed(2),
+        ]),
+      ]
+        .map((row) => row.join(','))
+        .join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `product-analysis-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exported ${products.length} products (${periodLabel})`);
+    } catch (error: any) {
+      console.error('Error exporting product analysis:', error);
+      toast.error('Failed to export product analysis data');
+    } finally {
+      setProductAnalysisExporting(false);
     }
   };
 
@@ -555,20 +701,122 @@ const FinancialReport: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* Under Construction Tabs */}
+        {/* Product Analysis Tab */}
         <TabsContent value="product-analysis" className="mt-4">
           <Card>
-            <CardContent className="p-12">
-              <div className="flex flex-col items-center justify-center text-center">
-                <Construction className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Product Analysis</h3>
-                <p className="text-muted-foreground">
-                  This feature is under construction. Check back soon!
-                </p>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold">SKU-Level Profitability Analysis</h2>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleExportProductAnalysis}
+                  disabled={productAnalysisLoading || productAnalysisExporting || productAnalysisData.length === 0}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {productAnalysisExporting ? 'Exporting...' : 'Export Data'}
+                </Button>
               </div>
+
+              {productAnalysisLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : productAnalysisData.length > 0 ? (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Product Name</TableHead>
+                        <TableHead className="text-right">Unit Sold</TableHead>
+                        <TableHead className="text-right">Revenue</TableHead>
+                        <TableHead className="text-right">COGS</TableHead>
+                        <TableHead className="text-right">Gross Profit</TableHead>
+                        <TableHead className="text-right">Margin %</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {productAnalysisData.map((product) => (
+                        <TableRow key={product.productId}>
+                          <TableCell className="font-medium">{product.sku}</TableCell>
+                          <TableCell>{product.productName}</TableCell>
+                          <TableCell className="text-right">{product.unitSold.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(product.revenue)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(product.cogs)}</TableCell>
+                          <TableCell className={`text-right ${product.grossProfit < 0 ? 'text-red-600' : ''}`}>
+                            {formatCurrency(product.grossProfit)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span
+                              className={`px-2 py-1 rounded text-sm font-medium ${
+                                product.marginPercent < 0
+                                  ? 'bg-red-100 text-red-700'
+                                  : product.marginPercent < 20
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : 'bg-green-100 text-green-700'
+                              }`}
+                            >
+                              {product.marginPercent.toFixed(1)}%
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination */}
+                  {productAnalysisPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {((productAnalysisPagination.page - 1) * productAnalysisPagination.limit) + 1} to{' '}
+                        {Math.min(
+                          productAnalysisPagination.page * productAnalysisPagination.limit,
+                          productAnalysisPagination.total
+                        )}{' '}
+                        of {productAnalysisPagination.total} products
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchProductAnalysis(productAnalysisPagination.page - 1)}
+                          disabled={!productAnalysisPagination.hasPrev || productAnalysisLoading}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          Page {productAnalysisPagination.page} of {productAnalysisPagination.totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchProductAnalysis(productAnalysisPagination.page + 1)}
+                          disabled={!productAnalysisPagination.hasNext || productAnalysisLoading}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No product analysis data available for this period</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Under Construction Tabs */}
 
         <TabsContent value="inventory-valuation" className="mt-4">
           <Card>
