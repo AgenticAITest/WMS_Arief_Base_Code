@@ -110,6 +110,28 @@ interface ProductAnalysisResponse {
   };
 }
 
+interface InventoryValuation {
+  productId: string;
+  sku: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  totalValue: number;
+}
+
+interface InventoryValuationResponse {
+  success: boolean;
+  data: InventoryValuation[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
 const FinancialReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FinancialSummary | null>(null);
@@ -139,6 +161,18 @@ const FinancialReport: React.FC = () => {
     hasPrev: false,
   });
   const [productAnalysisExporting, setProductAnalysisExporting] = useState(false);
+
+  const [inventoryValuationLoading, setInventoryValuationLoading] = useState(false);
+  const [inventoryValuationData, setInventoryValuationData] = useState<InventoryValuation[]>([]);
+  const [inventoryValuationPagination, setInventoryValuationPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  });
+  const [inventoryValuationExporting, setInventoryValuationExporting] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
