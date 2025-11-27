@@ -1287,6 +1287,7 @@ router.get('/financial/supplier-analysis', authorized('ADMIN', 'reports.view'), 
     const totalPages = Math.ceil(total / limit);
 
     // Get aggregated supplier data with pagination
+    // Note: JOIN on s.id = po.supplier_id already excludes null supplier_ids implicitly
     const supplierDataResult = await db.execute(sql`
       SELECT 
         s.id as supplier_id,
@@ -1294,7 +1295,7 @@ router.get('/financial/supplier-analysis', authorized('ADMIN', 'reports.view'), 
         COALESCE(SUM(CAST(poi.total_cost AS DECIMAL)), 0) as total_purchases,
         COALESCE(SUM(poi.ordered_quantity), 0) as total_quantity
       FROM suppliers s
-      JOIN purchase_orders po ON s.id = po.supplier_id
+      JOIN purchase_orders po ON s.id = po.supplier_id AND po.supplier_id IS NOT NULL
       JOIN purchase_order_items poi ON po.id = poi.purchase_order_id
       WHERE po.tenant_id = ${tenantId}
         AND poi.tenant_id = ${tenantId}
