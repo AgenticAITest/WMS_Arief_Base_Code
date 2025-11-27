@@ -462,6 +462,88 @@ const FinancialReport: React.FC = () => {
     }
   };
 
+  const fetchInventoryValuation = async (page: number) => {
+    try {
+      setInventoryValuationLoading(true);
+
+      const params = { page, limit: 20 };
+
+      const response = await axios.get<InventoryValuationResponse>(
+        '/api/modules/reports/financial/inventory-valuation',
+        { params }
+      );
+
+      if (response.data.success) {
+        setInventoryValuationData(response.data.data);
+        setInventoryValuationPagination(response.data.pagination);
+      }
+    } catch (error: any) {
+      console.error('Error fetching inventory valuation:', error);
+      toast.error('Failed to fetch inventory valuation data');
+    } finally {
+      setInventoryValuationLoading(false);
+    }
+  };
+
+  const handleExportInventoryValuation = async () => {
+    try {
+      setInventoryValuationExporting(true);
+
+      const params = { page: 1, limit: 10000 };
+
+      const response = await axios.get<InventoryValuationResponse>(
+        '/api/modules/reports/financial/inventory-valuation',
+        { params }
+      );
+
+      if (!response.data.success || response.data.data.length === 0) {
+        toast.error('No inventory valuation data to export');
+        return;
+      }
+
+      const items = response.data.data;
+
+      const escapeCSV = (value: string): string => {
+        if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      const totalValue = items.reduce((sum, item) => sum + item.totalValue, 0);
+
+      const csvContent = [
+        ['SKU', 'Product Name', 'Quantity', 'Unit Cost', 'Total Value'],
+        ...items.map(item => [
+          escapeCSV(item.sku),
+          escapeCSV(item.productName),
+          item.quantity.toString(),
+          item.unitCost.toFixed(2),
+          item.totalValue.toFixed(2),
+        ]),
+        ['', '', '', 'TOTAL', totalValue.toFixed(2)],
+      ]
+        .map((row) => row.join(','))
+        .join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `inventory-valuation-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exported ${items.length} products (Total Value: $${totalValue.toLocaleString()})`);
+    } catch (error: any) {
+      console.error('Error exporting inventory valuation:', error);
+      toast.error('Failed to export inventory valuation data');
+    } finally {
+      setInventoryValuationExporting(false);
+    }
+  };
+
   const formatCurrency = (value: number): string => {
     if (value < 0) {
       return `-$${Math.abs(value).toLocaleString()}`;
