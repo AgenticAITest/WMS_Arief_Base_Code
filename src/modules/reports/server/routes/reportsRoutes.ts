@@ -7,7 +7,7 @@ import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddlewar
 import { salesOrders, salesOrderItems } from '@modules/sales-order/server/lib/db/schemas/salesOrder';
 import { purchaseOrders, purchaseOrderItems } from '@modules/purchase-order/server/lib/db/schemas/purchaseOrder';
 import { inventoryItems } from '@modules/inventory-items/server/lib/db/schemas/inventoryItems';
-import { products, customers } from '@modules/master-data/server/lib/db/schemas/masterData';
+import { products, customers, suppliers } from '@modules/master-data/server/lib/db/schemas/masterData';
 
 const router = express.Router();
 router.use(authenticated());
