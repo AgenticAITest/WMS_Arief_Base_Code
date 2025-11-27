@@ -132,6 +132,32 @@ interface InventoryValuationResponse {
   };
 }
 
+interface SupplierAnalysis {
+  supplierId: string;
+  supplierName: string;
+  totalPurchases: number;
+  totalQuantity: number;
+  avgUnitCost: number;
+}
+
+interface SupplierAnalysisResponse {
+  success: boolean;
+  data: SupplierAnalysis[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  period: {
+    year: number | null;
+    month: number | null;
+    label: string;
+  };
+}
+
 const FinancialReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FinancialSummary | null>(null);
@@ -174,6 +200,18 @@ const FinancialReport: React.FC = () => {
   });
   const [inventoryValuationExporting, setInventoryValuationExporting] = useState(false);
 
+  const [supplierAnalysisLoading, setSupplierAnalysisLoading] = useState(false);
+  const [supplierAnalysisData, setSupplierAnalysisData] = useState<SupplierAnalysis[]>([]);
+  const [supplierAnalysisPagination, setSupplierAnalysisPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  });
+  const [supplierAnalysisExporting, setSupplierAnalysisExporting] = useState(false);
+
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -195,6 +233,7 @@ const FinancialReport: React.FC = () => {
     fetchFinancialData();
     fetchOrderProfitability(1);
     fetchProductAnalysis(1);
+    fetchSupplierAnalysis(1);
   }, [periodFilter]);
 
   useEffect(() => {
@@ -545,6 +584,107 @@ const FinancialReport: React.FC = () => {
       toast.error('Failed to export inventory valuation data');
     } finally {
       setInventoryValuationExporting(false);
+    }
+  };
+
+  const fetchSupplierAnalysis = async (page: number) => {
+    try {
+      setSupplierAnalysisLoading(true);
+
+      const params: { year?: number; month?: number; page: number; limit: number } = {
+        page,
+        limit: 20,
+      };
+
+      if (periodFilter !== 'all') {
+        const parts = periodFilter.split('-');
+        params.year = parseInt(parts[0]);
+        if (parts.length > 1) {
+          params.month = parseInt(parts[1]);
+        }
+      }
+
+      const response = await axios.get<SupplierAnalysisResponse>(
+        '/api/modules/reports/financial/supplier-analysis',
+        { params }
+      );
+
+      if (response.data.success) {
+        setSupplierAnalysisData(response.data.data);
+        setSupplierAnalysisPagination(response.data.pagination);
+      }
+    } catch (error: any) {
+      console.error('Error fetching supplier analysis:', error);
+      toast.error('Failed to fetch supplier analysis data');
+    } finally {
+      setSupplierAnalysisLoading(false);
+    }
+  };
+
+  const handleExportSupplierAnalysis = async () => {
+    try {
+      setSupplierAnalysisExporting(true);
+
+      const params: { year?: number; month?: number; page: number; limit: number } = {
+        page: 1,
+        limit: 10000,
+      };
+
+      if (periodFilter !== 'all') {
+        const parts = periodFilter.split('-');
+        params.year = parseInt(parts[0]);
+        if (parts.length > 1) {
+          params.month = parseInt(parts[1]);
+        }
+      }
+
+      const response = await axios.get<SupplierAnalysisResponse>(
+        '/api/modules/reports/financial/supplier-analysis',
+        { params }
+      );
+
+      if (!response.data.success || response.data.data.length === 0) {
+        toast.error('No supplier analysis data to export');
+        return;
+      }
+
+      const suppliers = response.data.data;
+      const periodLabel = response.data.period.label;
+
+      const escapeCSV = (value: string): string => {
+        if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      const csvContent = [
+        ['Supplier Name', 'Total Purchases', 'Total Quantity', 'Avg Unit Cost'],
+        ...suppliers.map(supplier => [
+          escapeCSV(supplier.supplierName),
+          supplier.totalPurchases.toFixed(2),
+          supplier.totalQuantity.toString(),
+          supplier.avgUnitCost.toFixed(2),
+        ]),
+      ]
+        .map((row) => row.join(','))
+        .join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `supplier-analysis-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exported ${suppliers.length} suppliers (${periodLabel})`);
+    } catch (error: any) {
+      console.error('Error exporting supplier analysis:', error);
+      toast.error('Failed to export supplier analysis data');
+    } finally {
+      setSupplierAnalysisExporting(false);
     }
   };
 
@@ -1033,21 +1173,102 @@ const FinancialReport: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* Under Construction Tabs */}
-
+        {/* Supplier Analysis Tab */}
         <TabsContent value="supplier-analysis" className="mt-4">
           <Card>
-            <CardContent className="p-12">
-              <div className="flex flex-col items-center justify-center text-center">
-                <Construction className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Supplier Cost Analysis</h3>
-                <p className="text-muted-foreground">
-                  This feature is under construction. Check back soon!
-                </p>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold">Supplier Analysis</h2>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleExportSupplierAnalysis}
+                  disabled={supplierAnalysisLoading || supplierAnalysisExporting || supplierAnalysisData.length === 0}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {supplierAnalysisExporting ? 'Exporting...' : 'Export Data'}
+                </Button>
               </div>
+
+              {supplierAnalysisLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : supplierAnalysisData.length > 0 ? (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Supplier Name</TableHead>
+                        <TableHead className="text-right">Total Purchases</TableHead>
+                        <TableHead className="text-right">Total Quantity</TableHead>
+                        <TableHead className="text-right">Avg Unit Cost</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {supplierAnalysisData.map((supplier) => (
+                        <TableRow key={supplier.supplierId}>
+                          <TableCell className="font-medium">{supplier.supplierName}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(supplier.totalPurchases)}</TableCell>
+                          <TableCell className="text-right">{supplier.totalQuantity.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(supplier.avgUnitCost)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination */}
+                  {supplierAnalysisPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {((supplierAnalysisPagination.page - 1) * supplierAnalysisPagination.limit) + 1} to{' '}
+                        {Math.min(
+                          supplierAnalysisPagination.page * supplierAnalysisPagination.limit,
+                          supplierAnalysisPagination.total
+                        )}{' '}
+                        of {supplierAnalysisPagination.total} suppliers
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchSupplierAnalysis(supplierAnalysisPagination.page - 1)}
+                          disabled={!supplierAnalysisPagination.hasPrev || supplierAnalysisLoading}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          Page {supplierAnalysisPagination.page} of {supplierAnalysisPagination.totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchSupplierAnalysis(supplierAnalysisPagination.page + 1)}
+                          disabled={!supplierAnalysisPagination.hasNext || supplierAnalysisLoading}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No supplier data available for selected period</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Under Construction Tabs */}
 
         <TabsContent value="customer-analysis" className="mt-4">
           <Card>
