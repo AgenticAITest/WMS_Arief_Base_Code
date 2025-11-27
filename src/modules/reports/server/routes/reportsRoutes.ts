@@ -733,4 +733,240 @@ router.get('/financial/order-profitability', authorized('ADMIN', 'reports.view')
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/reports/financial/product-analysis:
+ *   get:
+ *     summary: Get product-level profitability analysis
+ *     tags: [Reports - Financial]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: integer
+ *         description: Filter by year
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: integer
+ *         description: Filter by month (1-12)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 20
+ *         description: Records per page (max 20)
+ *     responses:
+ *       200:
+ *         description: Product profitability data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       productId:
+ *                         type: string
+ *                       sku:
+ *                         type: string
+ *                       productName:
+ *                         type: string
+ *                       unitSold:
+ *                         type: number
+ *                       revenue:
+ *                         type: number
+ *                       cogs:
+ *                         type: number
+ *                       grossProfit:
+ *                         type: number
+ *                       marginPercent:
+ *                         type: number
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 period:
+ *                   type: object
+ *                   properties:
+ *                     year:
+ *                       type: integer
+ *                     month:
+ *                       type: integer
+ *                     label:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/financial/product-analysis', authorized('ADMIN', 'reports.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const year = req.query.year ? parseInt(req.query.year as string) : null;
+    const month = req.query.month ? parseInt(req.query.month as string) : null;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 20);
+    const offset = (page - 1) * limit;
+
+    // Build period label
+    let periodLabel = 'All Time';
+    if (year && month) {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+      periodLabel = `${monthNames[month - 1]} ${year}`;
+    } else if (year) {
+      periodLabel = `${year}`;
+    }
+
+    // Build date range for filtering
+    let startDate: string | null = null;
+    let endDate: string | null = null;
+    
+    if (year && month) {
+      startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+    } else if (year) {
+      startDate = `${year}-01-01`;
+      endDate = `${year}-12-31`;
+    }
+
+    // Get last purchase price for each product (from approved POs)
+    const lastPurchasePrices = await db.execute(sql`
+      WITH latest_po_items AS (
+        SELECT DISTINCT ON (poi.product_id)
+          poi.product_id,
+          poi.unit_cost
+        FROM purchase_order_items poi
+        JOIN purchase_orders po ON poi.purchase_order_id = po.id
+        WHERE po.tenant_id = ${tenantId}
+          AND poi.tenant_id = ${tenantId}
+          AND po.status IN ('approved', 'received', 'completed')
+          AND poi.unit_cost IS NOT NULL
+        ORDER BY poi.product_id, po.created_at DESC
+      )
+      SELECT product_id, unit_cost FROM latest_po_items
+    `);
+
+    const lastPriceMap = new Map<string, number>();
+    for (const row of lastPurchasePrices as unknown as Array<{ product_id: string; unit_cost: string }>) {
+      lastPriceMap.set(row.product_id, parseFloat(row.unit_cost));
+    }
+
+    // Build date filter condition for raw SQL
+    let dateFilterSql = sql``;
+    if (startDate && endDate) {
+      dateFilterSql = sql`AND so.order_date >= ${startDate} AND so.order_date <= ${endDate}`;
+    }
+
+    // Get total count of distinct products sold
+    const countResult = await db.execute(sql`
+      SELECT COUNT(DISTINCT soi.product_id) as total
+      FROM sales_order_items soi
+      JOIN sales_orders so ON soi.sales_order_id = so.id
+      WHERE so.tenant_id = ${tenantId}
+        AND soi.tenant_id = ${tenantId}
+        AND so.status IN ('shipped', 'delivered')
+        ${dateFilterSql}
+    `);
+
+    const total = parseInt((countResult as unknown as Array<{ total: string }>)[0]?.total || '0');
+    const totalPages = Math.ceil(total / limit);
+
+    // Get aggregated product sales data with pagination
+    const productSalesResult = await db.execute(sql`
+      SELECT 
+        p.id as product_id,
+        p.sku,
+        p.name as product_name,
+        SUM(CAST(soi.ordered_quantity AS DECIMAL)) as unit_sold,
+        SUM(CAST(soi.total_price AS DECIMAL)) as revenue
+      FROM sales_order_items soi
+      JOIN sales_orders so ON soi.sales_order_id = so.id
+      JOIN products p ON soi.product_id = p.id
+      WHERE so.tenant_id = ${tenantId}
+        AND soi.tenant_id = ${tenantId}
+        AND so.status IN ('shipped', 'delivered')
+        ${dateFilterSql}
+      GROUP BY p.id, p.sku, p.name
+      ORDER BY revenue DESC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `);
+
+    // Calculate profitability for each product
+    const data = (productSalesResult as unknown as Array<{
+      product_id: string;
+      sku: string;
+      product_name: string;
+      unit_sold: string;
+      revenue: string;
+    }>).map(row => {
+      const unitSold = parseFloat(row.unit_sold);
+      const revenue = parseFloat(row.revenue);
+      const lastPrice = lastPriceMap.get(row.product_id) || 0;
+      const cogs = unitSold * lastPrice;
+      const grossProfit = revenue - cogs;
+      const marginPercent = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
+
+      return {
+        productId: row.product_id,
+        sku: row.sku,
+        productName: row.product_name,
+        unitSold: parseFloat(unitSold.toFixed(3)),
+        revenue: parseFloat(revenue.toFixed(2)),
+        cogs: parseFloat(cogs.toFixed(2)),
+        grossProfit: parseFloat(grossProfit.toFixed(2)),
+        marginPercent: parseFloat(marginPercent.toFixed(2)),
+      };
+    });
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+      period: {
+        year,
+        month,
+        label: periodLabel,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching product analysis:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 export default router;
