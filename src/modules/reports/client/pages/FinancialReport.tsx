@@ -197,6 +197,10 @@ const FinancialReport: React.FC = () => {
     fetchProductAnalysis(1);
   }, [periodFilter]);
 
+  useEffect(() => {
+    fetchInventoryValuation(1);
+  }, []);
+
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
@@ -932,21 +936,104 @@ const FinancialReport: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* Under Construction Tabs */}
-
+        {/* Inventory Valuation Tab */}
         <TabsContent value="inventory-valuation" className="mt-4">
           <Card>
-            <CardContent className="p-12">
-              <div className="flex flex-col items-center justify-center text-center">
-                <Construction className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Inventory Valuation</h3>
-                <p className="text-muted-foreground">
-                  This feature is under construction. Check back soon!
-                </p>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Package className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold">Current Inventory Valuation</h2>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleExportInventoryValuation}
+                  disabled={inventoryValuationLoading || inventoryValuationExporting || inventoryValuationData.length === 0}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {inventoryValuationExporting ? 'Exporting...' : 'Export Data'}
+                </Button>
               </div>
+
+              {inventoryValuationLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : inventoryValuationData.length > 0 ? (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Product Name</TableHead>
+                        <TableHead className="text-right">Quantity</TableHead>
+                        <TableHead className="text-right">Unit Cost</TableHead>
+                        <TableHead className="text-right">Total Value</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inventoryValuationData.map((item) => (
+                        <TableRow key={item.productId}>
+                          <TableCell className="font-medium">{item.sku}</TableCell>
+                          <TableCell>{item.productName}</TableCell>
+                          <TableCell className="text-right">{item.quantity.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(item.unitCost)}</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(item.totalValue)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {/* Pagination */}
+                  {inventoryValuationPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {((inventoryValuationPagination.page - 1) * inventoryValuationPagination.limit) + 1} to{' '}
+                        {Math.min(
+                          inventoryValuationPagination.page * inventoryValuationPagination.limit,
+                          inventoryValuationPagination.total
+                        )}{' '}
+                        of {inventoryValuationPagination.total} products
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchInventoryValuation(inventoryValuationPagination.page - 1)}
+                          disabled={!inventoryValuationPagination.hasPrev || inventoryValuationLoading}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          Page {inventoryValuationPagination.page} of {inventoryValuationPagination.totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchInventoryValuation(inventoryValuationPagination.page + 1)}
+                          disabled={!inventoryValuationPagination.hasNext || inventoryValuationLoading}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No inventory data available</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Under Construction Tabs */}
 
         <TabsContent value="supplier-analysis" className="mt-4">
           <Card>
