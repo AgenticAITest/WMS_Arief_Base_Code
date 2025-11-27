@@ -1353,4 +1353,213 @@ router.get('/financial/supplier-analysis', authorized('ADMIN', 'reports.view'), 
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/reports/financial/customer-revenue-analysis:
+ *   get:
+ *     summary: Get customer revenue analysis with sales metrics
+ *     description: Returns list of customers with total sales, total quantity, and average unit price
+ *     tags: [Reports - Financial]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: integer
+ *         description: Filter by year (e.g., 2025). If not provided, returns all time.
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 12
+ *         description: Filter by month (1-12). Only used if year is also provided.
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 20
+ *         description: Records per page (max 20)
+ *     responses:
+ *       200:
+ *         description: Customer revenue analysis data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       customerId:
+ *                         type: string
+ *                       customerName:
+ *                         type: string
+ *                       totalSales:
+ *                         type: number
+ *                         description: Sum of total_price from SO items
+ *                       totalQuantity:
+ *                         type: number
+ *                         description: Sum of ordered_quantity from SO items
+ *                       avgUnitPrice:
+ *                         type: number
+ *                         description: totalSales / totalQuantity
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     hasNext:
+ *                       type: boolean
+ *                     hasPrev:
+ *                       type: boolean
+ *                 period:
+ *                   type: object
+ *                   properties:
+ *                     year:
+ *                       type: integer
+ *                     month:
+ *                       type: integer
+ *                     label:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/financial/customer-revenue-analysis', authorized('ADMIN', 'reports.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const year = req.query.year ? parseInt(req.query.year as string) : null;
+    const month = req.query.month ? parseInt(req.query.month as string) : null;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 20);
+    const offset = (page - 1) * limit;
+
+    // Build period label
+    let periodLabel = 'All Time';
+    if (year && month) {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+      periodLabel = `${monthNames[month - 1]} ${year}`;
+    } else if (year) {
+      periodLabel = `${year}`;
+    }
+
+    // Build date range for filtering
+    let startDate: string | null = null;
+    let endDate: string | null = null;
+    
+    if (year && month) {
+      startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+    } else if (year) {
+      startDate = `${year}-01-01`;
+      endDate = `${year}-12-31`;
+    }
+
+    // Build date filter SQL fragment
+    let dateFilterSql = sql``;
+    if (startDate && endDate) {
+      dateFilterSql = sql`AND so.order_date >= ${startDate} AND so.order_date <= ${endDate}`;
+    }
+
+    // Get total count of distinct customers with shipped/delivered SOs
+    const countResult = await db.execute(sql`
+      SELECT COUNT(DISTINCT so.customer_id) as total
+      FROM sales_orders so
+      WHERE so.tenant_id = ${tenantId}
+        AND so.customer_id IS NOT NULL
+        AND so.status IN ('shipped', 'delivered')
+        ${dateFilterSql}
+    `);
+
+    const total = parseInt((countResult as unknown as Array<{ total: string }>)[0]?.total || '0');
+    const totalPages = Math.ceil(total / limit);
+
+    // Get aggregated customer data with pagination
+    const customerDataResult = await db.execute(sql`
+      SELECT 
+        c.id as customer_id,
+        c.name as customer_name,
+        COALESCE(SUM(CAST(soi.total_price AS DECIMAL)), 0) as total_sales,
+        COALESCE(SUM(CAST(soi.ordered_quantity AS DECIMAL)), 0) as total_quantity
+      FROM customers c
+      JOIN sales_orders so ON c.id = so.customer_id AND so.customer_id IS NOT NULL
+      JOIN sales_order_items soi ON so.id = soi.sales_order_id
+      WHERE so.tenant_id = ${tenantId}
+        AND soi.tenant_id = ${tenantId}
+        AND so.status IN ('shipped', 'delivered')
+        ${dateFilterSql}
+      GROUP BY c.id, c.name
+      ORDER BY total_sales DESC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `);
+
+    // Calculate avgUnitPrice for each customer
+    const data = (customerDataResult as unknown as Array<{
+      customer_id: string;
+      customer_name: string;
+      total_sales: string;
+      total_quantity: string;
+    }>).map(row => {
+      const totalSales = parseFloat(row.total_sales);
+      const totalQuantity = parseFloat(row.total_quantity);
+      const avgUnitPrice = totalQuantity > 0 ? totalSales / totalQuantity : 0;
+
+      return {
+        customerId: row.customer_id,
+        customerName: row.customer_name,
+        totalSales: parseFloat(totalSales.toFixed(2)),
+        totalQuantity: parseFloat(totalQuantity.toFixed(3)),
+        avgUnitPrice: parseFloat(avgUnitPrice.toFixed(2)),
+      };
+    });
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+      period: {
+        year,
+        month,
+        label: periodLabel,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching customer revenue analysis:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 export default router;
