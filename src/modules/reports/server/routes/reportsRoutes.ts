@@ -1143,4 +1143,213 @@ router.get('/financial/inventory-valuation', authorized('ADMIN', 'reports.view')
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/reports/financial/supplier-analysis:
+ *   get:
+ *     summary: Get supplier analysis with purchase metrics
+ *     description: Returns list of suppliers with total purchases, total quantity, and average unit cost
+ *     tags: [Reports - Financial]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: year
+ *         schema:
+ *           type: integer
+ *         description: Filter by year (e.g., 2025). If not provided, returns all time.
+ *       - in: query
+ *         name: month
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 12
+ *         description: Filter by month (1-12). Only used if year is also provided.
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 20
+ *         description: Records per page (max 20)
+ *     responses:
+ *       200:
+ *         description: Supplier analysis data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       supplierId:
+ *                         type: string
+ *                       supplierName:
+ *                         type: string
+ *                       totalPurchases:
+ *                         type: number
+ *                         description: Sum of total_cost from PO items
+ *                       totalQuantity:
+ *                         type: number
+ *                         description: Sum of ordered_quantity from PO items
+ *                       avgUnitCost:
+ *                         type: number
+ *                         description: totalPurchases / totalQuantity
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     hasNext:
+ *                       type: boolean
+ *                     hasPrev:
+ *                       type: boolean
+ *                 period:
+ *                   type: object
+ *                   properties:
+ *                     year:
+ *                       type: integer
+ *                     month:
+ *                       type: integer
+ *                     label:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/financial/supplier-analysis', authorized('ADMIN', 'reports.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const year = req.query.year ? parseInt(req.query.year as string) : null;
+    const month = req.query.month ? parseInt(req.query.month as string) : null;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 20);
+    const offset = (page - 1) * limit;
+
+    // Build period label
+    let periodLabel = 'All Time';
+    if (year && month) {
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                          'July', 'August', 'September', 'October', 'November', 'December'];
+      periodLabel = `${monthNames[month - 1]} ${year}`;
+    } else if (year) {
+      periodLabel = `${year}`;
+    }
+
+    // Build date range for filtering
+    let startDate: string | null = null;
+    let endDate: string | null = null;
+    
+    if (year && month) {
+      startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+      const lastDay = new Date(year, month, 0).getDate();
+      endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+    } else if (year) {
+      startDate = `${year}-01-01`;
+      endDate = `${year}-12-31`;
+    }
+
+    // Build date filter SQL fragment
+    let dateFilterSql = sql``;
+    if (startDate && endDate) {
+      dateFilterSql = sql`AND po.order_date >= ${startDate} AND po.order_date <= ${endDate}`;
+    }
+
+    // Get total count of distinct suppliers with approved/received/completed POs
+    const countResult = await db.execute(sql`
+      SELECT COUNT(DISTINCT po.supplier_id) as total
+      FROM purchase_orders po
+      WHERE po.tenant_id = ${tenantId}
+        AND po.supplier_id IS NOT NULL
+        AND po.status IN ('approved', 'received', 'completed')
+        ${dateFilterSql}
+    `);
+
+    const total = parseInt((countResult as unknown as Array<{ total: string }>)[0]?.total || '0');
+    const totalPages = Math.ceil(total / limit);
+
+    // Get aggregated supplier data with pagination
+    const supplierDataResult = await db.execute(sql`
+      SELECT 
+        s.id as supplier_id,
+        s.name as supplier_name,
+        COALESCE(SUM(CAST(poi.total_cost AS DECIMAL)), 0) as total_purchases,
+        COALESCE(SUM(poi.ordered_quantity), 0) as total_quantity
+      FROM suppliers s
+      JOIN purchase_orders po ON s.id = po.supplier_id
+      JOIN purchase_order_items poi ON po.id = poi.purchase_order_id
+      WHERE po.tenant_id = ${tenantId}
+        AND poi.tenant_id = ${tenantId}
+        AND po.status IN ('approved', 'received', 'completed')
+        ${dateFilterSql}
+      GROUP BY s.id, s.name
+      ORDER BY total_purchases DESC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `);
+
+    // Calculate avgUnitCost for each supplier
+    const data = (supplierDataResult as unknown as Array<{
+      supplier_id: string;
+      supplier_name: string;
+      total_purchases: string;
+      total_quantity: string;
+    }>).map(row => {
+      const totalPurchases = parseFloat(row.total_purchases);
+      const totalQuantity = parseFloat(row.total_quantity);
+      const avgUnitCost = totalQuantity > 0 ? totalPurchases / totalQuantity : 0;
+
+      return {
+        supplierId: row.supplier_id,
+        supplierName: row.supplier_name,
+        totalPurchases: parseFloat(totalPurchases.toFixed(2)),
+        totalQuantity: parseFloat(totalQuantity.toFixed(3)),
+        avgUnitCost: parseFloat(avgUnitCost.toFixed(2)),
+      };
+    });
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+      period: {
+        year,
+        month,
+        label: periodLabel,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching supplier analysis:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 export default router;
