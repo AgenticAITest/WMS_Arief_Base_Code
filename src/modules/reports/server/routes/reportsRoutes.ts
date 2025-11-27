@@ -969,4 +969,178 @@ router.get('/financial/product-analysis', authorized('ADMIN', 'reports.view'), a
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/reports/financial/inventory-valuation:
+ *   get:
+ *     summary: Get inventory valuation by SKU
+ *     description: Returns current inventory valuation showing quantity and value per SKU using last purchase price
+ *     tags: [Reports - Financial]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 20
+ *         description: Records per page (max 20)
+ *     responses:
+ *       200:
+ *         description: Inventory valuation data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       productId:
+ *                         type: string
+ *                       sku:
+ *                         type: string
+ *                       productName:
+ *                         type: string
+ *                       quantity:
+ *                         type: number
+ *                       unitCost:
+ *                         type: number
+ *                       totalValue:
+ *                         type: number
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     hasNext:
+ *                       type: boolean
+ *                     hasPrev:
+ *                       type: boolean
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+router.get('/financial/inventory-valuation', authorized('ADMIN', 'reports.view'), async (req, res) => {
+  try {
+    const tenantId = req.user!.activeTenantId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 20);
+    const offset = (page - 1) * limit;
+
+    // Get last purchase price for each product (from approved POs)
+    const lastPurchasePrices = await db.execute(sql`
+      WITH latest_po_items AS (
+        SELECT DISTINCT ON (poi.product_id)
+          poi.product_id,
+          poi.unit_cost
+        FROM purchase_order_items poi
+        JOIN purchase_orders po ON poi.purchase_order_id = po.id
+        WHERE po.tenant_id = ${tenantId}
+          AND poi.tenant_id = ${tenantId}
+          AND po.status IN ('approved', 'received', 'completed')
+          AND poi.unit_cost IS NOT NULL
+        ORDER BY poi.product_id, po.created_at DESC
+      )
+      SELECT product_id, unit_cost FROM latest_po_items
+    `);
+
+    const lastPriceMap = new Map<string, number>();
+    for (const row of lastPurchasePrices as unknown as Array<{ product_id: string; unit_cost: string }>) {
+      lastPriceMap.set(row.product_id, parseFloat(row.unit_cost));
+    }
+
+    // Get total count of products with positive total inventory
+    // Use subquery with same HAVING logic as main query for consistency
+    const countResult = await db.execute(sql`
+      SELECT COUNT(*) as total
+      FROM (
+        SELECT ii.product_id
+        FROM inventory_items ii
+        WHERE ii.tenant_id = ${tenantId}
+        GROUP BY ii.product_id
+        HAVING SUM(ii.available_quantity) > 0
+      ) as products_with_stock
+    `);
+
+    const total = parseInt((countResult as unknown as Array<{ total: string }>)[0]?.total || '0');
+    const totalPages = Math.ceil(total / limit);
+
+    // Get paginated inventory data aggregated by product
+    const inventoryResult = await db.execute(sql`
+      SELECT 
+        p.id as product_id,
+        p.sku,
+        p.name as product_name,
+        SUM(ii.available_quantity) as quantity
+      FROM inventory_items ii
+      JOIN products p ON ii.product_id = p.id
+      WHERE ii.tenant_id = ${tenantId}
+      GROUP BY p.id, p.sku, p.name
+      HAVING SUM(ii.available_quantity) > 0
+      ORDER BY p.sku ASC
+      LIMIT ${limit}
+      OFFSET ${offset}
+    `);
+
+    // Calculate valuation for each product
+    const data = (inventoryResult as unknown as Array<{
+      product_id: string;
+      sku: string;
+      product_name: string;
+      quantity: string;
+    }>).map(row => {
+      const quantity = parseInt(row.quantity);
+      const unitCost = lastPriceMap.get(row.product_id) || 0;
+      const totalValue = quantity * unitCost;
+
+      return {
+        productId: row.product_id,
+        sku: row.sku,
+        productName: row.product_name,
+        quantity,
+        unitCost: parseFloat(unitCost.toFixed(2)),
+        totalValue: parseFloat(totalValue.toFixed(2)),
+      };
+    });
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching inventory valuation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
 export default router;
