@@ -158,6 +158,32 @@ interface SupplierAnalysisResponse {
   };
 }
 
+interface CustomerRevenueAnalysis {
+  customerId: string;
+  customerName: string;
+  totalSales: number;
+  totalQuantity: number;
+  avgUnitPrice: number;
+}
+
+interface CustomerRevenueAnalysisResponse {
+  success: boolean;
+  data: CustomerRevenueAnalysis[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  period: {
+    year: number | null;
+    month: number | null;
+    label: string;
+  };
+}
+
 const FinancialReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<FinancialSummary | null>(null);
@@ -212,6 +238,18 @@ const FinancialReport: React.FC = () => {
   });
   const [supplierAnalysisExporting, setSupplierAnalysisExporting] = useState(false);
 
+  const [customerRevenueLoading, setCustomerRevenueLoading] = useState(false);
+  const [customerRevenueData, setCustomerRevenueData] = useState<CustomerRevenueAnalysis[]>([]);
+  const [customerRevenuePagination, setCustomerRevenuePagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+    hasNext: false,
+    hasPrev: false,
+  });
+  const [customerRevenueExporting, setCustomerRevenueExporting] = useState(false);
+
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
@@ -234,6 +272,7 @@ const FinancialReport: React.FC = () => {
     fetchOrderProfitability(1);
     fetchProductAnalysis(1);
     fetchSupplierAnalysis(1);
+    fetchCustomerRevenueAnalysis(1);
   }, [periodFilter]);
 
   useEffect(() => {
@@ -685,6 +724,107 @@ const FinancialReport: React.FC = () => {
       toast.error('Failed to export supplier analysis data');
     } finally {
       setSupplierAnalysisExporting(false);
+    }
+  };
+
+  const fetchCustomerRevenueAnalysis = async (page: number) => {
+    try {
+      setCustomerRevenueLoading(true);
+
+      const params: { year?: number; month?: number; page: number; limit: number } = {
+        page,
+        limit: 20,
+      };
+
+      if (periodFilter !== 'all') {
+        const parts = periodFilter.split('-');
+        params.year = parseInt(parts[0]);
+        if (parts.length > 1) {
+          params.month = parseInt(parts[1]);
+        }
+      }
+
+      const response = await axios.get<CustomerRevenueAnalysisResponse>(
+        '/api/modules/reports/financial/customer-revenue-analysis',
+        { params }
+      );
+
+      if (response.data.success) {
+        setCustomerRevenueData(response.data.data);
+        setCustomerRevenuePagination(response.data.pagination);
+      }
+    } catch (error: any) {
+      console.error('Error fetching customer revenue analysis:', error);
+      toast.error('Failed to fetch customer revenue analysis data');
+    } finally {
+      setCustomerRevenueLoading(false);
+    }
+  };
+
+  const handleExportCustomerRevenueAnalysis = async () => {
+    try {
+      setCustomerRevenueExporting(true);
+
+      const params: { year?: number; month?: number; page: number; limit: number } = {
+        page: 1,
+        limit: 10000,
+      };
+
+      if (periodFilter !== 'all') {
+        const parts = periodFilter.split('-');
+        params.year = parseInt(parts[0]);
+        if (parts.length > 1) {
+          params.month = parseInt(parts[1]);
+        }
+      }
+
+      const response = await axios.get<CustomerRevenueAnalysisResponse>(
+        '/api/modules/reports/financial/customer-revenue-analysis',
+        { params }
+      );
+
+      if (!response.data.success || response.data.data.length === 0) {
+        toast.error('No customer revenue analysis data to export');
+        return;
+      }
+
+      const customers = response.data.data;
+      const periodLabel = response.data.period.label;
+
+      const escapeCSV = (value: string): string => {
+        if (value.includes('"') || value.includes(',') || value.includes('\n')) {
+          return `"${value.replace(/"/g, '""')}"`;
+        }
+        return value;
+      };
+
+      const csvContent = [
+        ['Customer Name', 'Total Sales', 'Total Quantity', 'Avg Unit Price'],
+        ...customers.map(customer => [
+          escapeCSV(customer.customerName),
+          customer.totalSales.toFixed(2),
+          customer.totalQuantity.toString(),
+          customer.avgUnitPrice.toFixed(2),
+        ]),
+      ]
+        .map((row) => row.join(','))
+        .join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `customer-revenue-analysis-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Exported ${customers.length} customers (${periodLabel})`);
+    } catch (error: any) {
+      console.error('Error exporting customer revenue analysis:', error);
+      toast.error('Failed to export customer revenue analysis data');
+    } finally {
+      setCustomerRevenueExporting(false);
     }
   };
 
@@ -1268,18 +1408,96 @@ const FinancialReport: React.FC = () => {
           </Card>
         </TabsContent>
 
-        {/* Under Construction Tabs */}
-
+        {/* Customer Revenue Analysis Tab */}
         <TabsContent value="customer-analysis" className="mt-4">
           <Card>
-            <CardContent className="p-12">
-              <div className="flex flex-col items-center justify-center text-center">
-                <Construction className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Customer Revenue Analysis</h3>
-                <p className="text-muted-foreground">
-                  This feature is under construction. Check back soon!
-                </p>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-xl font-semibold">Customer Revenue Analysis</h2>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportCustomerRevenueAnalysis}
+                  disabled={customerRevenueLoading || customerRevenueExporting || customerRevenueData.length === 0}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  {customerRevenueExporting ? 'Exporting...' : 'Export Data'}
+                </Button>
               </div>
+
+              {customerRevenueLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-12 bg-gray-100 rounded animate-pulse"></div>
+                  ))}
+                </div>
+              ) : customerRevenueData.length > 0 ? (
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer Name</TableHead>
+                        <TableHead className="text-right">Total Sales</TableHead>
+                        <TableHead className="text-right">Total Quantity</TableHead>
+                        <TableHead className="text-right">Avg Unit Price</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {customerRevenueData.map((customer) => (
+                        <TableRow key={customer.customerId}>
+                          <TableCell className="font-medium">{customer.customerName}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(customer.totalSales)}</TableCell>
+                          <TableCell className="text-right">{customer.totalQuantity.toLocaleString()}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(customer.avgUnitPrice)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+
+                  {customerRevenuePagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {((customerRevenuePagination.page - 1) * customerRevenuePagination.limit) + 1} to{' '}
+                        {Math.min(
+                          customerRevenuePagination.page * customerRevenuePagination.limit,
+                          customerRevenuePagination.total
+                        )}{' '}
+                        of {customerRevenuePagination.total} customers
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchCustomerRevenueAnalysis(customerRevenuePagination.page - 1)}
+                          disabled={!customerRevenuePagination.hasPrev || customerRevenueLoading}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                          Page {customerRevenuePagination.page} of {customerRevenuePagination.totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fetchCustomerRevenueAnalysis(customerRevenuePagination.page + 1)}
+                          disabled={!customerRevenuePagination.hasNext || customerRevenueLoading}
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">No customer revenue data available for selected period</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
