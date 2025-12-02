@@ -9,6 +9,13 @@ import { Button } from '@client/components/ui/button';
 import { Input } from '@client/components/ui/input';
 import { Label } from '@client/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@client/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -282,24 +289,44 @@ export const EditCountModal: React.FC<EditCountModalProps> = ({
                               )}
                             </TableCell>
                             <TableCell>
-                              <Input
-                                value={item.reasonCode || ''}
-                                onChange={(e) =>
-                                  handleReasonCodeChange(item.id, e.target.value)
-                                }
-                                className="w-28"
-                                placeholder="Code"
-                              />
+                              {item.countedQuantity !== null && variance !== 0 && (
+                                <Select 
+                                  value={item.reasonCode || ''} 
+                                  onValueChange={(value) => handleReasonCodeChange(item.id, value)}
+                                >
+                                  <SelectTrigger className="w-32">
+                                    <SelectValue placeholder="Select reason" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {variance > 0 ? (
+                                      <>
+                                        <SelectItem value="found">Found</SelectItem>
+                                        <SelectItem value="count_error">Count Error</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <SelectItem value="damaged">Damaged</SelectItem>
+                                        <SelectItem value="missing">Missing</SelectItem>
+                                        <SelectItem value="count_error">Count Error</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                      </>
+                                    )}
+                                  </SelectContent>
+                                </Select>
+                              )}
                             </TableCell>
                             <TableCell>
-                              <Input
-                                value={item.reasonDescription || ''}
-                                onChange={(e) =>
-                                  handleReasonDescriptionChange(item.id, e.target.value)
-                                }
-                                className="w-32"
-                                placeholder="Notes"
-                              />
+                              {item.countedQuantity !== null && variance !== 0 && (
+                                <Input
+                                  value={item.reasonDescription || ''}
+                                  onChange={(e) =>
+                                    handleReasonDescriptionChange(item.id, e.target.value)
+                                  }
+                                  className="w-48"
+                                  placeholder="Add notes..."
+                                />
+                              )}
                             </TableCell>
                           </TableRow>
                         );
