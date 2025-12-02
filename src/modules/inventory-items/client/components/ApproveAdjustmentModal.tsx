@@ -162,10 +162,6 @@ export const ApproveAdjustmentModal: React.FC<ApproveAdjustmentModalProps> = ({
                   <div className="font-medium">{adjustment.adjustmentNumber}</div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Status</Label>
-                  <div>{getStatusBadge(adjustment.status)}</div>
-                </div>
-                <div className="space-y-2">
                   <Label className="text-muted-foreground">Type</Label>
                   <div className="capitalize">{adjustment.type.replace('_', ' ')}</div>
                 </div>
@@ -179,8 +175,12 @@ export const ApproveAdjustmentModal: React.FC<ApproveAdjustmentModalProps> = ({
                   <Label className="text-muted-foreground">Created By</Label>
                   <div>{adjustment.createdBy}</div>
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Status</Label>
+                  <div>{getStatusBadge(adjustment.status)}</div>
+                </div>
                 {adjustment.notes && (
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2">
                     <Label className="text-muted-foreground">Notes</Label>
                     <div>{adjustment.notes}</div>
                   </div>
@@ -222,6 +222,7 @@ export const ApproveAdjustmentModal: React.FC<ApproveAdjustmentModalProps> = ({
                           <TableHead className="text-right">Adjusted Qty</TableHead>
                           <TableHead className="text-right">Difference</TableHead>
                           <TableHead>Reason</TableHead>
+                          <TableHead>Notes</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -253,6 +254,9 @@ export const ApproveAdjustmentModal: React.FC<ApproveAdjustmentModalProps> = ({
                               </TableCell>
                               <TableCell className="capitalize">
                                 {item.reasonCode?.replace(/_/g, ' ') || '-'}
+                              </TableCell>
+                              <TableCell className="capitalize">
+                                {item.notes?.replace(/_/g, ' ') || '-'}
                               </TableCell>
                             </TableRow>
                           );

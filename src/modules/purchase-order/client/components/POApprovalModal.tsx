@@ -84,7 +84,7 @@ export const POApprovalModal: React.FC<POApprovalModalProps> = ({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={handleCleanup}>
-        <DialogContent className="max-w-[90rem] sm:max-w-[90rem] max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-[90rem] sm:max-w-[90rem] max-h-[95vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Purchase Order Details - {po?.orderNumber}</DialogTitle>
           </DialogHeader>
@@ -96,7 +96,14 @@ export const POApprovalModal: React.FC<POApprovalModalProps> = ({
                 <span className="ml-2">Loading purchase order...</span>
               </div>
             ) : htmlPreview ? (
-              <div dangerouslySetInnerHTML={{ __html: htmlPreview }} />
+              <div className="flex-1 overflow-hidden">
+                <iframe
+                  id="po-document-iframe"
+                  srcDoc={htmlPreview}
+                  className="w-full h-[600px] border-0"
+                  title="Purchase Order Document"
+                />
+              </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <p>Purchase order preview is not available. The document may not have been generated yet.</p>

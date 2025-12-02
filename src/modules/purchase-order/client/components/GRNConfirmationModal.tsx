@@ -70,7 +70,7 @@ export const GRNConfirmationModal: React.FC<GRNConfirmationModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleCleanup}>
-      <DialogContent className="max-w-[90rem] sm:max-w-[90rem] max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-[90rem] sm:max-w-[90rem] max-h-[95vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Goods Receipt Note - {grnNumber}</DialogTitle>
         </DialogHeader>
@@ -82,7 +82,14 @@ export const GRNConfirmationModal: React.FC<GRNConfirmationModalProps> = ({
               <span className="ml-2">Loading GRN document...</span>
             </div>
           ) : htmlContent ? (
-            <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                id="po-document-iframe"
+                srcDoc={htmlContent}
+                className="w-full h-[600px] border-0"
+                title="Purchase Order Document"
+              />
+            </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <p>GRN document is not available.</p>

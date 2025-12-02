@@ -162,13 +162,35 @@ export const ApproveCountModal: React.FC<ApproveCountModalProps> = ({
                 <div className="font-medium">{count.countNumber}</div>
               </div>
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Status</Label>
-                <div>{getStatusBadge(count.status)}</div>
-              </div>
-              <div className="space-y-2">
                 <Label className="text-muted-foreground">Count Type</Label>
                 <div className="capitalize">{count.countType || 'Partial'}</div>
               </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Created Date</Label>
+                <div>
+                  {format(new Date(count.createdAt), 'MMM dd, yyyy HH:mm')}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Created By</Label>
+                <div>{count.createdBy}</div>
+              </div>
+              {count.completedDate && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Completed Date</Label>
+                  <div>{format(new Date(count.completedDate), 'MMM dd, yyyy')}</div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Status</Label>
+                <div>{getStatusBadge(count.status)}</div>
+              </div>
+              {count.notes && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Notes</Label>
+                  <div>{count.notes}</div>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Scheduled Date</Label>
                 <div>
@@ -177,14 +199,8 @@ export const ApproveCountModal: React.FC<ApproveCountModalProps> = ({
                     : '-'}
                 </div>
               </div>
-              {count.completedDate && (
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Completed Date</Label>
-                  <div>{format(new Date(count.completedDate), 'MMM dd, yyyy')}</div>
-                </div>
-              )}
               {count.notes && (
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2">
                   <Label className="text-muted-foreground">Notes</Label>
                   <div>{count.notes}</div>
                 </div>
@@ -225,6 +241,8 @@ export const ApproveCountModal: React.FC<ApproveCountModalProps> = ({
                         <TableHead className="text-right">System Qty</TableHead>
                         <TableHead className="text-right">Counted Qty</TableHead>
                         <TableHead className="text-right">Variance</TableHead>
+                        <TableHead>Reason</TableHead>
+                        <TableHead>Notes</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -257,6 +275,12 @@ export const ApproveCountModal: React.FC<ApproveCountModalProps> = ({
                                   {variance}
                                 </span>
                               )}
+                            </TableCell>
+                            <TableCell className="capitalize">
+                              {item.reasonCode?.replace(/_/g, ' ') || '-'}
+                            </TableCell>
+                            <TableCell className="capitalize">
+                              {item.reasonDescription?.replace(/_/g, ' ') || '-'}
                             </TableCell>
                           </TableRow>
                         );

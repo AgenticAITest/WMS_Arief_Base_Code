@@ -114,10 +114,6 @@ export const ViewAdjustmentModal: React.FC<ViewAdjustmentModalProps> = ({
                   <div className="font-medium">{adjustment.adjustmentNumber}</div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Status</Label>
-                  <div>{getStatusBadge(adjustment.status)}</div>
-                </div>
-                <div className="space-y-2">
                   <Label className="text-muted-foreground">Type</Label>
                   <div className="capitalize">{adjustment.type}</div>
                 </div>
@@ -139,16 +135,20 @@ export const ViewAdjustmentModal: React.FC<ViewAdjustmentModalProps> = ({
                         {format(new Date(adjustment.appliedAt), 'MMM dd, yyyy HH:mm')}
                       </div>
                     </div>
-                    {adjustment.appliedBy && (
+                    {adjustment.approvedBy && (
                       <div className="space-y-2">
-                        <Label className="text-muted-foreground">Applied By</Label>
-                        <div>{adjustment.appliedBy}</div>
+                        <Label className="text-muted-foreground">Approval By</Label>
+                        <div>{adjustment.approvedBy}</div>
                       </div>
                     )}
                   </>
                 )}
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Status</Label>
+                  <div>{getStatusBadge(adjustment.status)}</div>
+                </div>
                 {adjustment.notes && (
-                  <div className="space-y-2 col-span-2">
+                  <div className="space-y-2">
                     <Label className="text-muted-foreground">Notes</Label>
                     <div>{adjustment.notes}</div>
                   </div>
@@ -190,6 +190,7 @@ export const ViewAdjustmentModal: React.FC<ViewAdjustmentModalProps> = ({
                           <TableHead className="text-right">Adjusted Qty</TableHead>
                           <TableHead className="text-right">Difference</TableHead>
                           <TableHead>Reason</TableHead>
+                          <TableHead>Notes</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -221,6 +222,9 @@ export const ViewAdjustmentModal: React.FC<ViewAdjustmentModalProps> = ({
                               </TableCell>
                               <TableCell className="capitalize">
                                 {item.reasonCode?.replace(/_/g, ' ') || '-'}
+                              </TableCell>
+                              <TableCell className="capitalize">
+                                {item.notes?.replace(/_/g, ' ') || '-'}
                               </TableCell>
                             </TableRow>
                           );

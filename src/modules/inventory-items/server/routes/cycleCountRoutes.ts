@@ -1254,6 +1254,7 @@ router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.mana
       .set({
         status: 'rejected',
         completedDate: sql`CURRENT_DATE`,
+        approvedBy: userId,
         updatedAt: new Date(),
       })
       .where(eq(cycleCounts.id, id));

@@ -107,11 +107,23 @@ export const ViewRelocationModal: React.FC<ViewRelocationModalProps> = ({
                     : '-'}
                 </div>
               </div>
-              {relocation.approvedAt && (
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Approved Date</Label>
-                  <div>{format(new Date(relocation.approvedAt), 'MMM dd, yyyy HH:mm')}</div>
-                </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Created By</Label>
+                <div>{relocation.createdBy}</div>
+              </div>
+              {relocation.completedAt && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Completed Date</Label>
+                    <div>{format(new Date(relocation.completedAt), 'MMM dd, yyyy HH:mm')}</div>
+                  </div>
+                  {relocation.approvedBy && (
+                    <div className="space-y-2">
+                      <Label className="text-muted-foreground">Approval By</Label>
+                      <div>{relocation.approvedBy}</div>
+                    </div>
+                  )}
+                </>
               )}
               {relocation.notes && (
                 <div className="space-y-2 col-span-2">
