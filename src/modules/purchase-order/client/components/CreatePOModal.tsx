@@ -401,8 +401,8 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({
                     <TableHead>SKU</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead className="text-right">Available Stock</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
-                    <TableHead className="text-right">Unit Price</TableHead>
+                    <TableHead className="text-right w-30">Quantity</TableHead>
+                    <TableHead className="text-right w-40">Unit Price</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -430,7 +430,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({
                           <Input
                             type="number"
                             min="0"
-                            className="w-20 text-right"
+                            className="text-right"
                             value={item?.orderedQuantity || ''}
                             onChange={(e) => handleQuantityChange(product.productId, e.target.value)}
                           />
@@ -440,7 +440,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({
                             type="number"
                             min="0"
                             step="0.01"
-                            className="w-24 text-right"
+                            className="text-right"
                             value={item?.unitCost || ''}
                             onChange={(e) => handlePriceChange(product.productId, e.target.value)}
                             disabled={!item?.orderedQuantity}
