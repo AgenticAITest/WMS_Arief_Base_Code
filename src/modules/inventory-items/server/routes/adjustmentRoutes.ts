@@ -16,10 +16,38 @@ import { user } from '@server/lib/db/schema/system';
 
 const router = express.Router();
 
-
 /**
- * GET /api/modules/inventory-items/adjustments
- * List all adjustments with pagination
+ * @swagger
+ * /api/modules/inventory-items/adjustments:
+ *   get:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: List all adjustments
+ *     description: Get a paginated list of inventory adjustments
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [created, submitted, approved, rejected, applied]
+ *         description: Filter by status
+ *     responses:
+ *       200:
+ *         description: List of adjustments
+ *       400:
+ *         description: Invalid status filter
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/adjustments', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -78,8 +106,27 @@ router.get('/adjustments', authorized('ADMIN', 'inventory-items.view'), async (r
 });
 
 /**
- * GET /api/modules/inventory-items/adjustments/:id
- * Get adjustment details
+ * @swagger
+ * /api/modules/inventory-items/adjustments/{id}:
+ *   get:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: Get adjustment details
+ *     description: Get detailed information about a specific adjustment
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Adjustment ID
+ *     responses:
+ *       200:
+ *         description: Adjustment details
+ *       404:
+ *         description: Adjustment not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/adjustments/:id', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -110,8 +157,27 @@ router.get('/adjustments/:id', authorized('ADMIN', 'inventory-items.view'), asyn
 });
 
 /**
- * GET /api/modules/inventory-items/adjustments/:id/document
- * Get generated document path for an adjustment
+ * @swagger
+ * /api/modules/inventory-items/adjustments/{id}/document:
+ *   get:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: Get adjustment document
+ *     description: Get the generated document path for an adjustment
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Adjustment ID
+ *     responses:
+ *       200:
+ *         description: Document details with path
+ *       404:
+ *         description: Adjustment or document not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/adjustments/:id/document', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -179,8 +245,37 @@ router.get('/adjustments/:id/document', authorized('ADMIN', 'inventory-items.vie
 });
 
 /**
- * GET /api/modules/inventory-items/adjustments/:id/items
- * Get adjustment items with pagination
+ * @swagger
+ * /api/modules/inventory-items/adjustments/{id}/items:
+ *   get:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: Get adjustment items
+ *     description: Get items in an adjustment with pagination
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Adjustment ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: List of adjustment items
+ *       404:
+ *         description: Adjustment not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/adjustments/:id/items', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -280,8 +375,47 @@ router.get('/adjustments/:id/items', authorized('ADMIN', 'inventory-items.view')
 });
 
 /**
- * POST /api/modules/inventory-items/adjustments
- * Create a new inventory adjustment and apply it immediately
+ * @swagger
+ * /api/modules/inventory-items/adjustments:
+ *   post:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: Create a new adjustment
+ *     description: Create a new inventory adjustment
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - items
+ *             properties:
+ *               notes:
+ *                 type: string
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - inventoryItemId
+ *                     - newQuantity
+ *                     - reasonCode
+ *                   properties:
+ *                     inventoryItemId:
+ *                       type: string
+ *                     newQuantity:
+ *                       type: integer
+ *                     reasonCode:
+ *                       type: string
+ *                     notes:
+ *                       type: string
+ *     responses:
+ *       201:
+ *         description: Adjustment created successfully
+ *       400:
+ *         description: Invalid input
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -443,8 +577,50 @@ router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async
 });
 
 /**
- * PUT /api/modules/inventory-items/adjustments/:id
- * Update an adjustment (only if status is 'created')
+ * @swagger
+ * /api/modules/inventory-items/adjustments/{id}:
+ *   put:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: Update an adjustment
+ *     description: Update an adjustment (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Adjustment ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     inventoryItemId:
+ *                       type: string
+ *                     newQuantity:
+ *                       type: integer
+ *                     reasonCode:
+ *                       type: string
+ *                     notes:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Adjustment updated successfully
+ *       400:
+ *         description: Cannot update - wrong status or invalid input
+ *       404:
+ *         description: Adjustment not found
+ *       401:
+ *         description: Unauthorized
  */
 router.put('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -587,8 +763,29 @@ router.put('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'), as
 });
 
 /**
- * DELETE /api/modules/inventory-items/adjustments/:id
- * Delete an adjustment (only if status is 'created')
+ * @swagger
+ * /api/modules/inventory-items/adjustments/{id}:
+ *   delete:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: Delete an adjustment
+ *     description: Delete an adjustment (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Adjustment ID
+ *     responses:
+ *       200:
+ *         description: Adjustment deleted successfully
+ *       400:
+ *         description: Cannot delete - wrong status or cycle_count type
+ *       404:
+ *         description: Adjustment not found
+ *       401:
+ *         description: Unauthorized
  */
 router.delete('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -654,8 +851,29 @@ router.delete('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'),
 });
 
 /**
- * POST /api/modules/inventory-items/adjustments/:id/reject
- * Reject an adjustment (only if status is 'created')
+ * @swagger
+ * /api/modules/inventory-items/adjustments/{id}/reject:
+ *   post:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: Reject an adjustment
+ *     description: Reject an adjustment (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Adjustment ID
+ *     responses:
+ *       200:
+ *         description: Adjustment rejected successfully
+ *       400:
+ *         description: Cannot reject - wrong status
+ *       404:
+ *         description: Adjustment not found
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/adjustments/:id/reject', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -738,9 +956,29 @@ router.post('/adjustments/:id/reject', authorized('ADMIN', 'inventory-items.mana
 });
 
 /**
- * POST /api/modules/inventory-items/adjustments/:id/approve
- * Approve an adjustment (only if status is 'created')
- * This will update inventory, generate document, and update cycle count if applicable
+ * @swagger
+ * /api/modules/inventory-items/adjustments/{id}/approve:
+ *   post:
+ *     tags:
+ *       - Inventory Adjustment
+ *     summary: Approve an adjustment
+ *     description: Approve an adjustment, update inventory, generate document, and update cycle count if applicable (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Adjustment ID
+ *     responses:
+ *       200:
+ *         description: Adjustment approved successfully
+ *       400:
+ *         description: Cannot approve - wrong status
+ *       404:
+ *         description: Adjustment not found
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/adjustments/:id/approve', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
