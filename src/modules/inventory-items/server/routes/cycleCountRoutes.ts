@@ -1396,6 +1396,75 @@ router.put('/cycle-counts/:id/items/:itemId', authorized('ADMIN', 'inventory-ite
 });
 
 /**
+ * DELETE /api/modules/inventory-items/cycle-counts/:id
+ * Delete a cycle count (only if status is 'created')
+ */
+router.delete('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.user!.activeTenantId;
+    const userId = req.user!.id;
+
+    // Verify cycle count exists and belongs to tenant
+    const [cycleCount] = await db
+      .select()
+      .from(cycleCounts)
+      .where(
+        and(
+          eq(cycleCounts.id, id),
+          eq(cycleCounts.tenantId, tenantId)
+        )
+      )
+      .limit(1);
+
+    if (!cycleCount) {
+      return res.status(404).json({
+        success: false,
+        message: 'Cycle count not found',
+      });
+    }
+
+    // Only allow deletion of counts with 'created' status
+    if (cycleCount.status !== 'created') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only cycle counts with status "created" can be deleted',
+      });
+    }
+
+    // Delete items first (due to foreign key constraint)
+    await db
+      .delete(cycleCountItems)
+      .where(eq(cycleCountItems.cycleCountId, id));
+
+    // Delete the cycle count
+    await db
+      .delete(cycleCounts)
+      .where(eq(cycleCounts.id, id));
+
+    // Audit log
+    await logAudit({
+      tenantId,
+      userId,
+      module: 'inventory-items',
+      action: 'delete',
+      resourceType: 'cycle_count',
+      resourceId: id,
+      description: `Deleted cycle count ${cycleCount.countNumber}`,
+      ipAddress: getClientIp(req),
+    });
+
+    res.json({
+      success: true,
+      message: 'Cycle count deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting cycle count:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+/**
  * POST /api/modules/inventory-items/cycle-counts/:id/submit
  * Submit a cycle count
  */
