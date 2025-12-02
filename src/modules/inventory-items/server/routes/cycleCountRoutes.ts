@@ -18,8 +18,35 @@ const router = express.Router();
 // Note: authenticated() and checkModuleAuthorization() are already applied by parent router
 
 /**
- * GET /api/modules/inventory-items/cycle-counts
- * List all cycle counts with pagination
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts:
+ *   get:
+ *     tags:
+ *       - Cycle Count
+ *     summary: List all cycle counts
+ *     description: Get a paginated list of cycle counts for the current tenant
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number (default 1)
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page (default 20)
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [created, approved, rejected]
+ *         description: Filter by status
+ *     responses:
+ *       200:
+ *         description: List of cycle counts
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -78,8 +105,67 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
 });
 
 /**
- * POST /api/modules/inventory-items/cycle-counts
- * Create a new cycle count with counted items
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts:
+ *   post:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Create a new cycle count
+ *     description: Create a new cycle count with items already counted
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - items
+ *             properties:
+ *               countType:
+ *                 type: string
+ *                 description: Type of count
+ *               inventoryTypeId:
+ *                 type: string
+ *                 description: Filter by inventory type
+ *               zoneId:
+ *                 type: string
+ *                 description: Filter by zone
+ *               binIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Selected bin IDs
+ *               scheduledDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Scheduled date for the count
+ *               notes:
+ *                 type: string
+ *                 description: Notes for the cycle count
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     productId:
+ *                       type: string
+ *                     binId:
+ *                       type: string
+ *                     systemQuantity:
+ *                       type: integer
+ *                     countedQuantity:
+ *                       type: integer
+ *                     reason:
+ *                       type: string
+ *                     notes:
+ *                       type: string
+ *     responses:
+ *       201:
+ *         description: Cycle count created successfully
+ *       400:
+ *         description: Invalid request body
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -207,8 +293,39 @@ router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), asyn
 });
 
 /**
- * POST /api/modules/inventory-items/cycle-counts/start
- * Start a new cycle count session
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/start:
+ *   post:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Start a new cycle count session
+ *     description: Create a new cycle count in draft status for counting
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               inventoryTypeId:
+ *                 type: string
+ *                 description: Filter items by inventory type
+ *               zoneId:
+ *                 type: string
+ *                 description: Filter items by zone
+ *               countType:
+ *                 type: string
+ *                 description: Type of count
+ *               binIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Selected bin IDs for counting
+ *     responses:
+ *       201:
+ *         description: Cycle count session started successfully
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/cycle-counts/start', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -364,8 +481,18 @@ router.post('/cycle-counts/start', authorized('ADMIN', 'inventory-items.manage')
 });
 
 /**
- * GET /api/modules/inventory-items/cycle-counts/filter-options
- * Get filter options for cycle count creation
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/filter-options:
+ *   get:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Get filter options
+ *     description: Get available filter options (inventory types, zones, bins) for creating a cycle count
+ *     responses:
+ *       200:
+ *         description: Filter options retrieved successfully
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -444,8 +571,27 @@ router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.
 });
 
 /**
- * GET /api/modules/inventory-items/cycle-counts/search-sku
- * Search for product by SKU and return bins with stock
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/search-sku:
+ *   get:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Search product by SKU
+ *     description: Search for a product by SKU and return bins with stock for that product
+ *     parameters:
+ *       - in: query
+ *         name: sku
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Product SKU to search for
+ *     responses:
+ *       200:
+ *         description: Product and bins with stock found
+ *       404:
+ *         description: SKU not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/cycle-counts/search-sku', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -526,8 +672,39 @@ router.get('/cycle-counts/search-sku', authorized('ADMIN', 'inventory-items.view
 });
 
 /**
- * GET /api/modules/inventory-items/cycle-counts/items
- * Get inventory items for cycle count based on filters
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/items:
+ *   get:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Get inventory items for counting
+ *     description: Get inventory items based on filters for creating a cycle count
+ *     parameters:
+ *       - in: query
+ *         name: inventoryTypeId
+ *         schema:
+ *           type: string
+ *         description: Filter by inventory type ID
+ *       - in: query
+ *         name: zoneId
+ *         schema:
+ *           type: string
+ *         description: Filter by zone ID
+ *       - in: query
+ *         name: countType
+ *         schema:
+ *           type: string
+ *         description: Type of count
+ *       - in: query
+ *         name: binIds
+ *         schema:
+ *           type: string
+ *         description: Comma-separated bin IDs
+ *     responses:
+ *       200:
+ *         description: List of inventory items for counting
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/cycle-counts/items', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -601,8 +778,27 @@ router.get('/cycle-counts/items', authorized('ADMIN', 'inventory-items.view'), a
 });
 
 /**
- * GET /api/modules/inventory-items/cycle-counts/:id
- * Get cycle count details
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}:
+ *   get:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Get cycle count by ID
+ *     description: Get details of a specific cycle count
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *     responses:
+ *       200:
+ *         description: Cycle count details
+ *       404:
+ *         description: Cycle count not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -647,8 +843,27 @@ router.get('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.view'), asy
 });
 
 /**
- * GET /api/modules/inventory-items/cycle-counts/:id/document
- * Get generated document path for a cycle count
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}/document:
+ *   get:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Get cycle count document
+ *     description: Get the generated document path for a cycle count
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *     responses:
+ *       200:
+ *         description: Document path and details
+ *       404:
+ *         description: Cycle count or document not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/cycle-counts/:id/document', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -716,8 +931,42 @@ router.get('/cycle-counts/:id/document', authorized('ADMIN', 'inventory-items.vi
 });
 
 /**
- * GET /api/modules/inventory-items/cycle-counts/:id/items
- * Get cycle count items with pagination and search
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}/items:
+ *   get:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Get cycle count items
+ *     description: Get items of a cycle count with pagination and search
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by product name or SKU
+ *     responses:
+ *       200:
+ *         description: List of cycle count items
+ *       404:
+ *         description: Cycle count not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/cycle-counts/:id/items', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -824,8 +1073,53 @@ router.get('/cycle-counts/:id/items', authorized('ADMIN', 'inventory-items.view'
 });
 
 /**
- * PUT /api/modules/inventory-items/cycle-counts/:id
- * Update a cycle count and its items
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}:
+ *   put:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Update a cycle count
+ *     description: Update a cycle count and its items (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               scheduledDate:
+ *                 type: string
+ *                 format: date
+ *               notes:
+ *                 type: string
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     itemId:
+ *                       type: string
+ *                     countedQuantity:
+ *                       type: integer
+ *                     reasonCode:
+ *                       type: string
+ *                     reasonDescription:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Cycle count updated successfully
+ *       400:
+ *         description: Cannot update - wrong status
+ *       404:
+ *         description: Cycle count not found
+ *       401:
+ *         description: Unauthorized
  */
 router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -961,8 +1255,29 @@ router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), a
 });
 
 /**
- * PUT /api/modules/inventory-items/cycle-counts/:id/approve
- * Approve a cycle count, generate document, and auto-create adjustment for items with variances
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}/approve:
+ *   put:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Approve a cycle count
+ *     description: Approve a cycle count, generate document, and auto-create adjustment for items with variances
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *     responses:
+ *       200:
+ *         description: Cycle count approved successfully
+ *       400:
+ *         description: Cannot approve - wrong status
+ *       404:
+ *         description: Cycle count not found
+ *       401:
+ *         description: Unauthorized
  */
 router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -1222,8 +1537,29 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
 });
 
 /**
- * PUT /api/modules/inventory-items/cycle-counts/:id/reject
- * Reject a cycle count
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}/reject:
+ *   put:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Reject a cycle count
+ *     description: Reject a cycle count (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *     responses:
+ *       200:
+ *         description: Cycle count rejected successfully
+ *       400:
+ *         description: Cannot reject - wrong status
+ *       404:
+ *         description: Cycle count not found
+ *       401:
+ *         description: Unauthorized
  */
 router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -1291,8 +1627,47 @@ router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.mana
 });
 
 /**
- * PUT /api/modules/inventory-items/cycle-counts/:id/items/:itemId
- * Update a cycle count item
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}/items/{itemId}:
+ *   put:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Update a cycle count item
+ *     description: Update a single item in a cycle count
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *       - in: path
+ *         name: itemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count item ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               countedQuantity:
+ *                 type: integer
+ *               reasonCode:
+ *                 type: string
+ *               reasonDescription:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Item updated successfully
+ *       400:
+ *         description: Cannot update - wrong status
+ *       404:
+ *         description: Cycle count or item not found
+ *       401:
+ *         description: Unauthorized
  */
 router.put('/cycle-counts/:id/items/:itemId', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -1396,8 +1771,29 @@ router.put('/cycle-counts/:id/items/:itemId', authorized('ADMIN', 'inventory-ite
 });
 
 /**
- * DELETE /api/modules/inventory-items/cycle-counts/:id
- * Delete a cycle count (only if status is 'created')
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}:
+ *   delete:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Delete a cycle count
+ *     description: Delete a cycle count (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *     responses:
+ *       200:
+ *         description: Cycle count deleted successfully
+ *       400:
+ *         description: Cannot delete - wrong status
+ *       404:
+ *         description: Cycle count not found
+ *       401:
+ *         description: Unauthorized
  */
 router.delete('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -1465,8 +1861,27 @@ router.delete('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage')
 });
 
 /**
- * POST /api/modules/inventory-items/cycle-counts/:id/submit
- * Submit a cycle count
+ * @swagger
+ * /api/modules/inventory-items/cycle-counts/{id}/submit:
+ *   post:
+ *     tags:
+ *       - Cycle Count
+ *     summary: Submit a cycle count
+ *     description: Submit a cycle count for approval
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Cycle count ID
+ *     responses:
+ *       200:
+ *         description: Cycle count submitted successfully
+ *       404:
+ *         description: Cycle count not found or already submitted
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/cycle-counts/:id/submit', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
