@@ -630,7 +630,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
                       <TableHead>Location</TableHead>
                       <TableHead className="text-right">System Qty</TableHead>
                       <TableHead className="text-right">Counted Qty</TableHead>
-                      <TableHead className="text-right">Diff</TableHead>
+                      <TableHead className="text-right">Variance</TableHead>
                       <TableHead>Reason</TableHead>
                       <TableHead>Notes</TableHead>
                     </TableRow>
