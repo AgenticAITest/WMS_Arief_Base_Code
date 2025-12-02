@@ -16,8 +16,50 @@ import { user } from '@server/lib/db/schema/system';
 const router = express.Router();
 
 /**
- * POST /api/modules/inventory-items/relocations
- * Create a new relocation
+ * @swagger
+ * /api/modules/inventory-items/relocations:
+ *   post:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: Create a new relocation
+ *     description: Create a new inventory relocation
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - items
+ *             properties:
+ *               notes:
+ *                 type: string
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required:
+ *                     - productId
+ *                     - fromBinId
+ *                     - toBinId
+ *                     - quantity
+ *                   properties:
+ *                     productId:
+ *                       type: string
+ *                     fromBinId:
+ *                       type: string
+ *                     toBinId:
+ *                       type: string
+ *                     quantity:
+ *                       type: integer
+ *                     notes:
+ *                       type: string
+ *     responses:
+ *       201:
+ *         description: Relocation created successfully
+ *       400:
+ *         description: Invalid input
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/relocations', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -184,8 +226,37 @@ router.post('/relocations', authorized('ADMIN', 'inventory-items.manage'), async
 });
 
 /**
- * GET /api/modules/inventory-items/relocations
- * List all relocations with pagination
+ * @swagger
+ * /api/modules/inventory-items/relocations:
+ *   get:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: List all relocations
+ *     description: Get a paginated list of inventory relocations
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [created, approved, rejected]
+ *         description: Filter by status
+ *     responses:
+ *       200:
+ *         description: List of relocations
+ *       400:
+ *         description: Invalid status filter
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -244,8 +315,27 @@ router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (r
 });
 
 /**
- * GET /api/modules/inventory-items/relocations/:id
- * Get relocation details
+ * @swagger
+ * /api/modules/inventory-items/relocations/{id}:
+ *   get:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: Get relocation details
+ *     description: Get detailed information about a specific relocation
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Relocation ID
+ *     responses:
+ *       200:
+ *         description: Relocation details
+ *       404:
+ *         description: Relocation not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/relocations/:id', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -276,8 +366,37 @@ router.get('/relocations/:id', authorized('ADMIN', 'inventory-items.view'), asyn
 });
 
 /**
- * GET /api/modules/inventory-items/relocations/:id/items
- * Get relocation items with location hierarchy
+ * @swagger
+ * /api/modules/inventory-items/relocations/{id}/items:
+ *   get:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: Get relocation items
+ *     description: Get items in a relocation with location hierarchy
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Relocation ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: List of relocation items
+ *       404:
+ *         description: Relocation not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/relocations/:id/items', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
@@ -394,8 +513,50 @@ router.get('/relocations/:id/items', authorized('ADMIN', 'inventory-items.view')
 });
 
 /**
- * PUT /api/modules/inventory-items/relocations/:id
- * Update a relocation (only if status is 'created')
+ * @swagger
+ * /api/modules/inventory-items/relocations/{id}:
+ *   put:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: Update a relocation
+ *     description: Update a relocation (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Relocation ID
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notes:
+ *                 type: string
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     productId:
+ *                       type: string
+ *                     fromBinId:
+ *                       type: string
+ *                     toBinId:
+ *                       type: string
+ *                     quantity:
+ *                       type: integer
+ *     responses:
+ *       200:
+ *         description: Relocation updated successfully
+ *       400:
+ *         description: Cannot update - wrong status or invalid input
+ *       404:
+ *         description: Relocation not found
+ *       401:
+ *         description: Unauthorized
  */
 router.put('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -537,8 +698,29 @@ router.put('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'), as
 });
 
 /**
- * DELETE /api/modules/inventory-items/relocations/:id
- * Delete a relocation (only if status is 'created')
+ * @swagger
+ * /api/modules/inventory-items/relocations/{id}:
+ *   delete:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: Delete a relocation
+ *     description: Delete a relocation (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Relocation ID
+ *     responses:
+ *       200:
+ *         description: Relocation deleted successfully
+ *       400:
+ *         description: Cannot delete - wrong status
+ *       404:
+ *         description: Relocation not found
+ *       401:
+ *         description: Unauthorized
  */
 router.delete('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -594,8 +776,29 @@ router.delete('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'),
 });
 
 /**
- * POST /api/modules/inventory-items/relocations/:id/approve
- * Approve a relocation
+ * @swagger
+ * /api/modules/inventory-items/relocations/{id}/approve:
+ *   post:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: Approve a relocation
+ *     description: Approve a relocation and execute the inventory movement (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Relocation ID
+ *     responses:
+ *       200:
+ *         description: Relocation approved successfully
+ *       400:
+ *         description: Cannot approve - wrong status or insufficient inventory
+ *       404:
+ *         description: Relocation not found
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -894,8 +1097,29 @@ router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.man
 });
 
 /**
- * POST /api/modules/inventory-items/relocations/:id/reject
- * Reject a relocation
+ * @swagger
+ * /api/modules/inventory-items/relocations/{id}/reject:
+ *   post:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: Reject a relocation
+ *     description: Reject a relocation (only for status 'created')
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Relocation ID
+ *     responses:
+ *       200:
+ *         description: Relocation rejected successfully
+ *       400:
+ *         description: Cannot reject - wrong status
+ *       404:
+ *         description: Relocation not found
+ *       401:
+ *         description: Unauthorized
  */
 router.post('/relocations/:id/reject', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
   try {
@@ -961,8 +1185,27 @@ router.post('/relocations/:id/reject', authorized('ADMIN', 'inventory-items.mana
 });
 
 /**
- * GET /api/modules/inventory-items/relocations/:id/document
- * Get generated document path for a relocation
+ * @swagger
+ * /api/modules/inventory-items/relocations/{id}/document:
+ *   get:
+ *     tags:
+ *       - Inventory Relocation
+ *     summary: Get relocation document
+ *     description: Get the generated document path for a relocation
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Relocation ID
+ *     responses:
+ *       200:
+ *         description: Document details with path
+ *       404:
+ *         description: Relocation or document not found
+ *       401:
+ *         description: Unauthorized
  */
 router.get('/relocations/:id/document', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
