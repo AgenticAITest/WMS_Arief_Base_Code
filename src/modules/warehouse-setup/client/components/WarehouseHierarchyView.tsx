@@ -151,17 +151,25 @@ export const WarehouseHierarchyView = () => {
 
   if (warehouses.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-lg">
-        <Warehouse className="h-12 w-12 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No Warehouses Found</h3>
-        <p className="text-sm text-muted-foreground mb-4">
-          Get started by creating your first warehouse
-        </p>
-        <Button onClick={() => setWarehouseDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Warehouse
-        </Button>
-      </div>
+      <>
+        <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed rounded-lg">
+          <Warehouse className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">No Warehouses Found</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Get started by creating your first warehouse
+          </p>
+          <Button onClick={() => setWarehouseDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Warehouse
+          </Button>
+        </div>
+
+        <AddWarehouseDialog
+          open={warehouseDialogOpen}
+          onOpenChange={setWarehouseDialogOpen}
+          onSuccess={refreshWarehouses}
+        />
+      </>
     );
   }
 
