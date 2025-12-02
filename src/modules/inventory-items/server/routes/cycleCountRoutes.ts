@@ -899,30 +899,39 @@ router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), a
 
           if (!existingItem) continue;
 
+          // Build update data for item
+          const itemUpdateData: any = {};
+
+          // Handle reasonCode and reasonDescription updates
+          if (item.reasonCode !== undefined) {
+            itemUpdateData.reasonCode = item.reasonCode || null;
+          }
+          if (item.reasonDescription !== undefined) {
+            itemUpdateData.reasonDescription = item.reasonDescription || null;
+          }
+
           // Only update if countedQuantity is a valid number (not null/undefined)
           if (item.countedQuantity !== null && item.countedQuantity !== undefined) {
             const variance = item.countedQuantity - existingItem.systemQuantity;
             
-            await tx
-              .update(cycleCountItems)
-              .set({
-                countedQuantity: item.countedQuantity,
-                varianceQuantity: variance,
-                countedBy: userId,
-                countedAt: new Date(),
-              })
-              .where(eq(cycleCountItems.id, item.itemId));
+            itemUpdateData.countedQuantity = item.countedQuantity;
+            itemUpdateData.varianceQuantity = variance;
+            itemUpdateData.countedBy = userId;
+            itemUpdateData.countedAt = new Date();
           } else if (item.countedQuantity === null) {
             // If clearing a counted quantity, reset all variance and audit fields to null
+            itemUpdateData.countedQuantity = null;
+            itemUpdateData.varianceQuantity = null;
+            itemUpdateData.varianceAmount = null;
+            itemUpdateData.countedBy = null;
+            itemUpdateData.countedAt = null;
+          }
+
+          // Only update if there's something to update
+          if (Object.keys(itemUpdateData).length > 0) {
             await tx
               .update(cycleCountItems)
-              .set({
-                countedQuantity: null,
-                varianceQuantity: null,
-                varianceAmount: null,
-                countedBy: null,
-                countedAt: null,
-              })
+              .set(itemUpdateData)
               .where(eq(cycleCountItems.id, item.itemId));
           }
         }

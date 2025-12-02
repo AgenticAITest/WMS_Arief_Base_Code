@@ -108,6 +108,26 @@ export const EditCountModal: React.FC<EditCountModalProps> = ({
     );
   };
 
+  const handleReasonCodeChange = (itemId: string, value: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? { ...item, reasonCode: value || null }
+          : item
+      )
+    );
+  };
+
+  const handleReasonDescriptionChange = (itemId: string, value: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === itemId
+          ? { ...item, reasonDescription: value || null }
+          : item
+      )
+    );
+  };
+
   const handleSubmit = async () => {
     try {
       setSubmitting(true);
@@ -117,6 +137,8 @@ export const EditCountModal: React.FC<EditCountModalProps> = ({
         items: items.map((item) => ({
           itemId: item.id,
           countedQuantity: item.countedQuantity,
+          reasonCode: item.reasonCode || null,
+          reasonDescription: item.reasonDescription || null,
         })),
       };
 
@@ -258,6 +280,26 @@ export const EditCountModal: React.FC<EditCountModalProps> = ({
                                   {variance}
                                 </span>
                               )}
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.reasonCode || ''}
+                                onChange={(e) =>
+                                  handleReasonCodeChange(item.id, e.target.value)
+                                }
+                                className="w-28"
+                                placeholder="Code"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={item.reasonDescription || ''}
+                                onChange={(e) =>
+                                  handleReasonDescriptionChange(item.id, e.target.value)
+                                }
+                                className="w-32"
+                                placeholder="Notes"
+                              />
                             </TableCell>
                           </TableRow>
                         );
