@@ -253,6 +253,7 @@ export const CreateCountModal: React.FC<CreateCountModalProps> = ({
         scheduledDate: scheduledDate || undefined,
         notes: notes || undefined,
         items: itemsWithCounts.map((item) => ({
+          inventoryItemId: item.id,
           productId: item.productId,
           binId: item.binId,
           systemQuantity: item.systemQuantity,
