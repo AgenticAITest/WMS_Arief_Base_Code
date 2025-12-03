@@ -823,7 +823,12 @@ router.get('/products', authorized('ADMIN', 'master-data.view'), async (req, res
     const whereConditions = [eq(products.tenantId, tenantId)];
     
     if (search) {
-      whereConditions.push(ilike(products.name, `%${search}%`));
+      whereConditions.push(
+        or(
+          ilike(products.name, `%${search}%`),
+          ilike(products.sku, `%${search}%`)
+        )!
+      );
     }
 
     const [totalResult] = await db
