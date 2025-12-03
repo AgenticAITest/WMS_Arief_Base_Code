@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -44,8 +44,6 @@ interface EditWarehouseDialogProps {
 export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }: EditWarehouseDialogProps) {
   const { token: accessToken } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const cleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const prevOpenRef = useRef(false);
 
   const {
     register,
@@ -69,10 +67,7 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
   });
 
   useEffect(() => {
-    const justOpened = open && !prevOpenRef.current;
-    prevOpenRef.current = open;
-    
-    if (warehouse && justOpened) {
+    if (warehouse) {
       reset({
         name: warehouse.name,
         address: warehouse.address || '',
@@ -82,42 +77,23 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
         requireBatchTracking: Boolean(warehouse.requireBatchTracking),
         requireExpiryTracking: Boolean(warehouse.requireExpiryTracking),
       });
+    } else {
+      reset({
+        name: '',
+        address: '',
+        isActive: true,
+        pickingStrategy: 'FEFO',
+        autoAssignBins: true,
+        requireBatchTracking: false,
+        requireExpiryTracking: true,
+      });
     }
   }, [warehouse, open, reset]);
-
-  useEffect(() => {
-    if (cleanupTimerRef.current) {
-      clearTimeout(cleanupTimerRef.current);
-      cleanupTimerRef.current = null;
-    }
-
-    if (!open) {
-      cleanupTimerRef.current = setTimeout(() => {
-        document.body.style.pointerEvents = '';
-        document.documentElement.style.pointerEvents = '';
-        cleanupTimerRef.current = null;
-      }, 100);
-    }
-
-    return () => {
-      if (cleanupTimerRef.current) {
-        clearTimeout(cleanupTimerRef.current);
-        cleanupTimerRef.current = null;
-      }
-      document.body.style.pointerEvents = '';
-      document.documentElement.style.pointerEvents = '';
-    };
-  }, [open]);
 
   const isActive = watch('isActive');
   const autoAssignBins = watch('autoAssignBins');
   const requireBatchTracking = watch('requireBatchTracking');
   const requireExpiryTracking = watch('requireExpiryTracking');
-
-  const cleanupPointerEvents = () => {
-    document.body.style.pointerEvents = '';
-    document.documentElement.style.pointerEvents = '';
-  };
 
   const onSubmit = async (data: WarehouseFormData) => {
     if (!warehouse) return;
@@ -128,7 +104,6 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       toast.success('Warehouse updated successfully');
-      cleanupPointerEvents();
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -146,9 +121,6 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
   const handleOpenChange = (newOpen: boolean) => {
     if (!isSubmitting) {
       onOpenChange(newOpen);
-      if (!newOpen) {
-        cleanupPointerEvents();
-      }
     }
   };
 

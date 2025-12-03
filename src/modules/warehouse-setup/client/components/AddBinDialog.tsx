@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -51,7 +51,6 @@ export function AddBinDialog({
   const [skuSearch, setSkuSearch] = useState('');
   const [skuPopoverOpen, setSkuPopoverOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const cleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     register,
@@ -73,30 +72,6 @@ export function AddBinDialog({
       shelfId,
     },
   });
-
-  useEffect(() => {
-    if (cleanupTimerRef.current) {
-      clearTimeout(cleanupTimerRef.current);
-      cleanupTimerRef.current = null;
-    }
-
-    if (!open) {
-      cleanupTimerRef.current = setTimeout(() => {
-        document.body.style.pointerEvents = '';
-        document.documentElement.style.pointerEvents = '';
-        cleanupTimerRef.current = null;
-      }, 100);
-    }
-
-    return () => {
-      if (cleanupTimerRef.current) {
-        clearTimeout(cleanupTimerRef.current);
-        cleanupTimerRef.current = null;
-      }
-      document.body.style.pointerEvents = '';
-      document.documentElement.style.pointerEvents = '';
-    };
-  }, [open]);
 
   useEffect(() => {
     if (open && accessToken) {
@@ -125,11 +100,6 @@ export function AddBinDialog({
       product.name.toLowerCase().includes(skuSearch.toLowerCase())
   ).slice(0, 10);
 
-  const cleanupPointerEvents = () => {
-    document.body.style.pointerEvents = '';
-    document.documentElement.style.pointerEvents = '';
-  };
-
   const onSubmit = async (data: BinFormData) => {
     setIsSubmitting(true);
     try {
@@ -143,7 +113,6 @@ export function AddBinDialog({
       setProducts([]);
       setLoadingProducts(false);
       setSkuPopoverOpen(false);
-      cleanupPointerEvents();
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {

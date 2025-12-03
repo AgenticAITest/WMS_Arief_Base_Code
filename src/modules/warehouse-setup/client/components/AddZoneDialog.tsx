@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -35,7 +35,6 @@ export function AddZoneDialog({
 }: AddZoneDialogProps) {
   const { token: accessToken } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const cleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     register,
@@ -51,35 +50,6 @@ export function AddZoneDialog({
     },
   });
 
-  useEffect(() => {
-    if (cleanupTimerRef.current) {
-      clearTimeout(cleanupTimerRef.current);
-      cleanupTimerRef.current = null;
-    }
-
-    if (!open) {
-      cleanupTimerRef.current = setTimeout(() => {
-        document.body.style.pointerEvents = '';
-        document.documentElement.style.pointerEvents = '';
-        cleanupTimerRef.current = null;
-      }, 100);
-    }
-
-    return () => {
-      if (cleanupTimerRef.current) {
-        clearTimeout(cleanupTimerRef.current);
-        cleanupTimerRef.current = null;
-      }
-      document.body.style.pointerEvents = '';
-      document.documentElement.style.pointerEvents = '';
-    };
-  }, [open]);
-
-  const cleanupPointerEvents = () => {
-    document.body.style.pointerEvents = '';
-    document.documentElement.style.pointerEvents = '';
-  };
-
   const onSubmit = async (data: ZoneFormData) => {
     setIsSubmitting(true);
     try {
@@ -88,7 +58,6 @@ export function AddZoneDialog({
       });
       toast.success('Zone created successfully');
       reset();
-      cleanupPointerEvents();
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -103,7 +72,6 @@ export function AddZoneDialog({
       onOpenChange(newOpen);
       if (!newOpen) {
         reset();
-        cleanupPointerEvents();
       }
     }
   };

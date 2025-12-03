@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -34,7 +34,6 @@ interface AddWarehouseDialogProps {
 export function AddWarehouseDialog({ open, onOpenChange, onSuccess }: AddWarehouseDialogProps) {
   const { token: accessToken } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const cleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     register,
@@ -57,39 +56,10 @@ export function AddWarehouseDialog({ open, onOpenChange, onSuccess }: AddWarehou
     },
   });
 
-  useEffect(() => {
-    if (cleanupTimerRef.current) {
-      clearTimeout(cleanupTimerRef.current);
-      cleanupTimerRef.current = null;
-    }
-
-    if (!open) {
-      cleanupTimerRef.current = setTimeout(() => {
-        document.body.style.pointerEvents = '';
-        document.documentElement.style.pointerEvents = '';
-        cleanupTimerRef.current = null;
-      }, 100);
-    }
-
-    return () => {
-      if (cleanupTimerRef.current) {
-        clearTimeout(cleanupTimerRef.current);
-        cleanupTimerRef.current = null;
-      }
-      document.body.style.pointerEvents = '';
-      document.documentElement.style.pointerEvents = '';
-    };
-  }, [open]);
-
   const isActive = watch('isActive');
   const autoAssignBins = watch('autoAssignBins');
   const requireBatchTracking = watch('requireBatchTracking');
   const requireExpiryTracking = watch('requireExpiryTracking');
-
-  const cleanupPointerEvents = () => {
-    document.body.style.pointerEvents = '';
-    document.documentElement.style.pointerEvents = '';
-  };
 
   const onSubmit = async (data: WarehouseFormData) => {
     setIsSubmitting(true);
@@ -99,7 +69,6 @@ export function AddWarehouseDialog({ open, onOpenChange, onSuccess }: AddWarehou
       });
       toast.success('Warehouse created successfully');
       reset();
-      cleanupPointerEvents();
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -114,7 +83,6 @@ export function AddWarehouseDialog({ open, onOpenChange, onSuccess }: AddWarehou
       onOpenChange(newOpen);
       if (!newOpen) {
         reset();
-        cleanupPointerEvents();
       }
     }
   };
