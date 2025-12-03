@@ -123,12 +123,14 @@ const SupplierDialog = ({
     fields.forEach((field, idx) => {
       const long = watch(`locations.${idx}.longitude`);
       const lat = watch(`locations.${idx}.latitude`);
-      if (long != null && lat != null) {
-        coords[field.id] = `${long},${lat}`;
+      if (long != null && lat != null && !isNaN(long) && !isNaN(lat)) {
+        coords[idx] = `${long},${lat}`;
+      } else {
+        coords[idx] = '';
       }
     });
     setCoordinateInputs(coords);
-  }, [fields.length, editingItem]);
+  }, [fields, watch]);
 
   const onSubmit = async (data: SupplierForm) => {
     try {
@@ -413,10 +415,10 @@ const SupplierDialog = ({
                         <Label>Coordinates (long,lat)</Label>
                         <Input
                           placeholder="e.g., 103.8198,1.3521"
-                          value={coordinateInputs[field.id] || ''}
+                          value={coordinateInputs[index] || ''}
                           onChange={(e) => {
                             const value = e.target.value;
-                            setCoordinateInputs(prev => ({ ...prev, [field.id]: value }));
+                            setCoordinateInputs(prev => ({ ...prev, [index]: value }));
                             
                             const parts = value.split(',').map(p => p.trim());
                             if (parts.length === 2) {
