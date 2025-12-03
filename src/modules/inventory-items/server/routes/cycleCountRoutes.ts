@@ -146,11 +146,15 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
  *                 type: array
  *                 items:
  *                   type: object
+ *                   required:
+ *                     - inventoryItemId
+ *                     - systemQuantity
+ *                     - countedQuantity
  *                   properties:
- *                     productId:
+ *                     inventoryItemId:
  *                       type: string
- *                     binId:
- *                       type: string
+ *                       format: uuid
+ *                       description: ID of the inventory item being counted
  *                     systemQuantity:
  *                       type: integer
  *                     countedQuantity:
@@ -241,19 +245,44 @@ router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), asyn
         })
         .returning();
 
-      // Create cycle count items
+      // Validate and fetch inventory items
+      const inventoryItemIds = items.map((item: any) => item.inventoryItemId);
+      const inventoryItemsData = await tx
+        .select()
+        .from(inventoryItems)
+        .where(
+          and(
+            sql`${inventoryItems.id} IN ${inventoryItemIds}`,
+            eq(inventoryItems.tenantId, tenantId)
+          )
+        );
+
+      // Create a map for quick lookup
+      const inventoryItemMap = new Map(
+        inventoryItemsData.map(ii => [ii.id, ii])
+      );
+
+      // Validate all inventory items exist
+      const missingItems = inventoryItemIds.filter((id: string) => !inventoryItemMap.has(id));
+      if (missingItems.length > 0) {
+        throw new Error(`Inventory items not found: ${missingItems.join(', ')}`);
+      }
+
+      // Create cycle count items with direct inventory item reference
       const itemsToInsert = items.map((item: any) => {
+        const invItem = inventoryItemMap.get(item.inventoryItemId)!;
         const variance = item.countedQuantity - item.systemQuantity;
         return {
           id: uuidv4(),
           cycleCountId: cycleCount.id,
           tenantId,
-          productId: item.productId,
-          binId: item.binId,
+          inventoryItemId: item.inventoryItemId,
+          productId: invItem.productId,
+          binId: invItem.binId,
           systemQuantity: item.systemQuantity,
           countedQuantity: item.countedQuantity,
           varianceQuantity: variance,
-          varianceAmount: null, // Can be calculated later if needed
+          varianceAmount: null,
           reasonCode: item.reason || null,
           reasonDescription: item.notes || null,
           countedBy: userId,
