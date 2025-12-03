@@ -1053,6 +1053,12 @@ router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), a
             itemUpdateData.varianceQuantity = variance;
             itemUpdateData.countedBy = userId;
             itemUpdateData.countedAt = new Date();
+            
+            // If variance is 0, clear reason code and notes (no variance to explain)
+            if (variance === 0) {
+              itemUpdateData.reasonCode = null;
+              itemUpdateData.reasonDescription = null;
+            }
           } else if (item.countedQuantity === null) {
             // If clearing a counted quantity, reset all variance and audit fields to null
             itemUpdateData.countedQuantity = null;
@@ -1060,6 +1066,8 @@ router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), a
             itemUpdateData.varianceAmount = null;
             itemUpdateData.countedBy = null;
             itemUpdateData.countedAt = null;
+            itemUpdateData.reasonCode = null;
+            itemUpdateData.reasonDescription = null;
           }
 
           // Only update if there's something to update
