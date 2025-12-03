@@ -21,6 +21,8 @@ const router = express.Router();
  *   post:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: Create a new relocation
  *     description: Create a new inventory relocation
  *     requestBody:
@@ -231,6 +233,8 @@ router.post('/relocations', authorized('ADMIN', 'inventory-items.manage'), async
  *   get:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: List all relocations
  *     description: Get a paginated list of inventory relocations
  *     parameters:
@@ -320,6 +324,8 @@ router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (r
  *   get:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get relocation details
  *     description: Get detailed information about a specific relocation
  *     parameters:
@@ -371,6 +377,8 @@ router.get('/relocations/:id', authorized('ADMIN', 'inventory-items.view'), asyn
  *   get:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get relocation items
  *     description: Get items in a relocation with location hierarchy
  *     parameters:
@@ -518,6 +526,8 @@ router.get('/relocations/:id/items', authorized('ADMIN', 'inventory-items.view')
  *   put:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: Update a relocation
  *     description: Update a relocation (only for status 'created')
  *     parameters:
@@ -703,6 +713,8 @@ router.put('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'), as
  *   delete:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: Delete a relocation
  *     description: Delete a relocation (only for status 'created')
  *     parameters:
@@ -781,6 +793,8 @@ router.delete('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'),
  *   post:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: Approve a relocation
  *     description: Approve a relocation and execute the inventory movement (only for status 'created')
  *     parameters:
@@ -1102,6 +1116,8 @@ router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.man
  *   post:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: Reject a relocation
  *     description: Reject a relocation (only for status 'created')
  *     parameters:
@@ -1190,6 +1206,8 @@ router.post('/relocations/:id/reject', authorized('ADMIN', 'inventory-items.mana
  *   get:
  *     tags:
  *       - Inventory Relocation
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get relocation document
  *     description: Get the generated document path for a relocation
  *     parameters:

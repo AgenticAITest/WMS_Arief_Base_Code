@@ -22,6 +22,8 @@ const router = express.Router();
  *   get:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: List all adjustments
  *     description: Get a paginated list of inventory adjustments
  *     parameters:
@@ -111,6 +113,8 @@ router.get('/adjustments', authorized('ADMIN', 'inventory-items.view'), async (r
  *   get:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get adjustment details
  *     description: Get detailed information about a specific adjustment
  *     parameters:
@@ -162,6 +166,8 @@ router.get('/adjustments/:id', authorized('ADMIN', 'inventory-items.view'), asyn
  *   get:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get adjustment document
  *     description: Get the generated document path for an adjustment
  *     parameters:
@@ -250,6 +256,8 @@ router.get('/adjustments/:id/document', authorized('ADMIN', 'inventory-items.vie
  *   get:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get adjustment items
  *     description: Get items in an adjustment with pagination
  *     parameters:
@@ -380,6 +388,8 @@ router.get('/adjustments/:id/items', authorized('ADMIN', 'inventory-items.view')
  *   post:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: Create a new adjustment
  *     description: Create a new inventory adjustment
  *     requestBody:
@@ -582,6 +592,8 @@ router.post('/adjustments', authorized('ADMIN', 'inventory-items.manage'), async
  *   put:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: Update an adjustment
  *     description: Update an adjustment (only for status 'created')
  *     parameters:
@@ -768,6 +780,8 @@ router.put('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'), as
  *   delete:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: Delete an adjustment
  *     description: Delete an adjustment (only for status 'created')
  *     parameters:
@@ -856,6 +870,8 @@ router.delete('/adjustments/:id', authorized('ADMIN', 'inventory-items.manage'),
  *   post:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: Reject an adjustment
  *     description: Reject an adjustment (only for status 'created')
  *     parameters:
@@ -961,6 +977,8 @@ router.post('/adjustments/:id/reject', authorized('ADMIN', 'inventory-items.mana
  *   post:
  *     tags:
  *       - Inventory Adjustment
+ *     security:
+ *       - bearerAuth: []
  *     summary: Approve an adjustment
  *     description: Approve an adjustment, update inventory, generate document, and update cycle count if applicable (only for status 'created')
  *     parameters:

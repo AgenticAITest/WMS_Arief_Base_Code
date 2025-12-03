@@ -23,6 +23,8 @@ const router = express.Router();
  *   get:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: List all cycle counts
  *     description: Get a paginated list of cycle counts for the current tenant
  *     parameters:
@@ -110,6 +112,8 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
  *   post:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Create a new cycle count
  *     description: Create a new cycle count with items already counted
  *     requestBody:
@@ -327,6 +331,8 @@ router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), asyn
  *   get:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get filter options
  *     description: Get available filter options (inventory types, zones, bins) for creating a cycle count
  *     responses:
@@ -417,6 +423,8 @@ router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.
  *   get:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Search product by SKU
  *     description: Search for a product by SKU and return bins with stock for that product
  *     parameters:
@@ -518,6 +526,8 @@ router.get('/cycle-counts/search-sku', authorized('ADMIN', 'inventory-items.view
  *   get:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get inventory items for counting
  *     description: Get inventory items based on filters for creating a cycle count
  *     parameters:
@@ -624,6 +634,8 @@ router.get('/cycle-counts/items', authorized('ADMIN', 'inventory-items.view'), a
  *   get:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get cycle count by ID
  *     description: Get details of a specific cycle count
  *     parameters:
@@ -689,6 +701,8 @@ router.get('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.view'), asy
  *   get:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get cycle count document
  *     description: Get the generated document path for a cycle count
  *     parameters:
@@ -777,6 +791,8 @@ router.get('/cycle-counts/:id/document', authorized('ADMIN', 'inventory-items.vi
  *   get:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Get cycle count items
  *     description: Get items of a cycle count with pagination and search
  *     parameters:
@@ -919,6 +935,8 @@ router.get('/cycle-counts/:id/items', authorized('ADMIN', 'inventory-items.view'
  *   put:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Update a cycle count
  *     description: Update a cycle count and its items (only for status 'created')
  *     parameters:
@@ -1109,6 +1127,8 @@ router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), a
  *   put:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Approve a cycle count
  *     description: Approve a cycle count, generate document, and auto-create adjustment for items with variances
  *     parameters:
@@ -1372,6 +1392,8 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
  *   put:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Reject a cycle count
  *     description: Reject a cycle count (only for status 'created')
  *     parameters:
@@ -1462,6 +1484,8 @@ router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.mana
  *   delete:
  *     tags:
  *       - Cycle Count
+ *     security:
+ *       - bearerAuth: []
  *     summary: Delete a cycle count
  *     description: Delete a cycle count (only for status 'created')
  *     parameters:
