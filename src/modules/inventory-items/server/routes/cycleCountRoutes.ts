@@ -1125,7 +1125,7 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
 
     // Execute transaction for approval, document generation, and adjustment creation
     const result = await db.transaction(async (tx) => {
-      // Get cycle count items with full details (inside transaction)
+      // Get cycle count items with full details for document generation (NO inventory join to avoid duplicates)
       const cycleCountItemsData = await tx
         .select({
           item: cycleCountItems,
@@ -1135,7 +1135,6 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
           aisle: aisles,
           zone: zones,
           warehouse: warehouses,
-          inventoryItem: inventoryItems,
         })
         .from(cycleCountItems)
         .innerJoin(products, eq(cycleCountItems.productId, products.id))
@@ -1144,11 +1143,6 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
         .innerJoin(aisles, eq(shelves.aisleId, aisles.id))
         .innerJoin(zones, eq(aisles.zoneId, zones.id))
         .innerJoin(warehouses, eq(zones.warehouseId, warehouses.id))
-        .leftJoin(inventoryItems, and(
-          eq(inventoryItems.productId, cycleCountItems.productId),
-          eq(inventoryItems.binId, cycleCountItems.binId),
-          eq(inventoryItems.tenantId, tenantId)
-        ))
         .where(eq(cycleCountItems.cycleCountId, id));
 
       if (cycleCountItemsData.length === 0) {
@@ -1256,31 +1250,70 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
 
         adjustmentId = adjustment.id;
 
-        // Validate all inventory items exist before creating adjustment items
-        const missingInventoryItems = itemsWithVariances.filter(({ inventoryItem }) => !inventoryItem);
-        if (missingInventoryItems.length > 0) {
-          const missingDetails = missingInventoryItems
-            .map(({ item, product }) => `${product?.sku || 'Unknown SKU'} in bin ${item.binId}`)
-            .join(', ');
-          throw new Error(`Cannot create adjustment: inventory records missing for: ${missingDetails}`);
-        }
+        // Lookup inventory items for each variance item (pick one per product/bin combination)
+        // Using a separate query to avoid duplication from LEFT JOIN
+        const adjustmentItemsToInsert: Array<{
+          id: string;
+          adjustmentId: string;
+          tenantId: string;
+          inventoryItemId: string;
+          oldQuantity: number;
+          newQuantity: number;
+          quantityDifference: number;
+          reasonCode: string;
+          notes: string;
+        }> = [];
 
-        // Create adjustment items (only for items with variances)
-        const adjustmentItemsToInsert = itemsWithVariances.map(({ item, inventoryItem }) => {
-          const quantityDifference = item.varianceQuantity!;
+        const missingInventoryItems: string[] = [];
 
-          return {
+        const multipleInventoryRecords: string[] = [];
+
+        for (const { item, product, bin } of itemsWithVariances) {
+          // Find all inventory items for this product/bin combination
+          const matchingInventoryItems = await tx
+            .select()
+            .from(inventoryItems)
+            .where(
+              and(
+                eq(inventoryItems.productId, item.productId),
+                eq(inventoryItems.binId, item.binId),
+                eq(inventoryItems.tenantId, tenantId)
+              )
+            );
+
+          if (matchingInventoryItems.length === 0) {
+            missingInventoryItems.push(`${product?.sku || 'Unknown SKU'} in bin ${bin.name}`);
+            continue;
+          }
+
+          if (matchingInventoryItems.length > 1) {
+            // Multiple inventory records exist (e.g., different batches/lots)
+            // Cannot automatically adjust - user needs to manually reconcile
+            multipleInventoryRecords.push(`${product?.sku || 'Unknown SKU'} in ${bin.name} (${matchingInventoryItems.length} records)`);
+            continue;
+          }
+
+          const inventoryItem = matchingInventoryItems[0];
+          adjustmentItemsToInsert.push({
             id: uuidv4(),
             adjustmentId: adjustment.id,
             tenantId,
-            inventoryItemId: inventoryItem!.id,
+            inventoryItemId: inventoryItem.id,
             oldQuantity: item.systemQuantity,
             newQuantity: item.countedQuantity!,
-            quantityDifference,
+            quantityDifference: item.varianceQuantity!,
             reasonCode: item.reasonCode || 'UNKNOWN',
             notes: item.reasonDescription || `Variance detected during cycle count ${cycleCount.countNumber}`,
-          };
-        });
+          });
+        }
+
+        if (multipleInventoryRecords.length > 0) {
+          throw new Error(`Cannot create adjustment: multiple inventory records found for: ${multipleInventoryRecords.join(', ')}. Please consolidate inventory records before approving.`);
+        }
+
+        if (missingInventoryItems.length > 0) {
+          throw new Error(`Cannot create adjustment: inventory records missing for: ${missingInventoryItems.join(', ')}`);
+        }
 
         await tx.insert(adjustmentItems).values(adjustmentItemsToInsert);
 
