@@ -45,6 +45,7 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
   const { token: accessToken } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const cleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const prevOpenRef = useRef(false);
 
   const {
     register,
@@ -68,7 +69,10 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
   });
 
   useEffect(() => {
-    if (warehouse && open) {
+    const justOpened = open && !prevOpenRef.current;
+    prevOpenRef.current = open;
+    
+    if (warehouse && justOpened) {
       reset({
         name: warehouse.name,
         address: warehouse.address || '',
@@ -143,7 +147,6 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
     if (!isSubmitting) {
       onOpenChange(newOpen);
       if (!newOpen) {
-        reset();
         cleanupPointerEvents();
       }
     }
