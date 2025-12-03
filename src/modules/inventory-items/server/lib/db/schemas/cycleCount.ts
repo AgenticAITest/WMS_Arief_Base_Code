@@ -3,6 +3,7 @@ import { relations } from 'drizzle-orm';
 import { tenant, user } from '@server/lib/db/schema/system';
 import { products } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { bins } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
+import { inventoryItems } from './inventoryItems';
 
 export const cycleCounts = pgTable('cycle_counts', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -38,6 +39,9 @@ export const cycleCountItems = pgTable('cycle_count_items', {
   tenantId: uuid('tenant_id')
     .notNull()
     .references(() => tenant.id),
+  inventoryItemId: uuid('inventory_item_id')
+    .notNull()
+    .references(() => inventoryItems.id),
   productId: uuid('product_id')
     .notNull()
     .references(() => products.id),
@@ -59,6 +63,7 @@ export const cycleCountItems = pgTable('cycle_count_items', {
     index('cycle_count_items_cycle_count_idx').on(t.cycleCountId),
     index('cycle_count_items_product_idx').on(t.productId),
     index('cycle_count_items_bin_idx').on(t.binId),
+    index('cycle_count_items_inventory_item_idx').on(t.inventoryItemId),
   ]
 );
 
@@ -87,6 +92,10 @@ export const cycleCountItemsRelations = relations(cycleCountItems, ({ one }) => 
   tenant: one(tenant, {
     fields: [cycleCountItems.tenantId],
     references: [tenant.id],
+  }),
+  inventoryItem: one(inventoryItems, {
+    fields: [cycleCountItems.inventoryItemId],
+    references: [inventoryItems.id],
   }),
   product: one(products, {
     fields: [cycleCountItems.productId],
