@@ -535,6 +535,19 @@ export const WarehouseHierarchyView = () => {
         onSuccess={refreshWarehouses}
       />
 
+      <EditWarehouseDialog
+        key={editingWarehouse?.id || 'edit-warehouse'}
+        open={editWarehouseDialogOpen}
+        onOpenChange={(open) => {
+          setEditWarehouseDialogOpen(open);
+          if (!open) {
+            setTimeout(() => setEditingWarehouse(null), 150);
+          }
+        }}
+        warehouse={editingWarehouse}
+        onSuccess={refreshWarehouses}
+      />
+
       {selectedWarehouse && (
         <AddZoneDialog
           open={zoneDialogOpen}
@@ -587,37 +600,42 @@ export const WarehouseHierarchyView = () => {
         />
       )}
 
-      <EditWarehouseDialog
-        open={editWarehouseDialogOpen}
-        onOpenChange={setEditWarehouseDialogOpen}
-        warehouse={editingWarehouse}
-        onSuccess={refreshWarehouses}
-      />
-
       <EditZoneDialog
         open={editZoneDialogOpen}
-        onOpenChange={setEditZoneDialogOpen}
+        onOpenChange={(open) => {
+          setEditZoneDialogOpen(open);
+          if (!open) setEditingZone(null);
+        }}
         zone={editingZone}
         onSuccess={refreshWarehouses}
       />
 
       <EditAisleDialog
         open={editAisleDialogOpen}
-        onOpenChange={setEditAisleDialogOpen}
+        onOpenChange={(open) => {
+          setEditAisleDialogOpen(open);
+          if (!open) setEditingAisle(null);
+        }}
         aisle={editingAisle}
         onSuccess={refreshWarehouses}
       />
 
       <EditShelfDialog
         open={editShelfDialogOpen}
-        onOpenChange={setEditShelfDialogOpen}
+        onOpenChange={(open) => {
+          setEditShelfDialogOpen(open);
+          if (!open) setEditingShelf(null);
+        }}
         shelf={editingShelf}
         onSuccess={refreshWarehouses}
       />
 
       <EditBinDialog
         open={editBinDialogOpen}
-        onOpenChange={setEditBinDialogOpen}
+        onOpenChange={(open) => {
+          setEditBinDialogOpen(open);
+          if (!open) setEditingBin(null);
+        }}
         bin={editingBin}
         onSuccess={refreshWarehouses}
       />

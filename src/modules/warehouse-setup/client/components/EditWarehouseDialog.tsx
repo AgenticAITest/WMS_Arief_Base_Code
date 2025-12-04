@@ -66,6 +66,17 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
     },
   });
 
+  // Cleanup pointer events when dialog state changes
+  useEffect(() => {
+    if (!open) {
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = '';
+        document.documentElement.style.pointerEvents = '';
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
   useEffect(() => {
     if (warehouse) {
       reset({
@@ -105,7 +116,10 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
       });
       toast.success('Warehouse updated successfully');
       onOpenChange(false);
-      onSuccess();
+      // Delay success callback to ensure dialog closes first
+      setTimeout(() => {
+        onSuccess();
+      }, 150);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to update warehouse');
     } finally {
@@ -121,11 +135,25 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
   const handleOpenChange = (newOpen: boolean) => {
     if (!isSubmitting) {
       onOpenChange(newOpen);
+      if (!newOpen) {
+        // Delay reset to ensure dialog closes properly
+        setTimeout(() => {
+          reset({
+            name: '',
+            address: '',
+            isActive: true,
+            pickingStrategy: 'FEFO',
+            autoAssignBins: true,
+            requireBatchTracking: false,
+            requireExpiryTracking: true,
+          });
+        }, 150);
+      }
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Warehouse</DialogTitle>
