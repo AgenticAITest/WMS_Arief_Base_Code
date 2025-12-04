@@ -104,6 +104,33 @@ export const WarehouseHierarchyView = () => {
   const [editingShelf, setEditingShelf] = useState<Shelf | null>(null);
   const [editingBin, setEditingBin] = useState<Bin | null>(null);
 
+  // Cleanup function to ensure no stale overlays
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount
+      document.body.style.pointerEvents = '';
+      document.documentElement.style.pointerEvents = '';
+    };
+  }, []);
+
+  // Cleanup pointer events whenever dialogs close
+  useEffect(() => {
+    const anyDialogOpen = warehouseDialogOpen || zoneDialogOpen || aisleDialogOpen || 
+                          shelfDialogOpen || binDialogOpen || editWarehouseDialogOpen || 
+                          editZoneDialogOpen || editAisleDialogOpen || editShelfDialogOpen || 
+                          editBinDialogOpen;
+    
+    if (!anyDialogOpen) {
+      // Small delay to ensure dialog animations complete
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = '';
+        document.documentElement.style.pointerEvents = '';
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [warehouseDialogOpen, zoneDialogOpen, aisleDialogOpen, shelfDialogOpen, binDialogOpen,
+      editWarehouseDialogOpen, editZoneDialogOpen, editAisleDialogOpen, editShelfDialogOpen, editBinDialogOpen]);
+
   const fetchWarehouses = async () => {
     if (!accessToken) return;
     
@@ -511,7 +538,10 @@ export const WarehouseHierarchyView = () => {
       {selectedWarehouse && (
         <AddZoneDialog
           open={zoneDialogOpen}
-          onOpenChange={setZoneDialogOpen}
+          onOpenChange={(open) => {
+            setZoneDialogOpen(open);
+            if (!open) setSelectedWarehouse(null);
+          }}
           warehouseId={selectedWarehouse.id}
           warehouseName={selectedWarehouse.name}
           onSuccess={refreshWarehouses}
@@ -521,7 +551,10 @@ export const WarehouseHierarchyView = () => {
       {selectedZone && (
         <AddAisleDialog
           open={aisleDialogOpen}
-          onOpenChange={setAisleDialogOpen}
+          onOpenChange={(open) => {
+            setAisleDialogOpen(open);
+            if (!open) setSelectedZone(null);
+          }}
           zoneId={selectedZone.id}
           zoneName={selectedZone.name}
           onSuccess={refreshWarehouses}
@@ -531,7 +564,10 @@ export const WarehouseHierarchyView = () => {
       {selectedAisle && (
         <AddShelfDialog
           open={shelfDialogOpen}
-          onOpenChange={setShelfDialogOpen}
+          onOpenChange={(open) => {
+            setShelfDialogOpen(open);
+            if (!open) setSelectedAisle(null);
+          }}
           aisleId={selectedAisle.id}
           aisleName={selectedAisle.name}
           onSuccess={refreshWarehouses}
@@ -541,7 +577,10 @@ export const WarehouseHierarchyView = () => {
       {selectedShelf && (
         <AddBinDialog
           open={binDialogOpen}
-          onOpenChange={setBinDialogOpen}
+          onOpenChange={(open) => {
+            setBinDialogOpen(open);
+            if (!open) setSelectedShelf(null);
+          }}
           shelfId={selectedShelf.id}
           shelfName={selectedShelf.name}
           onSuccess={refreshWarehouses}

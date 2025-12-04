@@ -107,13 +107,16 @@ export function AddBinDialog({
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       toast.success('Bin created successfully');
-      reset();
-      setSelectedProduct(null);
-      setSkuSearch('');
-      setProducts([]);
-      setLoadingProducts(false);
       setSkuPopoverOpen(false);
       onOpenChange(false);
+      // Clear state after dialog closes
+      setTimeout(() => {
+        reset();
+        setSelectedProduct(null);
+        setSkuSearch('');
+        setProducts([]);
+        setLoadingProducts(false);
+      }, 100);
       onSuccess();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to create bin');
@@ -124,15 +127,18 @@ export function AddBinDialog({
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!isSubmitting) {
-      if (!newOpen) {
-        setSkuPopoverOpen(false);
-        reset();
-        setSelectedProduct(null);
-        setSkuSearch('');
-        setProducts([]);
-        setLoadingProducts(false);
-      }
       onOpenChange(newOpen);
+      if (!newOpen) {
+        // Small delay to ensure dialog closes before clearing state
+        setTimeout(() => {
+          setSkuPopoverOpen(false);
+          reset();
+          setSelectedProduct(null);
+          setSkuSearch('');
+          setProducts([]);
+          setLoadingProducts(false);
+        }, 100);
+      }
     }
   };
 
@@ -149,7 +155,7 @@ export function AddBinDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Bin</DialogTitle>

@@ -88,7 +88,7 @@ export function AddWarehouseDialog({ open, onOpenChange, onSuccess }: AddWarehou
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Warehouse</DialogTitle>

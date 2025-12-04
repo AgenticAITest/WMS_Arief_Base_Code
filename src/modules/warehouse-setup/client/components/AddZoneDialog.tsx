@@ -71,13 +71,13 @@ export function AddZoneDialog({
     if (!isSubmitting) {
       onOpenChange(newOpen);
       if (!newOpen) {
-        reset();
+        setTimeout(() => reset(), 100);
       }
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} modal={true}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add New Zone</DialogTitle>
