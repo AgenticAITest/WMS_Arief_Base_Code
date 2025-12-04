@@ -1194,12 +1194,12 @@ router.post('/bins', authorized('ADMIN', 'warehouse-setup.create'), async (req, 
         shelfId,
         tenantId,
         name,
-        barcode,
-        maxWeight,
-        maxVolume,
-        fixedSku,
-        category,
-        requiredTemperature,
+        barcode: barcode || null,
+        maxWeight: maxWeight && maxWeight !== '' ? maxWeight : null,
+        maxVolume: maxVolume && maxVolume !== '' ? maxVolume : null,
+        fixedSku: fixedSku || null,
+        category: category || null,
+        requiredTemperature: requiredTemperature || null,
         accessibilityScore: accessibilityScore !== undefined ? accessibilityScore : 50,
       })
       .returning();
@@ -1261,7 +1261,16 @@ router.put('/bins/:id', authorized('ADMIN', 'warehouse-setup.edit'), async (req,
 
     const [updated] = await db
       .update(bins)
-      .set({ name, barcode, maxWeight, maxVolume, fixedSku, category, requiredTemperature, accessibilityScore })
+      .set({ 
+        name, 
+        barcode: barcode || null, 
+        maxWeight: maxWeight && maxWeight !== '' ? maxWeight : null, 
+        maxVolume: maxVolume && maxVolume !== '' ? maxVolume : null, 
+        fixedSku: fixedSku || null, 
+        category: category || null, 
+        requiredTemperature: requiredTemperature || null, 
+        accessibilityScore 
+      })
       .where(and(eq(bins.id, id), eq(bins.tenantId, tenantId)))
       .returning();
 
