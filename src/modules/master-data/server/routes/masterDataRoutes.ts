@@ -1595,7 +1595,7 @@ router.post('/suppliers', authorized('ADMIN', 'master-data.create'), async (req,
     console.error('Error creating supplier:', error);
     res.status(500).json({
       success: false,
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create supplier',
+      message: 'Failed to create supplier',
     });
   }
 });
@@ -1749,8 +1749,7 @@ router.put('/suppliers/:id', authorized('ADMIN', 'master-data.edit'), async (req
                        error.message === 'Supplier not found' ? 404 : 500;
     res.status(statusCode).json({
       success: false,
-      message: process.env.NODE_ENV === 'development' ? errorMessage : 
-               statusCode === 400 ? errorMessage : 'Failed to update supplier',
+      message: statusCode === 400 ? errorMessage : 'Failed to update supplier',
     });
   }
 });
@@ -2174,7 +2173,7 @@ router.post('/customers', authorized('ADMIN', 'master-data.create'), async (req,
     console.error('Error creating customer:', error);
     res.status(500).json({
       success: false,
-      message: process.env.NODE_ENV === 'development' ? error.message : 'Failed to create customer',
+      message: 'Failed to create customer',
     });
   }
 });
@@ -2328,8 +2327,7 @@ router.put('/customers/:id', authorized('ADMIN', 'master-data.edit'), async (req
                        error.message === 'Customer not found' ? 404 : 500;
     res.status(statusCode).json({
       success: false,
-      message: process.env.NODE_ENV === 'development' ? errorMessage : 
-               statusCode === 400 ? errorMessage : 'Failed to update customer',
+      message: statusCode === 400 ? errorMessage : 'Failed to update customer',
     });
   }
 });
