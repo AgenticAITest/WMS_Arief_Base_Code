@@ -36,8 +36,8 @@ const locationSchema = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   contactPerson: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')).or(z.null()),
+  email: z.string().email().optional().or(z.literal('')).or(z.null()),
   isActive: z.boolean(),
 });
 
@@ -136,14 +136,14 @@ const SupplierDialog = ({
     try {
       const payload = {
         ...data,
-        email: data.email || undefined,
-        phone: data.phone || undefined,
+        email: data.email || null,
+        phone: data.phone || null,
         contactPerson: data.contactPerson || undefined,
         taxId: data.taxId || undefined,
         locations: data.locations.map(loc => ({
           ...loc,
-          email: loc.email || undefined,
-          phone: loc.phone || undefined,
+          email: loc.email || null,
+          phone: loc.phone || null,
           contactPerson: loc.contactPerson || undefined,
           latitude: loc.latitude ?? undefined,
           longitude: loc.longitude ?? undefined,

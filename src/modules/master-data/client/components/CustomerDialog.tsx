@@ -36,8 +36,8 @@ const locationSchema = z.object({
   latitude: z.number().optional(),
   longitude: z.number().optional(),
   contactPerson: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')).or(z.null()),
+  email: z.string().email().optional().or(z.literal('')).or(z.null()),
   isActive: z.boolean(),
 });
 
@@ -123,25 +123,27 @@ const CustomerDialog = ({
     fields.forEach((field, idx) => {
       const long = watch(`locations.${idx}.longitude`);
       const lat = watch(`locations.${idx}.latitude`);
-      if (long != null && lat != null) {
-        coords[field.id] = `${long},${lat}`;
-      }
-    });
-    setCoordinateInputs(coords);
-  }, [fields.length, editingItem]);
+        if (long != null && lat != null && !isNaN(long) && !isNaN(lat)) {
+          coords[idx] = `${long},${lat}`;
+        } else {
+          coords[idx] = '';
+        }
+      });
+      setCoordinateInputs(coords);
+    }, [fields, watch]);
 
   const onSubmit = async (data: CustomerForm) => {
     try {
       const payload = {
         ...data,
-        email: data.email || undefined,
-        phone: data.phone || undefined,
+        email: data.email || null,
+        phone: data.phone || null,
         contactPerson: data.contactPerson || undefined,
         taxId: data.taxId || undefined,
         locations: data.locations.map(loc => ({
           ...loc,
-          email: loc.email || undefined,
-          phone: loc.phone || undefined,
+          email: loc.email || null,
+          phone: loc.phone || null,
           contactPerson: loc.contactPerson || undefined,
           latitude: loc.latitude ?? undefined,
           longitude: loc.longitude ?? undefined,
@@ -413,10 +415,10 @@ const CustomerDialog = ({
                         <Label>Coordinates (long,lat)</Label>
                         <Input
                           placeholder="e.g., 103.8198,1.3521"
-                          value={coordinateInputs[field.id] || ''}
+                          value={coordinateInputs[index] || ''}
                           onChange={(e) => {
                             const value = e.target.value;
-                            setCoordinateInputs(prev => ({ ...prev, [field.id]: value }));
+                            setCoordinateInputs(prev => ({ ...prev, [index]: value }));
                             
                             const parts = value.split(',').map(p => p.trim());
                             if (parts.length === 2) {
