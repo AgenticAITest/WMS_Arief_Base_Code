@@ -13,27 +13,21 @@ import {
 } from "@client/components/ui/sidebar";
 import { sampleModuleSidebarMenus } from "../../modules/sample-module/client/menus/sideBarMenus";
 
-import { masterDataSidebarMenus } from "../../modules/master-data/client/menus/sideBarMenus";
-import { warehouseSetupSidebarMenus } from "../../modules/warehouse-setup/client/menus/sideBarMenus";
-import {
-  inventoryItemsSidebarMenus,
-  adjustmentSidebarMenus,
-  relocateSidebarMenus,
-  cycleCountSidebarMenus,
-} from "../../modules/inventory-items/client/menus/sideBarMenus";
-import {
-  purchaseOrderSidebarMenus,
-  createPurchaseOrderSidebarMenus,
-} from "../../modules/purchase-order/client/menus/sideBarMenus";
-import { usePurchaseOrderWorkflowSteps } from "../../modules/purchase-order/client/hooks/usePurchaseOrderWorkflowSteps";
-import {
-  salesOrderSidebarMenus,
-  createSalesOrderSidebarMenus,
-} from "../../modules/sales-order/client/menus/sideBarMenus";
-import { useSalesOrderWorkflowSteps } from "../../modules/sales-order/client/hooks/useSalesOrderWorkflowSteps";
-import { workflowSidebarMenus } from "../../modules/workflow/client/menus/sideBarMenus";
-import { reportsSidebarMenus } from "../../modules/reports/client/menus/sideBarMenus";
 import { generalSidebarMenus } from "../../modules/general/client/menus/sideBarMenus";
+import {
+  cycleCountSidebarMenus,
+  inventoryItemsSidebarMenus
+} from "../../modules/inventory-items/client/menus/sideBarMenus";
+import { masterDataSidebarMenus } from "../../modules/master-data/client/menus/sideBarMenus";
+import {
+  purchaseOrderSidebarMenus
+} from "../../modules/purchase-order/client/menus/sideBarMenus";
+import { reportsSidebarMenus } from "../../modules/reports/client/menus/sideBarMenus";
+import {
+  salesOrderSidebarMenus
+} from "../../modules/sales-order/client/menus/sideBarMenus";
+import { warehouseSetupSidebarMenus } from "../../modules/warehouse-setup/client/menus/sideBarMenus";
+import { workflowSidebarMenus } from "../../modules/workflow/client/menus/sideBarMenus";
 // This is sample data.
 const data = {
   // teams: [
@@ -195,9 +189,6 @@ const data = {
     salesOrderSidebarMenus,
 
     inventoryItemsSidebarMenus,
-    adjustmentSidebarMenus,
-    relocateSidebarMenus,
-    cycleCountSidebarMenus,
 
     masterDataSidebarMenus,
 
