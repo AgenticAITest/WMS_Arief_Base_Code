@@ -291,18 +291,64 @@ router.delete('/zones/:id', authorized('ADMIN', 'warehouse-setup.delete'), async
     const tenantId = req.user!.activeTenantId;
     const { id } = req.params;
 
-    const [deleted] = await db
-      .delete(zones)
-      .where(and(eq(zones.id, id), eq(zones.tenantId, tenantId)))
-      .returning();
+    await db.transaction(async (tx) => {
+      // Get all aisles in this zone
+      const zoneAisles = await tx
+        .select({ id: aisles.id })
+        .from(aisles)
+        .where(and(eq(aisles.zoneId, id), eq(aisles.tenantId, tenantId)));
 
-    if (!deleted) {
-      return res.status(404).json({ success: false, message: 'Zone not found' });
-    }
+      const aisleIds = zoneAisles.map(a => a.id);
+
+      if (aisleIds.length > 0) {
+        // Get all shelves in these aisles
+        const aisleShelves = await tx
+          .select({ id: shelves.id, aisleId: shelves.aisleId })
+          .from(shelves)
+          .where(eq(shelves.tenantId, tenantId));
+
+        // Filter shelves that belong to our aisles
+        const shelfIds = aisleShelves.filter(s => aisleIds.includes(s.aisleId)).map(s => s.id);
+
+        if (shelfIds.length > 0) {
+          // Delete all bins in these shelves
+          for (const shelfId of shelfIds) {
+            await tx
+              .delete(bins)
+              .where(and(eq(bins.shelfId, shelfId), eq(bins.tenantId, tenantId)));
+          }
+
+          // Delete all shelves in these aisles
+          for (const aisleId of aisleIds) {
+            await tx
+              .delete(shelves)
+              .where(and(eq(shelves.aisleId, aisleId), eq(shelves.tenantId, tenantId)));
+          }
+        }
+
+        // Delete all aisles in this zone
+        await tx
+          .delete(aisles)
+          .where(and(eq(aisles.zoneId, id), eq(aisles.tenantId, tenantId)));
+      }
+
+      // Delete the zone
+      const [deleted] = await tx
+        .delete(zones)
+        .where(and(eq(zones.id, id), eq(zones.tenantId, tenantId)))
+        .returning();
+
+      if (!deleted) {
+        throw new Error('Zone not found');
+      }
+    });
 
     res.json({ success: true, message: 'Zone deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting zone:', error);
+    if (error.message === 'Zone not found') {
+      return res.status(404).json({ success: false, message: 'Zone not found' });
+    }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
@@ -585,18 +631,46 @@ router.delete('/aisles/:id', authorized('ADMIN', 'warehouse-setup.delete'), asyn
     const tenantId = req.user!.activeTenantId;
     const { id } = req.params;
 
-    const [deleted] = await db
-      .delete(aisles)
-      .where(and(eq(aisles.id, id), eq(aisles.tenantId, tenantId)))
-      .returning();
+    await db.transaction(async (tx) => {
+      // Get all shelves in this aisle
+      const aisleShelves = await tx
+        .select({ id: shelves.id })
+        .from(shelves)
+        .where(and(eq(shelves.aisleId, id), eq(shelves.tenantId, tenantId)));
 
-    if (!deleted) {
-      return res.status(404).json({ success: false, message: 'Aisle not found' });
-    }
+      const shelfIds = aisleShelves.map(s => s.id);
+
+      if (shelfIds.length > 0) {
+        // Delete all bins in these shelves
+        for (const shelfId of shelfIds) {
+          await tx
+            .delete(bins)
+            .where(and(eq(bins.shelfId, shelfId), eq(bins.tenantId, tenantId)));
+        }
+
+        // Delete all shelves in this aisle
+        await tx
+          .delete(shelves)
+          .where(and(eq(shelves.aisleId, id), eq(shelves.tenantId, tenantId)));
+      }
+
+      // Delete the aisle
+      const [deleted] = await tx
+        .delete(aisles)
+        .where(and(eq(aisles.id, id), eq(aisles.tenantId, tenantId)))
+        .returning();
+
+      if (!deleted) {
+        throw new Error('Aisle not found');
+      }
+    });
 
     res.json({ success: true, message: 'Aisle deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting aisle:', error);
+    if (error.message === 'Aisle not found') {
+      return res.status(404).json({ success: false, message: 'Aisle not found' });
+    }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
@@ -879,18 +953,29 @@ router.delete('/shelves/:id', authorized('ADMIN', 'warehouse-setup.delete'), asy
     const tenantId = req.user!.activeTenantId;
     const { id } = req.params;
 
-    const [deleted] = await db
-      .delete(shelves)
-      .where(and(eq(shelves.id, id), eq(shelves.tenantId, tenantId)))
-      .returning();
+    await db.transaction(async (tx) => {
+      // Delete all bins in this shelf first
+      await tx
+        .delete(bins)
+        .where(and(eq(bins.shelfId, id), eq(bins.tenantId, tenantId)));
 
-    if (!deleted) {
-      return res.status(404).json({ success: false, message: 'Shelf not found' });
-    }
+      // Then delete the shelf
+      const [deleted] = await tx
+        .delete(shelves)
+        .where(and(eq(shelves.id, id), eq(shelves.tenantId, tenantId)))
+        .returning();
+
+      if (!deleted) {
+        throw new Error('Shelf not found');
+      }
+    });
 
     res.json({ success: true, message: 'Shelf deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting shelf:', error);
+    if (error.message === 'Shelf not found') {
+      return res.status(404).json({ success: false, message: 'Shelf not found' });
+    }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

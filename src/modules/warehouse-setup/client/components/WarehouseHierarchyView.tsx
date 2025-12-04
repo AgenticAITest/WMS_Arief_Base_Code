@@ -5,6 +5,7 @@ import { Badge } from '@client/components/ui/badge';
 import { Plus, Warehouse, MapPin, Grid3x3, Layers, Package, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '@client/provider/AuthProvider';
 import axios from 'axios';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -168,6 +169,86 @@ export const WarehouseHierarchyView = () => {
     fetchWarehouses();
   }, [accessToken]);
 
+  const handleDeleteWarehouse = async (warehouseId: string, warehouseName: string) => {
+    if (!window.confirm(`Are you sure you want to delete warehouse "${warehouseName}"? This will also delete all zones, aisles, shelves, and bins within it.`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/modules/warehouse-setup/warehouses/${warehouseId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      toast.success('Warehouse deleted successfully');
+      refreshWarehouses();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete warehouse');
+    }
+  };
+
+  const handleDeleteZone = async (zoneId: string, zoneName: string) => {
+    if (!window.confirm(`Are you sure you want to delete zone "${zoneName}"? This will also delete all aisles, shelves, and bins within it.`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/modules/warehouse-setup/zones/${zoneId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      toast.success('Zone deleted successfully');
+      refreshWarehouses();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete zone');
+    }
+  };
+
+  const handleDeleteAisle = async (aisleId: string, aisleName: string) => {
+    if (!window.confirm(`Are you sure you want to delete aisle "${aisleName}"? This will also delete all shelves and bins within it.`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/modules/warehouse-setup/aisles/${aisleId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      toast.success('Aisle deleted successfully');
+      refreshWarehouses();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete aisle');
+    }
+  };
+
+  const handleDeleteShelf = async (shelfId: string, shelfName: string) => {
+    if (!window.confirm(`Are you sure you want to delete shelf "${shelfName}"? This will also delete all bins within it.`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/modules/warehouse-setup/shelves/${shelfId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      toast.success('Shelf deleted successfully');
+      refreshWarehouses();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete shelf');
+    }
+  };
+
+  const handleDeleteBin = async (binId: string, binName: string) => {
+    if (!window.confirm(`Are you sure you want to delete bin "${binName}"?`)) {
+      return;
+    }
+
+    try {
+      await axios.delete(`/api/modules/warehouse-setup/bins/${binId}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      toast.success('Bin deleted successfully');
+      refreshWarehouses();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete bin');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -260,6 +341,7 @@ export const WarehouseHierarchyView = () => {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => {
+                            console.log('Editing warehouse:', warehouse);
                             setEditingWarehouse(warehouse);
                             setEditWarehouseDialogOpen(true);
                           }}
@@ -267,7 +349,10 @@ export const WarehouseHierarchyView = () => {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">
+                        <DropdownMenuItem 
+                          className="text-destructive"
+                          onClick={() => handleDeleteWarehouse(warehouse.id, warehouse.name)}
+                        >
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
@@ -328,7 +413,10 @@ export const WarehouseHierarchyView = () => {
                                     <Edit className="h-4 w-4 mr-2" />
                                     Edit
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive">
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={() => handleDeleteZone(zone.id, zone.name)}
+                                  >
                                     <Trash2 className="h-4 w-4 mr-2" />
                                     Delete
                                   </DropdownMenuItem>
@@ -389,7 +477,10 @@ export const WarehouseHierarchyView = () => {
                                               <Edit className="h-4 w-4 mr-2" />
                                               Edit
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem className="text-destructive">
+                                            <DropdownMenuItem 
+                                              className="text-destructive"
+                                              onClick={() => handleDeleteAisle(aisle.id, aisle.name)}
+                                            >
                                               <Trash2 className="h-4 w-4 mr-2" />
                                               Delete
                                             </DropdownMenuItem>
@@ -450,7 +541,10 @@ export const WarehouseHierarchyView = () => {
                                                         <Edit className="h-4 w-4 mr-2" />
                                                         Edit
                                                       </DropdownMenuItem>
-                                                      <DropdownMenuItem className="text-destructive">
+                                                      <DropdownMenuItem 
+                                                        className="text-destructive"
+                                                        onClick={() => handleDeleteShelf(shelf.id, shelf.name)}
+                                                      >
                                                         <Trash2 className="h-4 w-4 mr-2" />
                                                         Delete
                                                       </DropdownMenuItem>
@@ -497,7 +591,10 @@ export const WarehouseHierarchyView = () => {
                                                               <Edit className="h-4 w-4 mr-2" />
                                                               Edit
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-destructive">
+                                                            <DropdownMenuItem 
+                                                              className="text-destructive"
+                                                              onClick={() => handleDeleteBin(bin.id, bin.name)}
+                                                            >
                                                               <Trash2 className="h-4 w-4 mr-2" />
                                                               Delete
                                                             </DropdownMenuItem>

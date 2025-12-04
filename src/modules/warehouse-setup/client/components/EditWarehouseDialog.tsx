@@ -78,7 +78,14 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
   }, [open]);
 
   useEffect(() => {
-    if (warehouse) {
+    if (warehouse && open) {
+      console.log('Setting warehouse values:', {
+        name: warehouse.name,
+        pickingStrategy: warehouse.pickingStrategy,
+        autoAssignBins: warehouse.autoAssignBins,
+        requireBatchTracking: warehouse.requireBatchTracking,
+        requireExpiryTracking: warehouse.requireExpiryTracking,
+      });
       reset({
         name: warehouse.name,
         address: warehouse.address || '',
@@ -88,7 +95,7 @@ export function EditWarehouseDialog({ open, onOpenChange, warehouse, onSuccess }
         requireBatchTracking: Boolean(warehouse.requireBatchTracking),
         requireExpiryTracking: Boolean(warehouse.requireExpiryTracking),
       });
-    } else {
+    } else if (!warehouse && !open) {
       reset({
         name: '',
         address: '',

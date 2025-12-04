@@ -2,7 +2,7 @@ import express from 'express';
 import { db } from '@server/lib/db';
 import { warehouses, warehouseConfigs, zones, aisles, shelves, bins } from '../lib/db/schemas/warehouseSetup';
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
-import { eq, and, desc, count, ilike } from 'drizzle-orm';
+import { eq, and, desc, count, ilike, inArray } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -101,11 +101,35 @@ router.get('/warehouses', authorized('ADMIN', 'warehouse-setup.view'), async (re
       .limit(limit)
       .offset(offset);
 
-    let data = warehouseData;
+    // Fetch warehouse configs for all warehouses
+    const warehouseIds = warehouseData.map(w => w.id);
+    const configsData = warehouseIds.length > 0 ? await db
+      .select()
+      .from(warehouseConfigs)
+      .where(and(
+        eq(warehouseConfigs.tenantId, tenantId),
+        inArray(warehouseConfigs.warehouseId, warehouseIds)
+      )) : [];
+
+    console.log('Warehouse IDs:', warehouseIds);
+    console.log('Fetched configs:', configsData);
+
+    // Merge warehouse data with configs
+    let data = warehouseData.map(warehouse => {
+      const config = configsData.find(c => c.warehouseId === warehouse.id);
+      console.log(`Warehouse ${warehouse.id} config:`, config);
+      return {
+        ...warehouse,
+        pickingStrategy: config?.pickingStrategy || 'FEFO',
+        autoAssignBins: config?.autoAssignBins ?? true,
+        requireBatchTracking: config?.requireBatchTracking ?? false,
+        requireExpiryTracking: config?.requireExpiryTracking ?? true,
+      };
+    });
 
     // If includeHierarchy is true, load the complete hierarchy
-    if (includeHierarchy && warehouseData.length > 0) {
-      const warehouseIds = warehouseData.map(w => w.id);
+    if (includeHierarchy && data.length > 0) {
+      const warehouseIdsForHierarchy = data.map(w => w.id);
 
       // Fetch all zones for these warehouses
       const zonesData = await db
@@ -113,7 +137,7 @@ router.get('/warehouses', authorized('ADMIN', 'warehouse-setup.view'), async (re
         .from(zones)
         .where(and(
           eq(zones.tenantId, tenantId),
-          eq(zones.warehouseId, warehouseIds.length === 1 ? warehouseIds[0] : zones.warehouseId)
+          eq(zones.warehouseId, warehouseIdsForHierarchy.length === 1 ? warehouseIdsForHierarchy[0] : zones.warehouseId)
         ));
 
       // Fetch all aisles for these zones
@@ -138,7 +162,7 @@ router.get('/warehouses', authorized('ADMIN', 'warehouse-setup.view'), async (re
         .where(eq(bins.tenantId, tenantId)) : [];
 
       // Build the hierarchy
-      data = warehouseData.map(warehouse => {
+      data = data.map(warehouse => {
         const warehouseZones = zonesData
           .filter(z => z.warehouseId === warehouse.id)
           .map(zone => {
@@ -445,18 +469,91 @@ router.delete('/warehouses/:id', authorized('ADMIN', 'warehouse-setup.delete'), 
     const tenantId = req.user!.activeTenantId;
     const { id } = req.params;
 
-    const [deleted] = await db
-      .delete(warehouses)
-      .where(and(eq(warehouses.id, id), eq(warehouses.tenantId, tenantId)))
-      .returning();
+    // Use transaction to delete all related records in correct order
+    await db.transaction(async (tx) => {
+      // Get all zones in this warehouse
+      const warehouseZones = await tx
+        .select({ id: zones.id })
+        .from(zones)
+        .where(and(eq(zones.warehouseId, id), eq(zones.tenantId, tenantId)));
 
-    if (!deleted) {
-      return res.status(404).json({ success: false, message: 'Warehouse not found' });
-    }
+      const zoneIds = warehouseZones.map(z => z.id);
+
+      if (zoneIds.length > 0) {
+        // Get all aisles in these zones
+        const zoneAisles = await tx
+          .select({ id: aisles.id, zoneId: aisles.zoneId })
+          .from(aisles)
+          .where(eq(aisles.tenantId, tenantId));
+
+        // Filter aisles that belong to our zones
+        const aisleIds = zoneAisles.filter(a => zoneIds.includes(a.zoneId)).map(a => a.id);
+
+        if (aisleIds.length > 0) {
+          // Get all shelves in these aisles
+          const aisleShelves = await tx
+            .select({ id: shelves.id, aisleId: shelves.aisleId })
+            .from(shelves)
+            .where(eq(shelves.tenantId, tenantId));
+
+          // Filter shelves that belong to our aisles
+          const shelfIds = aisleShelves.filter(s => aisleIds.includes(s.aisleId)).map(s => s.id);
+
+          if (shelfIds.length > 0) {
+            // Delete all bins in these shelves
+            for (const shelfId of shelfIds) {
+              await tx
+                .delete(bins)
+                .where(and(eq(bins.shelfId, shelfId), eq(bins.tenantId, tenantId)));
+            }
+
+            // Delete all shelves in these aisles
+            for (const aisleId of aisleIds) {
+              await tx
+                .delete(shelves)
+                .where(and(eq(shelves.aisleId, aisleId), eq(shelves.tenantId, tenantId)));
+            }
+          }
+
+          // Delete all aisles in these zones
+          for (const zoneId of zoneIds) {
+            await tx
+              .delete(aisles)
+              .where(and(eq(aisles.zoneId, zoneId), eq(aisles.tenantId, tenantId)));
+          }
+        }
+
+        // Delete all zones in this warehouse
+        await tx
+          .delete(zones)
+          .where(and(eq(zones.warehouseId, id), eq(zones.tenantId, tenantId)));
+      }
+
+      // Delete warehouse config
+      await tx
+        .delete(warehouseConfigs)
+        .where(and(
+          eq(warehouseConfigs.warehouseId, id),
+          eq(warehouseConfigs.tenantId, tenantId)
+        ));
+
+      // Finally delete the warehouse
+      const [deleted] = await tx
+        .delete(warehouses)
+        .where(and(eq(warehouses.id, id), eq(warehouses.tenantId, tenantId)))
+        .returning();
+
+      if (!deleted) {
+        throw new Error('Warehouse not found');
+      }
+    });
 
     res.json({ success: true, message: 'Warehouse deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error deleting warehouse:', error);
+    if (error.message === 'Warehouse not found') {
+      return res.status(404).json({ success: false, message: 'Warehouse not found' });
+    }
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
