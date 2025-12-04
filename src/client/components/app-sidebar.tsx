@@ -61,6 +61,41 @@ const data = {
       icon: SquareTerminal,
       isActive: true,
     },
+    // {
+    //   id: "settings",
+    //   title: "Settings",
+    //   url: "/console/settings",
+    //   icon: Settings2,
+    //   items: [
+    //     {
+    //       id: "security",
+    //       title: "Security",
+    //       url: "/console/settings/security",
+    //     },
+    //     {
+    //       id: "account",
+    //       title: "Account",
+    //       url: "/console/settings/account",
+    //     },
+    //     {
+    //       id: "general",
+    //       title: "General",
+    //       url: "/console/settings/general",
+    //       items: [
+    //         {
+    //           id: "options",
+    //           title: "Options",
+    //           url: "/console/settings/general/options",
+    //         },
+    //         {
+    //           id: "tenant",
+    //           title: "Tenant",
+    //           url: "/console/settings/general/tenant",
+    //         },
+    //       ],
+    //     },
+    //   ],
+    // },
     {
       id: "showcase",
       title: "Showcase",

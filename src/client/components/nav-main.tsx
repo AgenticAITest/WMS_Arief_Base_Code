@@ -21,6 +21,25 @@ import { NavLink } from "react-router";
 import Authorized from "./auth/Authorized";
 import { useModuleAuthorization } from "@client/hooks/useModuleAuthorization";
 
+interface NavSubSubItem {
+  id: string;
+  title: string;
+  url: string;
+  isActive?: boolean;
+  roles?: string | string[];
+  permissions?: string | string[];
+}
+
+interface NavSubItem {
+  id: string;
+  title: string;
+  url: string;
+  isActive?: boolean;
+  roles?: string | string[];
+  permissions?: string | string[];
+  items?: NavSubSubItem[];
+}
+
 interface NavItem {
   id: string;
   title: string;
@@ -29,14 +48,7 @@ interface NavItem {
   isActive?: boolean;
   roles?: string | string[];
   permissions?: string | string[];
-  items?: {
-    id: string;
-    title: string;
-    url: string;
-    isActive?: boolean;
-    roles?: string | string[];
-    permissions?: string | string[];
-  }[];
+  items?: NavSubItem[];
 }
 
 export function NavMain({
@@ -83,17 +95,54 @@ export function NavMain({
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {item.items?.map((subItem) => (
-                          <Authorized roles={item.roles}  permissions={subItem.permissions} key={subItem.id}>
-                            <SidebarMenuSubItem key={subItem.id}>
-                              <SidebarMenuSubButton asChild isActive={isActive(subItem.url)} onClick={() => setActivePath(subItem.url)}>
-                                <NavLink to={subItem.url}>
-                                  <span>{subItem.title}</span>
-                                </NavLink>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          </Authorized>
-                        ))}
+                        {item.items?.map((subItem) => 
+                          subItem.items ? (
+                            // Second level submenu (nested)
+                            <Authorized roles={item.roles} permissions={subItem.permissions} key={subItem.id}>
+                              <Collapsible
+                                key={subItem.id}
+                                asChild
+                                defaultOpen={isActive(subItem.url)}
+                                className="group/collapsible-sub"
+                              >
+                                <SidebarMenuSubItem>
+                                  <CollapsibleTrigger asChild>
+                                    <SidebarMenuSubButton>
+                                      <span>{subItem.title}</span>
+                                      <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible-sub:rotate-90" />
+                                    </SidebarMenuSubButton>
+                                  </CollapsibleTrigger>
+                                  <CollapsibleContent>
+                                    <SidebarMenuSub>
+                                      {subItem.items?.map((subSubItem) => (
+                                        <Authorized roles={subItem.roles} permissions={subSubItem.permissions} key={subSubItem.id}>
+                                          <SidebarMenuSubItem key={subSubItem.id} className="pl-0">
+                                            <SidebarMenuSubButton asChild isActive={isActive(subSubItem.url)} onClick={() => setActivePath(subSubItem.url)}>
+                                              <NavLink to={subSubItem.url}>
+                                                <span>{subSubItem.title}</span>
+                                              </NavLink>
+                                            </SidebarMenuSubButton>
+                                          </SidebarMenuSubItem>
+                                        </Authorized>
+                                      ))}
+                                    </SidebarMenuSub>
+                                  </CollapsibleContent>
+                                </SidebarMenuSubItem>
+                              </Collapsible>
+                            </Authorized>
+                          ) : (
+                            // First level submenu (no nested items)
+                            <Authorized roles={item.roles} permissions={subItem.permissions} key={subItem.id}>
+                              <SidebarMenuSubItem key={subItem.id}>
+                                <SidebarMenuSubButton asChild isActive={isActive(subItem.url)} onClick={() => setActivePath(subItem.url)}>
+                                  <NavLink to={subItem.url}>
+                                    <span>{subItem.title}</span>
+                                  </NavLink>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            </Authorized>
+                          )
+                        )}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>
