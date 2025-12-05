@@ -273,7 +273,7 @@ const AuditLog: React.FC = () => {
     switch (statusLower) {
       case 'success':
         return 'bg-green-50 text-green-800 ring-green-600/20';
-      case 'failed':
+      case 'failure':
       case 'error':
         return 'bg-red-50 text-red-800 ring-red-600/20';
       default:
@@ -492,7 +492,7 @@ const AuditLog: React.FC = () => {
                   <SelectContent>
                     <SelectItem value="all">All statuses</SelectItem>
                     <SelectItem value="success">Success</SelectItem>
-                    <SelectItem value="failed">Failed</SelectItem>
+                    <SelectItem value="failure">Failure</SelectItem>
                     <SelectItem value="error">Error</SelectItem>
                   </SelectContent>
                 </Select>
