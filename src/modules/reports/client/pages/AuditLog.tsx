@@ -98,7 +98,7 @@ const AuditLog: React.FC = () => {
 
   useEffect(() => {
     fetchAuditLogs();
-  }, [currentPage, moduleFilter, actionFilter, resourceTypeFilter, statusFilter]);
+  }, [currentPage, moduleFilter, actionFilter, resourceTypeFilter, statusFilter, dateFrom, dateTo, userIdFilter, searchTerm]);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -163,7 +163,7 @@ const AuditLog: React.FC = () => {
 
   const handleSearch = () => {
     setCurrentPage(1);
-    fetchAuditLogs();
+    // fetchAuditLogs();
   };
 
   const handleClearFilters = () => {
@@ -176,7 +176,7 @@ const AuditLog: React.FC = () => {
     setStatusFilter('all');
     setSearchTerm('');
     setCurrentPage(1);
-    setTimeout(() => fetchAuditLogs(), 100);
+    // setTimeout(() => fetchAuditLogs(), 100);
   };
 
   const handleQuickFilter = (days: number) => {
@@ -187,7 +187,7 @@ const AuditLog: React.FC = () => {
     setDateFrom(format(fromDate, 'yyyy-MM-dd'));
     setDateTo(format(today, 'yyyy-MM-dd'));
     setCurrentPage(1);
-    setTimeout(() => fetchAuditLogs(), 100);
+    // setTimeout(() => fetchAuditLogs(), 100);
   };
 
   const handleViewDetails = (log: AuditLog) => {
