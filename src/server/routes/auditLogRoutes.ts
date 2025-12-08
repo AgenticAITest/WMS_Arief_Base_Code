@@ -44,35 +44,40 @@ router.use(authenticated());
  *           type: string
  *         description: Filter by user ID
  *       - in: query
- *         name: startDate
+ *         name: dateFrom
  *         schema:
  *           type: string
- *           format: date-time
+ *           format: date
  *         description: Filter logs from this date
  *       - in: query
- *         name: endDate
+ *         name: dateTo
  *         schema:
  *           type: string
- *           format: date-time
+ *           format: date
  *         description: Filter logs until this date
  *       - in: query
  *         name: status
  *         schema:
  *           type: string
- *           enum: [success, failure]
+ *           enum: [success, failure, error]
  *         description: Filter by status
  *       - in: query
- *         name: limit
+ *         name: search
  *         schema:
- *           type: integer
- *           default: 50
- *         description: Number of records to return (max 500)
+ *           type: string
+ *         description: Search in description and resource ID
  *       - in: query
- *         name: offset
+ *         name: page
  *         schema:
  *           type: integer
- *           default: 0
- *         description: Number of records to skip
+ *           default: 1
+ *         description: Page number (starting from 1)
+ *       - in: query
+ *         name: perPage
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Records per page (max 500)
  *     responses:
  *       200:
  *         description: List of audit logs
@@ -88,25 +93,27 @@ router.get('/', async (req, res) => {
       resourceType,
       resourceId,
       userId,
-      startDate,
-      endDate,
+      dateFrom,
+      dateTo,
       status,
-      limit = '50',
-      offset = '0',
+      search,
+      page = '1',
+      perPage = '20',
     } = req.query;
 
-    const limitNum = Math.min(parseInt(limit as string) || 50, 500);
-    const offsetNum = parseInt(offset as string) || 0;
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const perPageNum = Math.min(Math.max(1, parseInt(perPage as string) || 20), 500);
+    const offset = (pageNum - 1) * perPageNum;
 
     const conditions = [eq(auditLogs.tenantId, tenantId)];
 
-    if (module) {
+    if (module && module !== 'all') {
       conditions.push(eq(auditLogs.module, module as string));
     }
-    if (action) {
+    if (action && action !== 'all') {
       conditions.push(eq(auditLogs.action, action as string));
     }
-    if (resourceType) {
+    if (resourceType && resourceType !== 'all') {
       conditions.push(eq(auditLogs.resourceType, resourceType as string));
     }
     if (resourceId) {
@@ -115,14 +122,21 @@ router.get('/', async (req, res) => {
     if (userId) {
       conditions.push(eq(auditLogs.userId, userId as string));
     }
-    if (startDate) {
-      conditions.push(gte(auditLogs.createdAt, new Date(startDate as string)));
+    if (dateFrom) {
+      conditions.push(gte(auditLogs.createdAt, new Date(dateFrom as string)));
     }
-    if (endDate) {
-      conditions.push(lte(auditLogs.createdAt, new Date(endDate as string)));
+    if (dateTo) {
+      const toDate = new Date(dateTo as string);
+      toDate.setHours(23, 59, 59, 999);
+      conditions.push(lte(auditLogs.createdAt, toDate));
     }
-    if (status) {
+    if (status && status !== 'all') {
       conditions.push(eq(auditLogs.status, status as string));
+    }
+    if (search) {
+      conditions.push(
+        sql`(${auditLogs.description} ILIKE ${`%${search}%`} OR ${auditLogs.resourceId} ILIKE ${`%${search}%`})`
+      );
     }
 
     const logs = await db
@@ -130,21 +144,25 @@ router.get('/', async (req, res) => {
       .from(auditLogs)
       .where(and(...conditions))
       .orderBy(desc(auditLogs.createdAt))
-      .limit(limitNum)
-      .offset(offsetNum);
+      .limit(perPageNum)
+      .offset(offset);
 
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
       .from(auditLogs)
       .where(and(...conditions));
 
+    const totalRecords = Number(countResult.count);
+    const totalPages = Math.ceil(totalRecords / perPageNum);
+
     res.json({
       success: true,
       data: logs,
       pagination: {
-        total: Number(countResult.count),
-        limit: limitNum,
-        offset: offsetNum,
+        total: totalRecords,
+        totalPages,
+        page: pageNum,
+        perPage: perPageNum,
       },
     });
   } catch (error) {
