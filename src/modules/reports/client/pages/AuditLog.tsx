@@ -30,8 +30,6 @@ import {
   Download,
   X,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   Calendar,
   FileText
 } from 'lucide-react';
@@ -40,6 +38,8 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
+import DataPagination from '@client/components/console/DataPagination';
+import { useNavigate } from 'react-router';
 
 interface AuditLog {
   id: string;
@@ -61,6 +61,9 @@ interface AuditLog {
 }
 
 const AuditLog: React.FC = () => {
+  const navigate = useNavigate();
+  const params = new URLSearchParams(window.location.search);
+
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
@@ -70,35 +73,52 @@ const AuditLog: React.FC = () => {
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
   const [documentPath, setDocumentPath] = useState<string>('');
   const [documentNumber, setDocumentNumber] = useState<string>('');
-  
-  // COMMENTED OUT OLD STATE - Preserved for rollback
-  // const [documentType, setDocumentType] = useState<'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER'>('PO');
-  // const [documentId, setDocumentId] = useState<string>('');
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(Number(params.get('page')) || 1);
+  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 20);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const limit = 20;
 
   // Filters
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [moduleFilter, setModuleFilter] = useState('all');
-  const [actionFilter, setActionFilter] = useState('all');
-  const [resourceTypeFilter, setResourceTypeFilter] = useState('all');
-  const [userIdFilter, setUserIdFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [dateFrom, setDateFrom] = useState(params.get('dateFrom') || '');
+  const [dateTo, setDateTo] = useState(params.get('dateTo') || '');
+  const [moduleFilter, setModuleFilter] = useState(params.get('module') || 'all');
+  const [actionFilter, setActionFilter] = useState(params.get('action') || 'all');
+  const [resourceTypeFilter, setResourceTypeFilter] = useState(params.get('resourceType') || 'all');
+  const [userIdFilter, setUserIdFilter] = useState(params.get('userId') || '');
+  const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
+  const [searchTerm, setSearchTerm] = useState(params.get('search') || '');
+  const [activeQuickFilter, setActiveQuickFilter] = useState<number | null>(null);
 
   // Available filter options
   const [modules, setModules] = useState<string[]>([]);
   const [actions, setActions] = useState<string[]>([]);
   const [resourceTypes, setResourceTypes] = useState<string[]>([]);
 
+  function gotoPage(p: number) {
+    if (p < 1 || (totalRecords !== 0 && p > Math.ceil(totalRecords / perPage))) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    setCurrentPage(p);
+    urlParams.set('page', p.toString());
+    urlParams.set('perPage', perPage.toString());
+    if (dateFrom) urlParams.set('dateFrom', dateFrom);
+    if (dateTo) urlParams.set('dateTo', dateTo);
+    if (moduleFilter && moduleFilter !== 'all') urlParams.set('module', moduleFilter);
+    if (actionFilter && actionFilter !== 'all') urlParams.set('action', actionFilter);
+    if (resourceTypeFilter && resourceTypeFilter !== 'all') urlParams.set('resourceType', resourceTypeFilter);
+    if (userIdFilter) urlParams.set('userId', userIdFilter);
+    if (statusFilter && statusFilter !== 'all') urlParams.set('status', statusFilter);
+    if (searchTerm) urlParams.set('search', searchTerm);
+
+    navigate(`${window.location.pathname}?${urlParams.toString()}`);
+    setLoading(true);
+  }
+
   useEffect(() => {
     fetchAuditLogs();
-  }, [currentPage, moduleFilter, actionFilter, resourceTypeFilter, statusFilter, dateFrom, dateTo, userIdFilter, searchTerm]);
+  }, [currentPage, perPage, moduleFilter, actionFilter, resourceTypeFilter, statusFilter, dateFrom, dateTo, userIdFilter, searchTerm]);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -108,7 +128,7 @@ const AuditLog: React.FC = () => {
     // Fetch distinct values for filter dropdowns
     try {
       const response = await axios.get('/api/audit-logs', {
-        params: { page: 1, limit: 1000 }
+        params: { page: 1, perPage: 1000 }
       });
 
       if (response.data.success && response.data.data) {
@@ -132,21 +152,21 @@ const AuditLog: React.FC = () => {
     try {
       setLoading(true);
 
-      const params: any = {
+      const apiParams: any = {
         page: currentPage,
-        limit,
+        perPage,
       };
 
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
-      if (moduleFilter && moduleFilter !== 'all') params.module = moduleFilter;
-      if (actionFilter && actionFilter !== 'all') params.action = actionFilter;
-      if (resourceTypeFilter && resourceTypeFilter !== 'all') params.resourceType = resourceTypeFilter;
-      if (userIdFilter) params.userId = userIdFilter;
-      if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
-      if (searchTerm) params.search = searchTerm;
+      if (dateFrom) apiParams.dateFrom = dateFrom;
+      if (dateTo) apiParams.dateTo = dateTo;
+      if (moduleFilter && moduleFilter !== 'all') apiParams.module = moduleFilter;
+      if (actionFilter && actionFilter !== 'all') apiParams.action = actionFilter;
+      if (resourceTypeFilter && resourceTypeFilter !== 'all') apiParams.resourceType = resourceTypeFilter;
+      if (userIdFilter) apiParams.userId = userIdFilter;
+      if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
+      if (searchTerm) apiParams.search = searchTerm;
 
-      const response = await axios.get('/api/audit-logs', { params });
+      const response = await axios.get('/api/audit-logs', { params: apiParams });
 
       if (response.data.success) {
         setLogs(response.data.data || []);
@@ -162,8 +182,7 @@ const AuditLog: React.FC = () => {
   };
 
   const handleSearch = () => {
-    setCurrentPage(1);
-    // fetchAuditLogs();
+    gotoPage(1);
   };
 
   const handleClearFilters = () => {
@@ -176,7 +195,7 @@ const AuditLog: React.FC = () => {
     setStatusFilter('all');
     setSearchTerm('');
     setCurrentPage(1);
-    // setTimeout(() => fetchAuditLogs(), 100);
+    setActiveQuickFilter(null);
   };
 
   const handleQuickFilter = (days: number) => {
@@ -187,8 +206,23 @@ const AuditLog: React.FC = () => {
     setDateFrom(format(fromDate, 'yyyy-MM-dd'));
     setDateTo(format(today, 'yyyy-MM-dd'));
     setCurrentPage(1);
-    // setTimeout(() => fetchAuditLogs(), 100);
+    setActiveQuickFilter(days);
   };
+
+  // Reset quick filter jika manual date berubah
+  useEffect(() => {
+    if (activeQuickFilter !== null) {
+      const today = new Date();
+      const expectedFrom = new Date();
+      expectedFrom.setDate(today.getDate() - activeQuickFilter);
+      const expectedFromStr = format(expectedFrom, 'yyyy-MM-dd');
+      const todayStr = format(today, 'yyyy-MM-dd');
+      if (dateFrom !== expectedFromStr || dateTo !== todayStr) {
+        setActiveQuickFilter(null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo]);
 
   const handleViewDetails = (log: AuditLog) => {
     setSelectedLog(log);
@@ -197,21 +231,21 @@ const AuditLog: React.FC = () => {
 
   const handleExportCSV = async () => {
     try {
-      const params: any = {
+      const apiParams: any = {
         page: 1,
-        limit: 10000, // Get all records
+        perPage: 10000,
       };
 
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
-      if (moduleFilter && moduleFilter !== 'all') params.module = moduleFilter;
-      if (actionFilter && actionFilter !== 'all') params.action = actionFilter;
-      if (resourceTypeFilter && resourceTypeFilter !== 'all') params.resourceType = resourceTypeFilter;
-      if (userIdFilter) params.userId = userIdFilter;
-      if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
-      if (searchTerm) params.search = searchTerm;
+      if (dateFrom) apiParams.dateFrom = dateFrom;
+      if (dateTo) apiParams.dateTo = dateTo;
+      if (moduleFilter && moduleFilter !== 'all') apiParams.module = moduleFilter;
+      if (actionFilter && actionFilter !== 'all') apiParams.action = actionFilter;
+      if (resourceTypeFilter && resourceTypeFilter !== 'all') apiParams.resourceType = resourceTypeFilter;
+      if (userIdFilter) apiParams.userId = userIdFilter;
+      if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
+      if (searchTerm) apiParams.search = searchTerm;
 
-      const response = await axios.get('/api/audit-logs', { params });
+      const response = await axios.get('/api/audit-logs', { params: apiParams });
 
       if (response.data.success && response.data.data) {
         const csvData = convertToCSV(response.data.data);
@@ -281,60 +315,6 @@ const AuditLog: React.FC = () => {
     }
   };
 
-  // COMMENTED OUT OLD API-BASED APPROACH - Preserved for rollback
-  // const handleViewDocument = async (log: AuditLog) => {
-  //   try {
-  //     let docType: 'PO' | 'GRN' | 'PUTAWAY' | 'SALES_ORDER';
-  //     
-  //     if (log.module === 'sales-order' && log.action === 'create') {
-  //       docType = 'SALES_ORDER';
-  //     } else if (log.action === 'create') {
-  //       docType = 'PO';
-  //     } else if (log.action === 'receive') {
-  //       docType = 'GRN';
-  //     } else if (log.action === 'putaway_confirm') {
-  //       docType = 'PUTAWAY';
-  //     } else {
-  //       toast.error('Unable to determine document type from action: ' + log.action);
-  //       return;
-  //     }
-  //
-  //     if (!log.documentPath) {
-  //       toast.error('No document path available');
-  //       return;
-  //     }
-  //
-  //     const pathParts = log.documentPath.split('/');
-  //     const fileName = pathParts[pathParts.length - 1];
-  //     const docNumber = fileName.replace('.html', '');
-  //
-  //     let docId: string;
-  //     
-  //     if (docType === 'SALES_ORDER') {
-  //       docId = log.resourceId;
-  //     } else {
-  //       const response = await axios.get(
-  //         `/api/modules/document-numbering/documents/by-number/${encodeURIComponent(docNumber)}`
-  //       );
-  //       if (response.data && response.data.data && response.data.data.id) {
-  //         docId = response.data.data.id;
-  //       } else {
-  //         toast.error('Document not found in database');
-  //         return;
-  //       }
-  //     }
-  //
-  //     setDocumentType(docType);
-  //     setDocumentId(docId);
-  //     setDocumentNumber(docNumber);
-  //     setDocumentViewerOpen(true);
-  //   } catch (error: any) {
-  //     console.error('Error viewing document:', error);
-  //     toast.error(error.response?.data?.error || 'Failed to load document');
-  //   }
-  // };
-
-  // NEW STATIC FILE APPROACH - Much simpler!
   const handleViewDocument = (log: AuditLog) => {
     if (!log.documentPath) {
       toast.error('No document path available');
@@ -382,7 +362,7 @@ const AuditLog: React.FC = () => {
             {/* Quick Filters */}
             <div className="flex gap-2 flex-wrap">
               <Button
-                variant="outline"
+                variant={activeQuickFilter === 0 ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleQuickFilter(0)}
               >
@@ -390,14 +370,14 @@ const AuditLog: React.FC = () => {
                 Today
               </Button>
               <Button
-                variant="outline"
+                variant={activeQuickFilter === 7 ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleQuickFilter(7)}
               >
                 Last 7 Days
               </Button>
               <Button
-                variant="outline"
+                variant={activeQuickFilter === 30 ? "default" : "outline"}
                 size="sm"
                 onClick={() => handleQuickFilter(30)}
               >
@@ -619,33 +599,13 @@ const AuditLog: React.FC = () => {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-muted-foreground">
-                  Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalRecords)} of {totalRecords} results
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <span className="text-sm text-muted-foreground self-center ml-2">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                </div>
+              <div className="mt-4">
+                <DataPagination
+                  count={totalRecords}
+                  perPage={perPage}
+                  page={currentPage}
+                  gotoPage={gotoPage}
+                />
               </div>
             </>
           )}
@@ -753,15 +713,6 @@ const AuditLog: React.FC = () => {
         documentPath={documentPath}
         documentNumber={documentNumber}
       />
-      
-      {/* COMMENTED OUT OLD PROPS - Preserved for rollback */}
-      {/* <DocumentViewerModal
-        isOpen={documentViewerOpen}
-        onClose={() => setDocumentViewerOpen(false)}
-        documentType={documentType}
-        documentId={documentId}
-        documentNumber={documentNumber}
-      /> */}
     </div>
   );
 };
