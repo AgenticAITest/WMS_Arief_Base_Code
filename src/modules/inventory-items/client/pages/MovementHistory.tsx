@@ -52,6 +52,7 @@ const MovementHistory: React.FC = () => {
   const [count, setCount] = useState(0);
 
   // Pagination
+  const [currentPage, setCurrentPage] = useState(Number(params.get('page')) || 1);
   const [page, setPage] = useState(Number(params.get('page')) || 1);
   const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
 
@@ -154,6 +155,14 @@ const MovementHistory: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
+
+  // Reset to page 1 when any filter changes
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo, movementType, search]);
 
   const handleExportCSV = async () => {
     try {

@@ -224,6 +224,14 @@ const AuditLog: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
 
+  // Reset to page 1 when any filter changes
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo, moduleFilter, actionFilter, resourceTypeFilter, userIdFilter, statusFilter, searchTerm]);
+
   const handleViewDetails = (log: AuditLog) => {
     setSelectedLog(log);
     setDetailsModalOpen(true);
