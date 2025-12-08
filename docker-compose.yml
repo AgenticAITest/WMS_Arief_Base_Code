@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  wms-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wms-application
+    ports:
+      - "5000:5000"
+    environment:
+      # Database configuration - update these to point to your PostgreSQL server
+      DATABASE_URL: ${DATABASE_URL:-postgresql://user:password@host.docker.internal:5432/neondb_wms}
+      
+      # JWT secrets - CHANGE THESE IN PRODUCTION!
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-my_access_token_secret_key}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-my_refresh_token_secret_key}
+      RESET_PASSWORD_TOKEN_SECRET: ${RESET_PASSWORD_TOKEN_SECRET:-my_reset_password_token_secret_key}
+      
+      # Base URL
+      BASE_URL: ${BASE_URL:-http://localhost:5000}
+      
+      # SMTP configuration
+      SMTP_HOST: ${SMTP_HOST:-127.0.0.1}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_USER: ${SMTP_USER:-user-smtp}
+      SMTP_PASS: ${SMTP_PASS:-pass-smtp}
+      SMTP_FROM: ${SMTP_FROM:-Web Admin <webadmin@neo-fusion.com>}
+      
+      # Node environment
+      NODE_ENV: production
+      PORT: 5000
+    
+    volumes:
+      # Persist uploaded files/documents
+      - ./storage:/app/storage
+    
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Use host network to access PostgreSQL on host machine
+    # Alternatively, use extra_hosts to map host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+# Optional: Create a network if needed
+networks:
+  default:
+    name: wms-network

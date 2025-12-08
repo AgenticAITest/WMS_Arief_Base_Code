@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output
+dist/
+.vite/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Development files
+.git/
+.gitignore
+.github/
+*.md
+README.md
+replit.md
+SALES_ORDER_MODULE_COMPLETE.md
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test files
+__tests__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+coverage/
+
+# Documentation
+docs/
+attached_assets/
+
+# Database files
+*.sql
+*.bak
+database_dump.bak
+db_dump_*.sql
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+
+# Scripts (if not needed in production)
+scripts/
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
