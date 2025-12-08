@@ -1,5 +1,6 @@
 import { useContext, createContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
+import { useAuth } from '../provider/AuthProvider';
 
 interface ModuleAuthorizationContextType {
   authorizedModules: string[];
@@ -15,10 +16,17 @@ interface ModuleAuthorizationProviderProps {
 }
 
 export const ModuleAuthorizationProvider: React.FC<ModuleAuthorizationProviderProps> = ({ children }) => {
+  const { token } = useAuth();
   const [authorizedModules, setAuthorizedModules] = useState<string[]>([]);
   const [checkingAuthorization, setCheckingAuthorization] = useState(true);
 
   const fetchAuthorizedModules = async () => {
+    if (!token) {
+      setAuthorizedModules([]);
+      setCheckingAuthorization(false);
+      return;
+    }
+
     try {
       setCheckingAuthorization(true);
       const response = await axios.get('/api/system/module-authorization');
@@ -36,7 +44,7 @@ export const ModuleAuthorizationProvider: React.FC<ModuleAuthorizationProviderPr
 
   useEffect(() => {
     fetchAuthorizedModules();
-  }, []);
+  }, [token]);
 
   const isModuleAuthorized = (moduleId: string): boolean => {
     return authorizedModules.includes(moduleId);

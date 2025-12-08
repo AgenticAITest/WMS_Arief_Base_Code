@@ -9,16 +9,16 @@ import { ModuleAuthorizationProvider } from "./hooks/useModuleAuthorization";
 
 function App() {
   return (
-    <ModuleAuthorizationProvider>
-      <ThemeProvider defaultTheme="dark" storageKey="ui-theme">
-        <ErrorBoundary resetOnLocationChange={true}>
-          <AuthProvider>
+    <ThemeProvider defaultTheme="dark" storageKey="ui-theme">
+      <ErrorBoundary resetOnLocationChange={true}>
+        <AuthProvider>
+          <ModuleAuthorizationProvider>
             <RouterProvider router={router} />
-          </AuthProvider>
-          <Toaster position="top-center"/>
-        </ErrorBoundary>
-      </ThemeProvider>
-    </ModuleAuthorizationProvider>
+          </ModuleAuthorizationProvider>
+        </AuthProvider>
+        <Toaster position="top-center"/>
+      </ErrorBoundary>
+    </ThemeProvider>
   );
 }
 
