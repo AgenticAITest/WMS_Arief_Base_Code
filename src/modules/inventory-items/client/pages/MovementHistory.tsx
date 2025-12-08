@@ -53,7 +53,7 @@ const MovementHistory: React.FC = () => {
 
   // Pagination
   const [page, setPage] = useState(Number(params.get('page')) || 1);
-  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 4);
+  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
 
   // Filters
   const [search, setSearch] = useState(params.get('search') || '');
