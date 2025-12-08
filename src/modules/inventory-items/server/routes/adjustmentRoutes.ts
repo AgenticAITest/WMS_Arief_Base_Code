@@ -31,17 +31,19 @@ const router = express.Router();
  *         name: page
  *         schema:
  *           type: integer
- *         description: Page number
+ *           default: 1
+ *         description: Page number (starting from 1)
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
- *         description: Items per page
+ *           default: 20
+ *         description: Records per page (max 500)
  *       - in: query
  *         name: status
  *         schema:
  *           type: string
- *           enum: [created, submitted, approved, rejected, applied]
+ *           enum: [all, created, submitted, approved, rejected, applied]
  *         description: Filter by status
  *     responses:
  *       200:
@@ -54,15 +56,15 @@ const router = express.Router();
 router.get('/adjustments', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const offset = (page - 1) * limit;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const perPage = Math.min(Math.max(1, parseInt(req.query.perPage as string) || 20), 500);
+    const offset = (page - 1) * perPage;
     const statusParam = req.query.status as string;
 
     const whereConditions = [eq(adjustments.tenantId, tenantId)];
 
     // Add status filter if provided and valid
-    if (statusParam) {
+    if (statusParam && statusParam !== 'all') {
       const status = statusParam.trim().toLowerCase();
       const validStatuses = ['created', 'submitted', 'approved', 'rejected', 'applied'];
       if (!validStatuses.includes(status)) {
@@ -86,19 +88,20 @@ router.get('/adjustments', authorized('ADMIN', 'inventory-items.view'), async (r
       .from(adjustments)
       .where(and(...whereConditions))
       .orderBy(desc(adjustments.createdAt))
-      .limit(limit)
+      .limit(perPage)
       .offset(offset);
+
+    const totalCount = totalResult?.count || 0;
+    const totalPages = Math.ceil(totalCount / perPage);
 
     res.json({
       success: true,
       data: adjustmentsList,
       pagination: {
+        total: totalCount,
+        totalPages,
         page,
-        limit,
-        total: totalResult?.count || 0,
-        totalPages: Math.ceil((totalResult?.count || 0) / limit),
-        hasNext: page < Math.ceil((totalResult?.count || 0) / limit),
-        hasPrev: page > 1,
+        perPage,
       },
     });
   } catch (error) {

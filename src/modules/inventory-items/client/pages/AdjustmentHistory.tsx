@@ -15,6 +15,15 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import { ViewAdjustmentModal } from '../components/ViewAdjustmentModal';
+import DataPagination from '@client/components/console/DataPagination';
+import { useNavigate } from 'react-router';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@client/components/ui/select';
 
 interface Adjustment {
   id: string;
@@ -29,53 +38,68 @@ interface Adjustment {
 }
 
 export const AdjustmentHistory: React.FC = () => {
+  const navigate = useNavigate();
+  const params = new URLSearchParams(window.location.search);
+
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState(0);
+
+  // Pagination
+  const [page, setPage] = useState(Number(params.get('page')) || 1);
+  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
+
+  // Filters
+  const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
+
+  // Document viewer
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
   const [selectedDocumentPath, setSelectedDocumentPath] = useState<string>('');
   const [selectedDocumentNumber, setSelectedDocumentNumber] = useState<string>('');
+
+  // View modal
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedAdjustmentId, setSelectedAdjustmentId] = useState<string | null>(null);
-  const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
+
+  function gotoPage(p: number) {
+    if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    setPage(p);
+    urlParams.set('page', p.toString());
+    urlParams.set('perPage', perPage.toString());
+    if (statusFilter && statusFilter !== 'all') urlParams.set('status', statusFilter);
+
+    navigate(`${window.location.pathname}?${urlParams.toString()}`);
+    setLoading(true);
+  }
 
   useEffect(() => {
     fetchAdjustments();
-  }, []);
+  }, [page, perPage, statusFilter]);
 
   const fetchAdjustments = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/modules/inventory-items/adjustments', {
-        params: {
-          page: 1,
-          limit: 1000,
-        },
-      });
-      
-      // Filter out adjustments with status 'created'
-      const filteredAdjustments = (response.data.data || []).filter(
-        (adj: Adjustment) => adj.status !== 'created'
-      );
-      setAdjustments(filteredAdjustments);
+      const apiParams: any = {
+        page,
+        perPage,
+      };
 
-      // Fetch item counts for each adjustment
-      const counts: Record<string, number> = {};
-      await Promise.all(
-        filteredAdjustments.map(async (adj: Adjustment) => {
-          try {
-            const itemsResponse = await axios.get(
-              `/api/modules/inventory-items/adjustments/${adj.id}/items`,
-              {
-                params: { page: 1, limit: 1 },
-              }
-            );
-            counts[adj.id] = itemsResponse.data.pagination?.total || 0;
-          } catch (error) {
-            counts[adj.id] = 0;
-          }
-        })
-      );
-      setItemCounts(counts);
+      if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
+
+      const response = await axios.get('/api/modules/inventory-items/adjustments', {
+        params: apiParams,
+      });
+
+      if (response.data.success) {
+        // Filter out adjustments with status 'created' for history view
+        const filteredAdjustments = (response.data.data || []).filter(
+          (adj: Adjustment) => adj.status !== 'created'
+        );
+        setAdjustments(filteredAdjustments);
+        setCount(response.data.pagination?.total || 0);
+      }
     } catch (error: any) {
       console.error('Error fetching adjustments:', error);
       toast.error(error.response?.data?.message || 'Failed to fetch adjustments');
@@ -84,6 +108,14 @@ export const AdjustmentHistory: React.FC = () => {
     }
   };
 
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    if (page !== 1) {
+      setPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
+
   const handleViewAdjustment = (id: string) => {
     setSelectedAdjustmentId(id);
     setViewModalOpen(true);
@@ -91,9 +123,10 @@ export const AdjustmentHistory: React.FC = () => {
 
   const handleViewDocument = async (adjustmentId: string, adjustmentNumber: string) => {
     try {
-      // Fetch document metadata from generated_documents table
-      const response = await axios.get(`/api/modules/inventory-items/adjustments/${adjustmentId}/document`);
-      
+      const response = await axios.get(
+        `/api/modules/inventory-items/adjustments/${adjustmentId}/document`
+      );
+
       if (response.data.success && response.data.data?.documentPath) {
         setSelectedDocumentPath(response.data.data.documentPath);
         setSelectedDocumentNumber(adjustmentNumber);
@@ -147,6 +180,27 @@ export const AdjustmentHistory: React.FC = () => {
         </div>
       </div>
 
+      {/* Filter Section */}
+      <div className="bg-card rounded-lg border p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Filters</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status</label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Table Section */}
       {loading ? (
         <div className="text-center py-8 text-muted-foreground">Loading...</div>
       ) : adjustments.length === 0 ? (
@@ -154,67 +208,76 @@ export const AdjustmentHistory: React.FC = () => {
           <p className="text-muted-foreground">No adjustment history found</p>
         </div>
       ) : (
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Adjustment Number</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Created Date</TableHead>
-                <TableHead>Processed Date</TableHead>
-                <TableHead hidden>Created By</TableHead>
-                <TableHead hidden>Processed By</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {adjustments.map((adjustment) => (
-                <TableRow key={adjustment.id}>
-                  <TableCell className="font-medium">{adjustment.adjustmentNumber}</TableCell>
-                  <TableCell>{getTypeBadge(adjustment.type)}</TableCell>
-                  <TableCell>{itemCounts[adjustment.id] || 0}</TableCell>
-                  <TableCell>
-                    {format(new Date(adjustment.createdAt), 'MMM dd, yyyy HH:mm')}
-                  </TableCell>
-                  <TableCell>
-                    {adjustment.appliedAt
-                      ? format(new Date(adjustment.appliedAt), 'MMM dd, yyyy HH:mm')
-                      : '-'}
-                  </TableCell>
-                  <TableCell hidden>{adjustment.createdBy}</TableCell>
-                  <TableCell hidden>{adjustment.approvedBy || '-'}</TableCell>
-                  <TableCell>{getStatusBadge(adjustment.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewAdjustment(adjustment.id)}
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      {adjustment.status === 'approved' && (
+        <>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Adjustment Number</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Created Date</TableHead>
+                  <TableHead>Processed Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right w-[120px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {adjustments.map((adjustment) => (
+                  <TableRow key={adjustment.id}>
+                    <TableCell className="font-medium">{adjustment.adjustmentNumber}</TableCell>
+                    <TableCell>{getTypeBadge(adjustment.type)}</TableCell>
+                    <TableCell className="text-sm">
+                      {format(new Date(adjustment.createdAt), 'MMM dd, yyyy HH:mm')}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {adjustment.appliedAt
+                        ? format(new Date(adjustment.appliedAt), 'MMM dd, yyyy HH:mm')
+                        : '-'}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(adjustment.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDocument(adjustment.id, adjustment.adjustmentNumber)}
-                          title="View Document"
+                          size="icon"
+                          onClick={() => handleViewAdjustment(adjustment.id)}
+                          title="View Details"
                         >
-                          <FileText className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                        {adjustment.status === 'approved' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              handleViewDocument(adjustment.id, adjustment.adjustmentNumber)
+                            }
+                            title="View Document"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex justify-center">
+            <DataPagination
+              count={count}
+              perPage={perPage}
+              page={page}
+              gotoPage={gotoPage}
+            />
+          </div>
+        </>
       )}
 
+      {/* View Adjustment Modal */}
       {selectedAdjustmentId && (
         <ViewAdjustmentModal
           open={viewModalOpen}
@@ -223,6 +286,7 @@ export const AdjustmentHistory: React.FC = () => {
         />
       )}
 
+      {/* Document Viewer Modal */}
       <DocumentViewerModal
         isOpen={documentViewerOpen}
         onClose={() => setDocumentViewerOpen(false)}
