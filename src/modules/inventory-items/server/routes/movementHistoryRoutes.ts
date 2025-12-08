@@ -18,18 +18,18 @@ const router = express.Router();
 router.get('/movement-history', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const offset = (page - 1) * limit;
-    const search = req.query.search as string; // SKU or product name
-    const movementType = req.query.movementType as string; // putaway, pick, adjustment, relocation
-    const dateFrom = req.query.dateFrom as string; // YYYY-MM-DD
-    const dateTo = req.query.dateTo as string; // YYYY-MM-DD
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const perPage = Math.min(Math.max(1, parseInt(req.query.perPage as string) || 20), 500);
+    const offset = (page - 1) * perPage;
+    const search = req.query.search as string;
+    const movementType = req.query.movementType as string;
+    const dateFrom = req.query.dateFrom as string;
+    const dateTo = req.query.dateTo as string;
 
     const whereConditions = [eq(movementHistory.tenantId, tenantId)];
 
     // Filter by movement type
-    if (movementType) {
+    if (movementType && movementType !== 'all') {
       const validTypes = ['putaway', 'pick', 'adjustment', 'relocation'];
       if (!validTypes.includes(movementType)) {
         return res.status(400).json({
@@ -100,20 +100,20 @@ router.get('/movement-history', authorized('ADMIN', 'inventory-items.view'), asy
       .leftJoin(warehouses, eq(zones.warehouseId, warehouses.id))
       .where(and(...whereConditions, searchCondition || undefined))
       .orderBy(desc(movementHistory.createdAt))
-      .limit(limit)
+      .limit(perPage)
       .offset(offset);
 
     const totalCount = totalResult?.count || 0;
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalPages = Math.ceil(totalCount / perPage);
 
     res.json({
       success: true,
       data: movements,
       pagination: {
-        currentPage: page,
+        total: totalCount,
         totalPages,
-        totalCount,
-        limit,
+        page,
+        perPage,
       },
     });
   } catch (error) {
@@ -196,7 +196,7 @@ router.get('/movement-history/export/csv', authorized('ADMIN', 'inventory-items.
     const whereConditions = [eq(movementHistory.tenantId, tenantId)];
 
     // Apply same filters as list endpoint
-    if (movementType) {
+    if (movementType && movementType !== 'all') {
       const validTypes = ['putaway', 'pick', 'adjustment', 'relocation'];
       if (!validTypes.includes(movementType)) {
         return res.status(400).json({

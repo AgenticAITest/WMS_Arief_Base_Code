@@ -1,4 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Button } from '@client/components/ui/button';
+import { Input } from '@client/components/ui/input';
+import { Label } from '@client/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@client/components/ui/select';
 import {
   Table,
   TableBody,
@@ -7,329 +17,423 @@ import {
   TableHeader,
   TableRow,
 } from '@client/components/ui/table';
-import { Badge } from '@client/components/ui/badge';
-import { Button } from '@client/components/ui/button';
-import { Input } from '@client/components/ui/input';
-import { Eye, Download } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@client/components/ui/dialog';
+import { Search, X, Eye, Download, Calendar } from 'lucide-react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@client/components/ui/select';
-import { ViewMovementModal } from '../components/ViewMovementModal';
+import DataPagination from '@client/components/console/DataPagination';
+import { useNavigate } from 'react-router';
 
-interface MovementHistory {
+interface MovementRecord {
   id: string;
   productSku: string;
   productName: string;
-  binName: string;
+  locationPath: string;
   quantityChanged: number;
   movementType: string;
-  referenceType: string;
   referenceNumber: string;
-  notes: string | null;
-  createdAt: string;
   userName: string;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
+  notes: string;
+  createdAt: string;
 }
 
 const MovementHistory: React.FC = () => {
-  const [movements, setMovements] = useState<MovementHistory[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState<Pagination>({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-    hasNext: false,
-    hasPrev: false,
-  });
-  const [search, setSearch] = useState('');
-  const [movementType, setMovementType] = useState<string>('all');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedMovementId, setSelectedMovementId] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
+  const navigate = useNavigate();
+  const params = new URLSearchParams(window.location.search);
+
+  const [movements, setMovements] = useState<MovementRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [count, setCount] = useState(0);
+
+  // Pagination
+  const [page, setPage] = useState(Number(params.get('page')) || 1);
+  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 4);
+
+  // Filters
+  const [search, setSearch] = useState(params.get('search') || '');
+  const [movementType, setMovementType] = useState(params.get('movementType') || 'all');
+  const [dateFrom, setDateFrom] = useState(params.get('dateFrom') || '');
+  const [dateTo, setDateTo] = useState(params.get('dateTo') || '');
+  const [activeQuickFilter, setActiveQuickFilter] = useState<number | null>(null);
+
+  // Details modal
+  const [selectedRecord, setSelectedRecord] = useState<MovementRecord | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  function gotoPage(p: number) {
+    if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    setPage(p);
+    urlParams.set('page', p.toString());
+    urlParams.set('perPage', perPage.toString());
+    if (search) urlParams.set('search', search);
+    if (movementType && movementType !== 'all') urlParams.set('movementType', movementType);
+    if (dateFrom) urlParams.set('dateFrom', dateFrom);
+    if (dateTo) urlParams.set('dateTo', dateTo);
+
+    navigate(`${window.location.pathname}?${urlParams.toString()}`);
+    setLoading(true);
+  }
 
   useEffect(() => {
-    fetchMovements();
-  }, [pagination.page, search, movementType, dateFrom, dateTo]);
+    fetchMovementHistory();
+  }, [page, perPage, search, movementType, dateFrom, dateTo]);
 
-  const fetchMovements = async () => {
+  const fetchMovementHistory = async () => {
     try {
       setLoading(true);
-      const params: any = {
-        page: pagination.page,
-        limit: pagination.limit,
+
+      const apiParams: any = {
+        page,
+        perPage,
       };
 
-      if (search) params.search = search;
-      if (movementType && movementType !== 'all') params.movementType = movementType;
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
+      if (search) apiParams.search = search;
+      if (movementType && movementType !== 'all') apiParams.movementType = movementType;
+      if (dateFrom) apiParams.dateFrom = dateFrom;
+      if (dateTo) apiParams.dateTo = dateTo;
 
-      const response = await axios.get('/api/modules/inventory-items/movement-history', {
-        params,
+      const response = await axios.get('/api/modules/inventory-items/movement-history', { 
+        params: apiParams 
       });
 
       if (response.data.success) {
         setMovements(response.data.data || []);
-        setPagination(response.data.pagination);
+        setCount(response.data.pagination?.total || 0);
       }
     } catch (error: any) {
       console.error('Error fetching movement history:', error);
-      toast.error(error.response?.data?.message || 'Failed to fetch movement history');
+      toast.error('Failed to fetch movement history');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleViewMovement = (id: string) => {
-    setSelectedMovementId(id);
-    setViewModalOpen(true);
+  const handleSearch = () => {
+    gotoPage(1);
   };
+
+  const handleClearFilters = () => {
+    setSearch('');
+    setMovementType('all');
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+    setActiveQuickFilter(null);
+  };
+
+  const handleQuickFilter = (days: number) => {
+    const today = new Date();
+    const fromDate = new Date();
+    fromDate.setDate(today.getDate() - days);
+
+    setDateFrom(format(fromDate, 'yyyy-MM-dd'));
+    setDateTo(format(today, 'yyyy-MM-dd'));
+    setPage(1);
+    setActiveQuickFilter(days);
+  };
+
+  // Reset quick filter jika manual date berubah
+  useEffect(() => {
+    if (activeQuickFilter !== null) {
+      const today = new Date();
+      const expectedFrom = new Date();
+      expectedFrom.setDate(today.getDate() - activeQuickFilter);
+      const expectedFromStr = format(expectedFrom, 'yyyy-MM-dd');
+      const todayStr = format(today, 'yyyy-MM-dd');
+      if (dateFrom !== expectedFromStr || dateTo !== todayStr) {
+        setActiveQuickFilter(null);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo]);
 
   const handleExportCSV = async () => {
     try {
-      setExporting(true);
-      const params: any = {};
-      if (search) params.search = search;
-      if (movementType && movementType !== 'all') params.movementType = movementType;
-      if (dateFrom) params.dateFrom = dateFrom;
-      if (dateTo) params.dateTo = dateTo;
+      const apiParams: any = {
+        page: 1,
+        perPage: 10000,
+      };
 
-      const response = await axios.get('/api/modules/inventory-items/movement-history/export/csv', {
-        params,
-        responseType: 'blob',
+      if (search) apiParams.search = search;
+      if (movementType && movementType !== 'all') apiParams.movementType = movementType;
+      if (dateFrom) apiParams.dateFrom = dateFrom;
+      if (dateTo) apiParams.dateTo = dateTo;
+
+      const response = await axios.get('/api/modules/inventory-items/movement-history/export/csv', { 
+        params: apiParams,
+        responseType: 'blob'
       });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `movement-history-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.setAttribute('download', `movement-history-${format(new Date(), 'yyyy-MM-dd-HHmmss')}.csv`);
       document.body.appendChild(link);
       link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+      link.parentNode?.removeChild(link);
 
-      toast.success('Export completed successfully');
-    } catch (error: any) {
-      console.error('Error exporting movement history:', error);
-      toast.error(error.response?.data?.message || 'Failed to export movement history');
-    } finally {
-      setExporting(false);
+      toast.success('Movement history exported successfully');
+    } catch (error) {
+      toast.error('Failed to export movement history');
     }
   };
 
-  const getMovementTypeBadge = (type: string) => {
-    const variants: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline'; label: string }> = {
-      putaway: { variant: 'default', label: 'Putaway' },
-      pick: { variant: 'secondary', label: 'Pick' },
-      adjustment: { variant: 'outline', label: 'Adjustment' },
-      relocation: { variant: 'default', label: 'Relocation' },
-    };
-
-    const config = variants[type] || { variant: 'secondary', label: type };
-    return (
-      <Badge variant={config.variant}>
-        {config.label}
-      </Badge>
-    );
-  };
-
-  const handleSearchChange = (value: string) => {
-    setSearch(value);
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const handleMovementTypeChange = (value: string) => {
-    setMovementType(value);
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const handleDateFromChange = (value: string) => {
-    setDateFrom(value);
-    setPagination(prev => ({ ...prev, page: 1 }));
-  };
-
-  const handleDateToChange = (value: string) => {
-    setDateTo(value);
-    setPagination(prev => ({ ...prev, page: 1 }));
+  const handleViewDetails = (record: MovementRecord) => {
+    setSelectedRecord(record);
+    setDetailsOpen(true);
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Movement History</h1>
+          <h1 className="text-3xl font-bold">Movement History</h1>
           <p className="text-muted-foreground">
-            Track all inventory movements across your warehouse
+            Track all inventory movements and adjustments
           </p>
         </div>
-        <Button onClick={handleExportCSV} disabled={exporting || movements.length === 0}>
-          <Download className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div>
-          <Input
-            placeholder="Search SKU or product name..."
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-          />
-        </div>
-        <div>
-          <Select value={movementType} onValueChange={handleMovementTypeChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Movement Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="putaway">Putaway</SelectItem>
-              <SelectItem value="pick">Pick</SelectItem>
-              <SelectItem value="adjustment">Adjustment</SelectItem>
-              <SelectItem value="relocation">Relocation</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Input
-            type="date"
-            placeholder="From Date"
-            value={dateFrom}
-            onChange={(e) => handleDateFromChange(e.target.value)}
-          />
-        </div>
-        <div>
-          <Input
-            type="date"
-            placeholder="To Date"
-            value={dateTo}
-            onChange={(e) => handleDateToChange(e.target.value)}
-          />
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportCSV}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
         </div>
       </div>
 
-      {loading ? (
-        <div className="text-center py-8 text-muted-foreground">Loading...</div>
-      ) : movements.length === 0 ? (
-        <div className="text-center py-12 border rounded-lg bg-muted/50">
-          <p className="text-muted-foreground">No movement history found</p>
+      <div className="bg-card rounded-lg border p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Filters</h2>
+
+        {/* Quick Filters */}
+        <div className="flex gap-2 flex-wrap">
+          <Button 
+            variant={activeQuickFilter === 0 ? "default" : "outline"}
+            size="sm" onClick={() => handleQuickFilter(0)}>
+            <Calendar className="mr-2 h-4 w-4" />
+            Today
+          </Button>
+          <Button 
+            variant={activeQuickFilter === 7 ? "default" : "outline"}
+            size="sm" onClick={() => handleQuickFilter(7)}>
+            Last 7 Days
+          </Button>
+          <Button 
+            variant={activeQuickFilter === 30 ? "default" : "outline"}
+            size="sm" onClick={() => handleQuickFilter(30)}>
+            Last 30 Days
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleClearFilters}>
+            <X className="mr-2 h-4 w-4" />
+            Clear All
+          </Button>
         </div>
-      ) : (
-        <>
-          <div className="border rounded-lg">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Bin</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Reference</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {movements.map((movement) => (
-                  <TableRow key={movement.id}>
-                    <TableCell className="font-medium">{movement.productSku}</TableCell>
-                    <TableCell>{movement.productName}</TableCell>
-                    <TableCell>{movement.binName}</TableCell>
-                    <TableCell className="text-right">
-                      <span className={movement.quantityChanged >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {movement.quantityChanged >= 0 ? '+' : ''}{movement.quantityChanged}
-                      </span>
-                    </TableCell>
-                    <TableCell>{getMovementTypeBadge(movement.movementType)}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="text-sm font-medium">{movement.referenceNumber}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {movement.referenceType.toUpperCase()}
-                        </div>
+
+        {/* Filter Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <Label>Date From</Label>
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Date To</Label>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Movement Type</Label>
+            <Select value={movementType} onValueChange={setMovementType}>
+              <SelectTrigger>
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="putaway">Putaway</SelectItem>
+                <SelectItem value="pick">Pick</SelectItem>
+                <SelectItem value="adjustment">Adjustment</SelectItem>
+                <SelectItem value="relocation">Relocation</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Search</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search SKU or product..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="pl-10"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={handleSearch}>
+            <Search className="mr-2 h-4 w-4" />
+            Search
+          </Button>
+        </div>
+      </div>
+
+      <div className="bg-card rounded-lg border overflow-hidden">
+        <Table>
+          <TableHeader className="bg-muted/20">
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Movement Type</TableHead>
+              <TableHead>Quantity</TableHead>
+              <TableHead>Reference</TableHead>
+              <TableHead>User</TableHead>
+              <TableHead className="w-[80px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : movements.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8">
+                  No movement history found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              movements.map((record) => (
+                <TableRow key={record.id}>
+                  <TableCell className="font-mono text-sm">
+                    {format(new Date(record.createdAt), 'yyyy-MM-dd HH:mm:ss')}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div className="font-medium">{record.productSku}</div>
+                      <div className="text-muted-foreground truncate max-w-[200px]">
+                        {record.productName}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {movement.createdAt
-                        ? format(new Date(movement.createdAt), 'MMM dd, yyyy HH:mm')
-                        : '-'}
-                    </TableCell>
-                    <TableCell>{movement.userName}</TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewMovement(movement.id)}
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="max-w-[200px]">
+                    <div className="truncate text-sm" title={record.locationPath}>
+                      {record.locationPath}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                      {record.movementType}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className={record.quantityChanged > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                      {record.quantityChanged > 0 ? '+' : ''}{record.quantityChanged}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-sm">{record.referenceNumber || 'N/A'}</TableCell>
+                  <TableCell className="text-sm">{record.userName || 'System'}</TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleViewDetails(record)}
+                      title="View Details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Showing {movements.length} of {pagination.total} movements (Page {pagination.page} of {pagination.totalPages})
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
-                disabled={!pagination.hasPrev}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
-                disabled={!pagination.hasNext}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {selectedMovementId && (
-        <ViewMovementModal
-          open={viewModalOpen}
-          onOpenChange={setViewModalOpen}
-          movementId={selectedMovementId}
+      {/* Pagination */}
+      <div className="mt-4">
+        <DataPagination
+          count={count}
+          perPage={perPage}
+          page={page}
+          gotoPage={gotoPage}
         />
-      )}
+      </div>
+
+      {/* Details Modal */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Movement Details</DialogTitle>
+          </DialogHeader>
+          {selectedRecord && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Date & Time</Label>
+                  <p className="font-mono">
+                    {format(new Date(selectedRecord.createdAt), 'yyyy-MM-dd HH:mm:ss')}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Movement Type</Label>
+                  <p className="font-medium">{selectedRecord.movementType}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">SKU</Label>
+                  <p className="font-mono">{selectedRecord.productSku}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Product Name</Label>
+                  <p>{selectedRecord.productName}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Location</Label>
+                  <p className="text-sm">{selectedRecord.locationPath}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Quantity Changed</Label>
+                  <p className={selectedRecord.quantityChanged > 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                    {selectedRecord.quantityChanged > 0 ? '+' : ''}{selectedRecord.quantityChanged}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Reference Number</Label>
+                  <p>{selectedRecord.referenceNumber || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">User</Label>
+                  <p>{selectedRecord.userName || 'System'}</p>
+                </div>
+              </div>
+              {selectedRecord.notes && (
+                <div>
+                  <Label className="text-muted-foreground">Notes</Label>
+                  <p className="text-sm bg-muted p-2 rounded">{selectedRecord.notes}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-export default withModuleAuthorization(MovementHistory, {
-  moduleId: 'inventory-items',
-  moduleName: 'Inventory Items',
-});
+export default MovementHistory;
