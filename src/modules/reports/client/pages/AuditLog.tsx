@@ -91,6 +91,16 @@ const AuditLog: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState(params.get('search') || '');
   const [activeQuickFilter, setActiveQuickFilter] = useState<number | null>(null);
 
+  // Track previous filter values to detect changes
+  const [prevDateFrom, setPrevDateFrom] = useState(params.get('dateFrom') || '');
+  const [prevDateTo, setPrevDateTo] = useState(params.get('dateTo') || '');
+  const [prevModuleFilter, setPrevModuleFilter] = useState(params.get('module') || 'all');
+  const [prevActionFilter, setPrevActionFilter] = useState(params.get('action') || 'all');
+  const [prevResourceTypeFilter, setPrevResourceTypeFilter] = useState(params.get('resourceType') || 'all');
+  const [prevUserIdFilter, setPrevUserIdFilter] = useState(params.get('userId') || '');
+  const [prevStatusFilter, setPrevStatusFilter] = useState(params.get('status') || 'all');
+  const [prevSearchTerm, setPrevSearchTerm] = useState(params.get('search') || '');
+
   // Available filter options
   const [modules, setModules] = useState<string[]>([]);
   const [actions, setActions] = useState<string[]>([]);
@@ -117,69 +127,107 @@ const AuditLog: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchAuditLogs();
-  }, [currentPage, perPage, moduleFilter, actionFilter, resourceTypeFilter, statusFilter, dateFrom, dateTo, userIdFilter, searchTerm]);
+    const fetchFilterOptions = async () => {
+      // Fetch distinct values for filter dropdowns
+      try {
+        const response = await axios.get('/api/audit-logs', {
+          params: { page: 1, perPage: 1000 }
+        });
 
-  useEffect(() => {
+        if (response.data.success && response.data.data) {
+          const logs = response.data.data;
+
+          // Extract unique values
+          const uniqueModules = [...new Set(logs.map((log: AuditLog) => log.module))].filter(Boolean);
+          const uniqueActions = [...new Set(logs.map((log: AuditLog) => log.action))].filter(Boolean);
+          const uniqueResourceTypes = [...new Set(logs.map((log: AuditLog) => log.resourceType))].filter(Boolean);
+
+          setModules(uniqueModules as string[]);
+          setActions(uniqueActions as string[]);
+          setResourceTypes(uniqueResourceTypes as string[]);
+        }
+      } catch (error) {
+        console.error('Error fetching filter options:', error);
+      }
+    };
+
     fetchFilterOptions();
   }, []);
 
-  const fetchFilterOptions = async () => {
-    // Fetch distinct values for filter dropdowns
-    try {
-      const response = await axios.get('/api/audit-logs', {
-        params: { page: 1, perPage: 1000 }
-      });
+  useEffect(() => {
+    // Check if any filter changed
+    const filterChanged = 
+      dateFrom !== prevDateFrom || 
+      dateTo !== prevDateTo || 
+      moduleFilter !== prevModuleFilter || 
+      actionFilter !== prevActionFilter || 
+      resourceTypeFilter !== prevResourceTypeFilter || 
+      userIdFilter !== prevUserIdFilter || 
+      statusFilter !== prevStatusFilter || 
+      searchTerm !== prevSearchTerm;
 
-      if (response.data.success && response.data.data) {
-        const logs = response.data.data;
-
-        // Extract unique values
-        const uniqueModules = [...new Set(logs.map((log: AuditLog) => log.module))].filter(Boolean);
-        const uniqueActions = [...new Set(logs.map((log: AuditLog) => log.action))].filter(Boolean);
-        const uniqueResourceTypes = [...new Set(logs.map((log: AuditLog) => log.resourceType))].filter(Boolean);
-
-        setModules(uniqueModules as string[]);
-        setActions(uniqueActions as string[]);
-        setResourceTypes(uniqueResourceTypes as string[]);
-      }
-    } catch (error) {
-      console.error('Error fetching filter options:', error);
+    // Reset to page 1 when filters change (but don't fetch yet)
+    if (filterChanged && currentPage !== 1) {
+      setPrevDateFrom(dateFrom);
+      setPrevDateTo(dateTo);
+      setPrevModuleFilter(moduleFilter);
+      setPrevActionFilter(actionFilter);
+      setPrevResourceTypeFilter(resourceTypeFilter);
+      setPrevUserIdFilter(userIdFilter);
+      setPrevStatusFilter(statusFilter);
+      setPrevSearchTerm(searchTerm);
+      setCurrentPage(1);
+      return; // Skip fetching, let the page change trigger the fetch
     }
-  };
 
-  const fetchAuditLogs = async () => {
-    try {
-      setLoading(true);
-
-      const apiParams: any = {
-        page: currentPage,
-        perPage,
-      };
-
-      if (dateFrom) apiParams.dateFrom = dateFrom;
-      if (dateTo) apiParams.dateTo = dateTo;
-      if (moduleFilter && moduleFilter !== 'all') apiParams.module = moduleFilter;
-      if (actionFilter && actionFilter !== 'all') apiParams.action = actionFilter;
-      if (resourceTypeFilter && resourceTypeFilter !== 'all') apiParams.resourceType = resourceTypeFilter;
-      if (userIdFilter) apiParams.userId = userIdFilter;
-      if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
-      if (searchTerm) apiParams.search = searchTerm;
-
-      const response = await axios.get('/api/audit-logs', { params: apiParams });
-
-      if (response.data.success) {
-        setLogs(response.data.data || []);
-        setTotalPages(response.data.pagination?.totalPages || 1);
-        setTotalRecords(response.data.pagination?.total || 0);
-      }
-    } catch (error: any) {
-      console.error('Error fetching audit logs:', error);
-      toast.error('Failed to fetch audit logs');
-    } finally {
-      setLoading(false);
+    // Update previous filter values if they changed
+    if (filterChanged) {
+      setPrevDateFrom(dateFrom);
+      setPrevDateTo(dateTo);
+      setPrevModuleFilter(moduleFilter);
+      setPrevActionFilter(actionFilter);
+      setPrevResourceTypeFilter(resourceTypeFilter);
+      setPrevUserIdFilter(userIdFilter);
+      setPrevStatusFilter(statusFilter);
+      setPrevSearchTerm(searchTerm);
     }
-  };
+
+    // Fetch audit logs for current page/filter combination
+    const fetchAuditLogs = async () => {
+      try {
+        setLoading(true);
+
+        const apiParams: any = {
+          page: currentPage,
+          perPage,
+        };
+
+        if (dateFrom) apiParams.dateFrom = dateFrom;
+        if (dateTo) apiParams.dateTo = dateTo;
+        if (moduleFilter && moduleFilter !== 'all') apiParams.module = moduleFilter;
+        if (actionFilter && actionFilter !== 'all') apiParams.action = actionFilter;
+        if (resourceTypeFilter && resourceTypeFilter !== 'all') apiParams.resourceType = resourceTypeFilter;
+        if (userIdFilter) apiParams.userId = userIdFilter;
+        if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
+        if (searchTerm) apiParams.search = searchTerm;
+
+        const response = await axios.get('/api/audit-logs', { params: apiParams });
+
+        if (response.data.success) {
+          setLogs(response.data.data || []);
+          setTotalPages(response.data.pagination?.totalPages || 1);
+          setTotalRecords(response.data.pagination?.total || 0);
+        }
+      } catch (error: any) {
+        console.error('Error fetching audit logs:', error);
+        toast.error('Failed to fetch audit logs');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAuditLogs();
+  }, [currentPage, perPage, moduleFilter, actionFilter, resourceTypeFilter, statusFilter, dateFrom, dateTo, userIdFilter, searchTerm]);
 
   const handleSearch = () => {
     gotoPage(1);
@@ -209,7 +257,7 @@ const AuditLog: React.FC = () => {
     setActiveQuickFilter(days);
   };
 
-  // Reset quick filter jika manual date berubah
+  // Reset quick filter when manual date changes
   useEffect(() => {
     if (activeQuickFilter !== null) {
       const today = new Date();
@@ -223,14 +271,6 @@ const AuditLog: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
-
-  // Reset to page 1 when any filter changes
-  useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo, moduleFilter, actionFilter, resourceTypeFilter, userIdFilter, statusFilter, searchTerm]);
 
   const handleViewDetails = (log: AuditLog) => {
     setSelectedLog(log);
@@ -323,6 +363,11 @@ const AuditLog: React.FC = () => {
     }
   };
 
+  const handleRefresh = () => {
+    // Force re-fetch by updating a state that triggers the useEffect
+    setCurrentPage(currentPage); // This will trigger the useEffect
+  };
+
   const handleViewDocument = (log: AuditLog) => {
     if (!log.documentPath) {
       toast.error('No document path available');
@@ -350,7 +395,7 @@ const AuditLog: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchAuditLogs}>
+          <Button variant="outline" onClick={handleRefresh}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
