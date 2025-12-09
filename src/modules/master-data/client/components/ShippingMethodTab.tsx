@@ -105,8 +105,7 @@ export default function ShippingMethodTab() {
 
   return (
     <>
-      <Card>
-        <CardContent className="pt-6">
+      <div className="space-y-4">
           <div className="flex justify-between items-center mb-4">
             <div className="flex gap-2 flex-1 max-w-md">
               <div className="relative flex-1">
@@ -135,10 +134,10 @@ export default function ShippingMethodTab() {
               No shipping methods found. Click "Add Shipping Method" to create one.
             </div>
           ) : (
-            <div className="border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden">
+            <div className="rounded-md border">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50 dark:bg-gray-800">
+                  <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Code</TableHead>
                     <TableHead>Type</TableHead>
@@ -149,7 +148,7 @@ export default function ShippingMethodTab() {
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody className="bg-white dark:bg-gray-900">
+                <TableBody>
                   {shippingMethods.map((method) => (
                     <TableRow key={method.id}>
                       <TableCell className="font-medium">{method.name}</TableCell>
@@ -205,8 +204,7 @@ export default function ShippingMethodTab() {
               </Table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </div>
 
       <ShippingMethodDialog
         isOpen={dialogOpen}
