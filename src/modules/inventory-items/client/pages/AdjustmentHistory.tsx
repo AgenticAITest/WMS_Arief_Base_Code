@@ -51,6 +51,7 @@ export const AdjustmentHistory: React.FC = () => {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
+  const [prevStatusFilter, setPrevStatusFilter] = useState(params.get('status') || 'all');
 
   // Document viewer
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
@@ -75,46 +76,51 @@ export const AdjustmentHistory: React.FC = () => {
   }
 
   useEffect(() => {
+    // Reset to page 1 when filter changes (but don't fetch yet)
+    if (statusFilter !== prevStatusFilter && page !== 1) {
+      setPrevStatusFilter(statusFilter);
+      setPage(1);
+      return; // Skip fetching, let the page change trigger the fetch
+    }
+
+    // Update previous filter if it changed
+    if (statusFilter !== prevStatusFilter) {
+      setPrevStatusFilter(statusFilter);
+    }
+
+    // Fetch adjustments for current page/filter combination
+    const fetchAdjustments = async () => {
+      try {
+        setLoading(true);
+        const apiParams: any = {
+          page,
+          perPage,
+        };
+
+        if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
+
+        const response = await axios.get('/api/modules/inventory-items/adjustments', {
+          params: apiParams,
+        });
+
+        if (response.data.success) {
+          // Filter out adjustments with status 'created' for history view
+          const filteredAdjustments = (response.data.data || []).filter(
+            (adj: Adjustment) => adj.status !== 'created'
+          );
+          setAdjustments(filteredAdjustments);
+          setCount(response.data.pagination?.total || 0);
+        }
+      } catch (error: any) {
+        console.error('Error fetching adjustments:', error);
+        toast.error(error.response?.data?.message || 'Failed to fetch adjustments');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchAdjustments();
   }, [page, perPage, statusFilter]);
-
-  const fetchAdjustments = async () => {
-    try {
-      setLoading(true);
-      const apiParams: any = {
-        page,
-        perPage,
-      };
-
-      if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
-
-      const response = await axios.get('/api/modules/inventory-items/adjustments', {
-        params: apiParams,
-      });
-
-      if (response.data.success) {
-        // Filter out adjustments with status 'created' for history view
-        const filteredAdjustments = (response.data.data || []).filter(
-          (adj: Adjustment) => adj.status !== 'created'
-        );
-        setAdjustments(filteredAdjustments);
-        setCount(response.data.pagination?.total || 0);
-      }
-    } catch (error: any) {
-      console.error('Error fetching adjustments:', error);
-      toast.error(error.response?.data?.message || 'Failed to fetch adjustments');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Reset to page 1 when filter changes
-  useEffect(() => {
-    if (page !== 1) {
-      setPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
 
   const handleViewAdjustment = (id: string) => {
     setSelectedAdjustmentId(id);
