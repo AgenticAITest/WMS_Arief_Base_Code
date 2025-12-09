@@ -53,15 +53,15 @@ const router = express.Router();
 router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string) || 20), 500);
     const offset = (page - 1) * limit;
     const statusParam = req.query.status as string;
 
     const whereConditions = [eq(cycleCounts.tenantId, tenantId)];
 
     // Add status filter if provided and valid
-    if (statusParam) {
+    if (statusParam && statusParam !== 'all') {
       const status = statusParam.trim().toLowerCase();
       const validStatuses = ['created', 'approved', 'rejected'];
       if (!validStatuses.includes(status)) {
@@ -88,16 +88,17 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
       .limit(limit)
       .offset(offset);
 
+    const totalCount = totalResult?.count || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
     res.json({
       success: true,
       data: counts,
       pagination: {
+        total: totalCount,
+        totalPages,
         page,
         limit,
-        total: totalResult?.count || 0,
-        totalPages: Math.ceil((totalResult?.count || 0) / limit),
-        hasNext: page < Math.ceil((totalResult?.count || 0) / limit),
-        hasPrev: page > 1,
       },
     });
   } catch (error) {
