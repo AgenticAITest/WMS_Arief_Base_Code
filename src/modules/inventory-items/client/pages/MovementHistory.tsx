@@ -52,7 +52,6 @@ const MovementHistory: React.FC = () => {
   const [count, setCount] = useState(0);
 
   // Pagination
-  const [currentPage, setCurrentPage] = useState(Number(params.get('page')) || 1);
   const [page, setPage] = useState(Number(params.get('page')) || 1);
   const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
 
@@ -62,6 +61,12 @@ const MovementHistory: React.FC = () => {
   const [dateFrom, setDateFrom] = useState(params.get('dateFrom') || '');
   const [dateTo, setDateTo] = useState(params.get('dateTo') || '');
   const [activeQuickFilter, setActiveQuickFilter] = useState<number | null>(null);
+
+  // Track previous filter values to detect changes
+  const [prevSearch, setPrevSearch] = useState(params.get('search') || '');
+  const [prevMovementType, setPrevMovementType] = useState(params.get('movementType') || 'all');
+  const [prevDateFrom, setPrevDateFrom] = useState(params.get('dateFrom') || '');
+  const [prevDateTo, setPrevDateTo] = useState(params.get('dateTo') || '');
 
   // Details modal
   const [selectedRecord, setSelectedRecord] = useState<MovementRecord | null>(null);
@@ -84,38 +89,64 @@ const MovementHistory: React.FC = () => {
   }
 
   useEffect(() => {
+    // Check if any filter changed
+    const filterChanged = 
+      search !== prevSearch || 
+      movementType !== prevMovementType || 
+      dateFrom !== prevDateFrom || 
+      dateTo !== prevDateTo;
+
+    // Reset to page 1 when filters change (but don't fetch yet)
+    if (filterChanged && page !== 1) {
+      setPrevSearch(search);
+      setPrevMovementType(movementType);
+      setPrevDateFrom(dateFrom);
+      setPrevDateTo(dateTo);
+      setPage(1);
+      return; // Skip fetching, let the page change trigger the fetch
+    }
+
+    // Update previous filter values if they changed
+    if (filterChanged) {
+      setPrevSearch(search);
+      setPrevMovementType(movementType);
+      setPrevDateFrom(dateFrom);
+      setPrevDateTo(dateTo);
+    }
+
+    // Fetch movement history for current page/filter combination
+    const fetchMovementHistory = async () => {
+      try {
+        setLoading(true);
+
+        const apiParams: any = {
+          page,
+          perPage,
+        };
+
+        if (search) apiParams.search = search;
+        if (movementType && movementType !== 'all') apiParams.movementType = movementType;
+        if (dateFrom) apiParams.dateFrom = dateFrom;
+        if (dateTo) apiParams.dateTo = dateTo;
+
+        const response = await axios.get('/api/modules/inventory-items/movement-history', { 
+          params: apiParams 
+        });
+
+        if (response.data.success) {
+          setMovements(response.data.data || []);
+          setCount(response.data.pagination?.total || 0);
+        }
+      } catch (error: any) {
+        console.error('Error fetching movement history:', error);
+        toast.error('Failed to fetch movement history');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchMovementHistory();
   }, [page, perPage, search, movementType, dateFrom, dateTo]);
-
-  const fetchMovementHistory = async () => {
-    try {
-      setLoading(true);
-
-      const apiParams: any = {
-        page,
-        perPage,
-      };
-
-      if (search) apiParams.search = search;
-      if (movementType && movementType !== 'all') apiParams.movementType = movementType;
-      if (dateFrom) apiParams.dateFrom = dateFrom;
-      if (dateTo) apiParams.dateTo = dateTo;
-
-      const response = await axios.get('/api/modules/inventory-items/movement-history', { 
-        params: apiParams 
-      });
-
-      if (response.data.success) {
-        setMovements(response.data.data || []);
-        setCount(response.data.pagination?.total || 0);
-      }
-    } catch (error: any) {
-      console.error('Error fetching movement history:', error);
-      toast.error('Failed to fetch movement history');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSearch = () => {
     gotoPage(1);
@@ -141,7 +172,7 @@ const MovementHistory: React.FC = () => {
     setActiveQuickFilter(days);
   };
 
-  // Reset quick filter jika manual date berubah
+  // Reset quick filter when manual date changes
   useEffect(() => {
     if (activeQuickFilter !== null) {
       const today = new Date();
@@ -155,14 +186,6 @@ const MovementHistory: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFrom, dateTo]);
-
-  // Reset to page 1 when any filter changes
-  useEffect(() => {
-    if (currentPage !== 1) {
-      setCurrentPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo, movementType, search]);
 
   const handleExportCSV = async () => {
     try {
