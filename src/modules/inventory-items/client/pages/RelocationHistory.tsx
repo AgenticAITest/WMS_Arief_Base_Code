@@ -15,6 +15,15 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import { ViewRelocationModal } from '../components/ViewRelocationModal';
+import DataPagination from '@client/components/console/DataPagination';
+import { useNavigate } from 'react-router';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@client/components/ui/select';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface Relocation {
@@ -23,58 +32,74 @@ interface Relocation {
   status: string;
   notes: string | null;
   createdAt: string;
-  approvedAt: string | null;
-  rejectedAt: string | null;
+  completedAt: string | null;
   createdBy: string;
   approvedBy: string | null;
 }
 
 const RelocationHistory: React.FC = () => {
+  const navigate = useNavigate();
+  const params = new URLSearchParams(window.location.search);
+
   const [relocations, setRelocations] = useState<Relocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState(0);
+
+  // Pagination
+  const [page, setPage] = useState(Number(params.get('page')) || 1);
+  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
+
+  // Filters
+  const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
+
+  // Document viewer
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
   const [selectedDocumentPath, setSelectedDocumentPath] = useState<string>('');
   const [selectedDocumentNumber, setSelectedDocumentNumber] = useState<string>('');
+
+  // View modal
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedRelocationId, setSelectedRelocationId] = useState<string | null>(null);
-  const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
+
+  function gotoPage(p: number) {
+    if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    setPage(p);
+    urlParams.set('page', p.toString());
+    urlParams.set('perPage', perPage.toString());
+    if (statusFilter && statusFilter !== 'all') urlParams.set('status', statusFilter);
+
+    navigate(`${window.location.pathname}?${urlParams.toString()}`);
+    setLoading(true);
+  }
 
   useEffect(() => {
     fetchRelocations();
-  }, []);
+  }, [page, perPage, statusFilter]);
 
   const fetchRelocations = async () => {
     try {
       setLoading(true);
+      const apiParams: any = {
+        page,
+        limit: perPage,
+      };
+
+      if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
+
       const response = await axios.get('/api/modules/inventory-items/relocations', {
-        params: {
-          page: 1,
-          limit: 1000,
-        },
+        params: apiParams,
       });
 
-      const filteredRelocations = (response.data.data || []).filter(
-        (reloc: Relocation) => reloc.status !== 'created'
-      );
-      setRelocations(filteredRelocations);
-
-      const counts: Record<string, number> = {};
-      await Promise.all(
-        filteredRelocations.map(async (reloc: Relocation) => {
-          try {
-            const itemsResponse = await axios.get(
-              `/api/modules/inventory-items/relocations/${reloc.id}/items`,
-              {
-                params: { page: 1, limit: 1 },
-              }
-            );
-            counts[reloc.id] = itemsResponse.data.pagination?.total || 0;
-          } catch (error) {
-            counts[reloc.id] = 0;
-          }
-        })
-      );
-      setItemCounts(counts);
+      if (response.data.success) {
+        // Filter out relocations with status 'created' for history view
+        const filteredRelocations = (response.data.data || []).filter(
+          (reloc: Relocation) => reloc.status !== 'created'
+        );
+        setRelocations(filteredRelocations);
+        setCount(response.data.pagination?.total || 0);
+      }
     } catch (error: any) {
       console.error('Error fetching relocations:', error);
       toast.error(error.response?.data?.message || 'Failed to fetch relocations');
@@ -83,6 +108,14 @@ const RelocationHistory: React.FC = () => {
     }
   };
 
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    if (page !== 1) {
+      setPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
+
   const handleViewRelocation = (id: string) => {
     setSelectedRelocationId(id);
     setViewModalOpen(true);
@@ -90,7 +123,9 @@ const RelocationHistory: React.FC = () => {
 
   const handleViewDocument = async (relocationId: string, relocationNumber: string) => {
     try {
-      const response = await axios.get(`/api/modules/inventory-items/relocations/${relocationId}/document`);
+      const response = await axios.get(
+        `/api/modules/inventory-items/relocations/${relocationId}/document`
+      );
 
       if (response.data.success && response.data.data?.documentPath) {
         setSelectedDocumentPath(response.data.data.documentPath);
@@ -130,6 +165,27 @@ const RelocationHistory: React.FC = () => {
         </div>
       </div>
 
+      {/* Filter Section */}
+      <div className="bg-card rounded-lg border p-6 space-y-4">
+        <h2 className="text-lg font-semibold">Filters</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Status</label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Table Section */}
       {loading ? (
         <div className="text-center py-8 text-muted-foreground">Loading...</div>
       ) : relocations.length === 0 ? (
@@ -137,65 +193,74 @@ const RelocationHistory: React.FC = () => {
           <p className="text-muted-foreground">No relocation history found</p>
         </div>
       ) : (
-        <div className="border rounded-lg">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Relocation Number</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Created Date</TableHead>
-                <TableHead>Processed Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {relocations.map((relocation) => (
-                <TableRow key={relocation.id}>
-                  <TableCell className="font-medium">{relocation.relocationNumber}</TableCell>
-                  <TableCell>{itemCounts[relocation.id] || 0}</TableCell>
-                  <TableCell>
-                    {relocation.createdAt
-                      ? format(new Date(relocation.createdAt), 'MMM dd, yyyy HH:mm')
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {relocation.approvedAt
-                      ? format(new Date(relocation.approvedAt), 'MMM dd, yyyy HH:mm')
-                      : relocation.rejectedAt
-                      ? format(new Date(relocation.rejectedAt), 'MMM dd, yyyy HH:mm')
-                      : '-'}
-                  </TableCell>
-                  <TableCell>{getStatusBadge(relocation.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewRelocation(relocation.id)}
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      {relocation.status === 'approved' && (
+        <>
+          <div className="border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Relocation Number</TableHead>
+                  <TableHead>Created Date</TableHead>
+                  <TableHead>Processed Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right w-[120px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {relocations.map((relocation) => (
+                  <TableRow key={relocation.id}>
+                    <TableCell className="font-medium">{relocation.relocationNumber}</TableCell>
+                    <TableCell className="text-sm">
+                      {format(new Date(relocation.createdAt), 'MMM dd, yyyy HH:mm')}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {relocation.completedAt
+                        ? format(new Date(relocation.completedAt), 'MMM dd, yyyy HH:mm')
+                        : '-'}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(relocation.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDocument(relocation.id, relocation.relocationNumber)}
-                          title="View Document"
+                          size="icon"
+                          onClick={() => handleViewRelocation(relocation.id)}
+                          title="View Details"
                         >
-                          <FileText className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+                        {relocation.status === 'approved' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              handleViewDocument(relocation.id, relocation.relocationNumber)
+                            }
+                            title="View Document"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <div className="mt-4">
+            <DataPagination
+              count={count}
+              perPage={perPage}
+              page={page}
+              gotoPage={gotoPage}
+            />
+          </div>
+        </>
       )}
 
+      {/* View Relocation Modal */}
       {selectedRelocationId && (
         <ViewRelocationModal
           open={viewModalOpen}
@@ -204,6 +269,7 @@ const RelocationHistory: React.FC = () => {
         />
       )}
 
+      {/* Document Viewer Modal */}
       <DocumentViewerModal
         isOpen={documentViewerOpen}
         onClose={() => setDocumentViewerOpen(false)}

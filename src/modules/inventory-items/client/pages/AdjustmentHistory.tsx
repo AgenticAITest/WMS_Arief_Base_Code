@@ -266,7 +266,7 @@ export const AdjustmentHistory: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          <div className="flex justify-center">
+          <div className="mt-4">
             <DataPagination
               count={count}
               perPage={perPage}

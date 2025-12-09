@@ -265,15 +265,17 @@ router.post('/relocations', authorized('ADMIN', 'inventory-items.manage'), async
 router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const offset = (page - 1) * limit;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string) || 20), 500);
+    const perPage = Math.min(Math.max(1, parseInt(req.query.perPage as string) || limit), 500);
+    const pageSize = perPage !== 20 ? perPage : limit;
+    const offset = (page - 1) * pageSize;
     const statusParam = req.query.status as string;
 
     const whereConditions = [eq(relocations.tenantId, tenantId)];
 
     // Add status filter if provided and valid
-    if (statusParam) {
+    if (statusParam && statusParam !== 'all') {
       const status = statusParam.trim().toLowerCase();
       const validStatuses = ['created', 'approved', 'rejected'];
       if (!validStatuses.includes(status)) {
@@ -297,19 +299,20 @@ router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (r
       .from(relocations)
       .where(and(...whereConditions))
       .orderBy(desc(relocations.createdAt))
-      .limit(limit)
+      .limit(pageSize)
       .offset(offset);
+
+    const totalCount = totalResult?.count || 0;
+    const totalPages = Math.ceil(totalCount / pageSize);
 
     res.json({
       success: true,
       data: relocationsList,
       pagination: {
+        total: totalCount,
+        totalPages,
         page,
-        limit,
-        total: totalResult?.count || 0,
-        totalPages: Math.ceil((totalResult?.count || 0) / limit),
-        hasNext: page < Math.ceil((totalResult?.count || 0) / limit),
-        hasPrev: page > 1,
+        perPage: pageSize,
       },
     });
   } catch (error) {
