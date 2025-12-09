@@ -51,6 +51,7 @@ const RelocationHistory: React.FC = () => {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
+  const [prevStatusFilter, setPrevStatusFilter] = useState(params.get('status') || 'all');
 
   // Document viewer
   const [documentViewerOpen, setDocumentViewerOpen] = useState(false);
@@ -75,46 +76,51 @@ const RelocationHistory: React.FC = () => {
   }
 
   useEffect(() => {
+    // Reset to page 1 when filter changes (but don't fetch yet)
+    if (statusFilter !== prevStatusFilter && page !== 1) {
+      setPrevStatusFilter(statusFilter);
+      setPage(1);
+      return; // Skip fetching, let the page change trigger the fetch
+    }
+
+    // Update previous filter if it changed
+    if (statusFilter !== prevStatusFilter) {
+      setPrevStatusFilter(statusFilter);
+    }
+
+    // Fetch relocations for current page/filter combination
+    const fetchRelocations = async () => {
+      try {
+        setLoading(true);
+        const apiParams: any = {
+          page,
+          limit: perPage,
+        };
+
+        if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
+
+        const response = await axios.get('/api/modules/inventory-items/relocations', {
+          params: apiParams,
+        });
+
+        if (response.data.success) {
+          // Filter out relocations with status 'created' for history view
+          const filteredRelocations = (response.data.data || []).filter(
+            (reloc: Relocation) => reloc.status !== 'created'
+          );
+          setRelocations(filteredRelocations);
+          setCount(response.data.pagination?.total || 0);
+        }
+      } catch (error: any) {
+        console.error('Error fetching relocations:', error);
+        toast.error(error.response?.data?.message || 'Failed to fetch relocations');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchRelocations();
   }, [page, perPage, statusFilter]);
-
-  const fetchRelocations = async () => {
-    try {
-      setLoading(true);
-      const apiParams: any = {
-        page,
-        limit: perPage,
-      };
-
-      if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
-
-      const response = await axios.get('/api/modules/inventory-items/relocations', {
-        params: apiParams,
-      });
-
-      if (response.data.success) {
-        // Filter out relocations with status 'created' for history view
-        const filteredRelocations = (response.data.data || []).filter(
-          (reloc: Relocation) => reloc.status !== 'created'
-        );
-        setRelocations(filteredRelocations);
-        setCount(response.data.pagination?.total || 0);
-      }
-    } catch (error: any) {
-      console.error('Error fetching relocations:', error);
-      toast.error(error.response?.data?.message || 'Failed to fetch relocations');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Reset to page 1 when filter changes
-  useEffect(() => {
-    if (page !== 1) {
-      setPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
 
   const handleViewRelocation = (id: string) => {
     setSelectedRelocationId(id);

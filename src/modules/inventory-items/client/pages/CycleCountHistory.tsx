@@ -51,6 +51,7 @@ const CycleCountHistory: React.FC = () => {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
+  const [prevStatusFilter, setPrevStatusFilter] = useState(params.get('status') || 'all');
 
   // View modal
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -75,46 +76,51 @@ const CycleCountHistory: React.FC = () => {
   }
 
   useEffect(() => {
+    // Reset to page 1 when filter changes (but don't fetch yet)
+    if (statusFilter !== prevStatusFilter && page !== 1) {
+      setPrevStatusFilter(statusFilter);
+      setPage(1);
+      return; // Skip fetching, let the page change trigger the fetch
+    }
+
+    // Update previous filter if it changed
+    if (statusFilter !== prevStatusFilter) {
+      setPrevStatusFilter(statusFilter);
+    }
+
+    // Fetch cycle counts for current page/filter combination
+    const fetchCycleCounts = async () => {
+      try {
+        setLoading(true);
+        const apiParams: any = {
+          page,
+          limit: perPage,
+        };
+
+        if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
+
+        const response = await axios.get('/api/modules/inventory-items/cycle-counts', {
+          params: apiParams,
+        });
+
+        if (response.data.success) {
+          // Filter out cycle counts with status 'created' for history view
+          const filteredCounts = (response.data.data || []).filter(
+            (count: CycleCount) => count.status !== 'created'
+          );
+          setCycleCounts(filteredCounts);
+          setCount(response.data.pagination?.total || 0);
+        }
+      } catch (error: any) {
+        console.error('Error fetching cycle counts:', error);
+        toast.error(error.response?.data?.message || 'Failed to fetch cycle counts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCycleCounts();
   }, [page, perPage, statusFilter]);
-
-  const fetchCycleCounts = async () => {
-    try {
-      setLoading(true);
-      const apiParams: any = {
-        page,
-        limit: perPage,
-      };
-
-      if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
-
-      const response = await axios.get('/api/modules/inventory-items/cycle-counts', {
-        params: apiParams,
-      });
-
-      if (response.data.success) {
-        // Filter out cycle counts with status 'created' for history view
-        const filteredCounts = (response.data.data || []).filter(
-          (count: CycleCount) => count.status !== 'created'
-        );
-        setCycleCounts(filteredCounts);
-        setCount(response.data.pagination?.total || 0);
-      }
-    } catch (error: any) {
-      console.error('Error fetching cycle counts:', error);
-      toast.error(error.response?.data?.message || 'Failed to fetch cycle counts');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Reset to page 1 when filter changes
-  useEffect(() => {
-    if (page !== 1) {
-      setPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
 
   const handleViewCount = (id: string) => {
     setSelectedCountId(id);
