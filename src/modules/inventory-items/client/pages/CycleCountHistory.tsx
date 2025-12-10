@@ -94,7 +94,8 @@ const CycleCountHistory: React.FC = () => {
         setLoading(true);
         const apiParams: any = {
           page,
-          limit: perPage,
+          perPage,
+          excludeStatus: 'created', // Exclude 'created' status for history view
         };
 
         if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
@@ -104,11 +105,7 @@ const CycleCountHistory: React.FC = () => {
         });
 
         if (response.data.success) {
-          // Filter out cycle counts with status 'created' for history view
-          const filteredCounts = (response.data.data || []).filter(
-            (count: CycleCount) => count.status !== 'created'
-          );
-          setCycleCounts(filteredCounts);
+          setCycleCounts(response.data.data || []);
           setCount(response.data.pagination?.total || 0);
         }
       } catch (error: any) {

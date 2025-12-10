@@ -34,7 +34,7 @@ const router = express.Router();
  *           type: integer
  *         description: Page number (default 1)
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
  *         description: Items per page (default 20)
@@ -44,6 +44,11 @@ const router = express.Router();
  *           type: string
  *           enum: [created, approved, rejected]
  *         description: Filter by status
+ *       - in: query
+ *         name: excludeStatus
+ *         schema:
+ *           type: string
+ *         description: Exclude specific status from results
  *     responses:
  *       200:
  *         description: List of cycle counts
@@ -54,9 +59,10 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
   try {
     const tenantId = req.user!.activeTenantId;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string) || 20), 500);
-    const offset = (page - 1) * limit;
+    const perPage = Math.min(Math.max(1, parseInt(req.query.perPage as string) || 20), 500);
+    const offset = (page - 1) * perPage;
     const statusParam = req.query.status as string;
+    const excludeStatusParam = req.query.excludeStatus as string;
 
     const whereConditions = [eq(cycleCounts.tenantId, tenantId)];
 
@@ -73,6 +79,12 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
       whereConditions.push(eq(cycleCounts.status, status));
     }
 
+    // Add excludeStatus filter if provided
+    if (excludeStatusParam) {
+      const excludeStatus = excludeStatusParam.trim().toLowerCase();
+      whereConditions.push(sql`${cycleCounts.status} != ${excludeStatus}`);
+    }
+
     // Get total count
     const [totalResult] = await db
       .select({ count: count() })
@@ -85,11 +97,11 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
       .from(cycleCounts)
       .where(and(...whereConditions))
       .orderBy(desc(cycleCounts.createdAt))
-      .limit(limit)
+      .limit(perPage)
       .offset(offset);
 
     const totalCount = totalResult?.count || 0;
-    const totalPages = Math.ceil(totalCount / limit);
+    const totalPages = Math.ceil(totalCount / perPage);
 
     res.json({
       success: true,
@@ -98,7 +110,7 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
         total: totalCount,
         totalPages,
         page,
-        limit,
+        perPage,
       },
     });
   } catch (error) {

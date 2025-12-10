@@ -47,7 +47,7 @@ export const AdjustmentHistory: React.FC = () => {
 
   // Pagination
   const [page, setPage] = useState(Number(params.get('page')) || 1);
-  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 3);
+  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
