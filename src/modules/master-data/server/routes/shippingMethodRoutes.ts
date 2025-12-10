@@ -11,6 +11,95 @@ const router = express.Router();
 // SHIPPING METHODS CRUD ROUTES
 // ================================================================================
 
+/**
+ * @swagger
+ * /api/modules/master-data/shipping-methods:
+ *   get:
+ *     tags:
+ *       - Master Data - Shipping Methods
+ *     summary: Get all shipping methods
+ *     description: Retrieve a paginated list of shipping methods with optional search
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Items per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by name
+ *     responses:
+ *       200:
+ *         description: List of shipping methods
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       code:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                         enum: [air, sea, land]
+ *                       transporterId:
+ *                         type: string
+ *                       costCalculationMethod:
+ *                         type: string
+ *                         enum: [fixed, per_kg, per_km, per_cbm]
+ *                       baseCost:
+ *                         type: number
+ *                       estimatedDays:
+ *                         type: integer
+ *                       isActive:
+ *                         type: boolean
+ *                       description:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     hasNext:
+ *                       type: boolean
+ *                     hasPrev:
+ *                       type: boolean
+ *       500:
+ *         description: Internal server error
+ */
 router.get('/', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
@@ -68,6 +157,67 @@ router.get('/', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/master-data/shipping-methods/{id}:
+ *   get:
+ *     tags:
+ *       - Master Data - Shipping Methods
+ *     summary: Get shipping method by ID
+ *     description: Retrieve a specific shipping method by its ID
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Shipping method ID
+ *     responses:
+ *       200:
+ *         description: Shipping method details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     code:
+ *                       type: string
+ *                     type:
+ *                       type: string
+ *                     transporterId:
+ *                       type: string
+ *                     costCalculationMethod:
+ *                       type: string
+ *                     baseCost:
+ *                       type: number
+ *                     estimatedDays:
+ *                       type: integer
+ *                     isActive:
+ *                       type: boolean
+ *                     description:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       404:
+ *         description: Shipping method not found
+ *       500:
+ *         description: Internal server error
+ */
 router.get('/:id', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
@@ -111,6 +261,77 @@ router.get('/:id', authorized('ADMIN', 'master-data.view'), async (req, res) => 
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/master-data/shipping-methods:
+ *   post:
+ *     tags:
+ *       - Master Data - Shipping Methods
+ *     summary: Create new shipping method
+ *     description: Create a new shipping method
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - code
+ *               - type
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Express Air
+ *               code:
+ *                 type: string
+ *                 example: EXP-AIR
+ *               type:
+ *                 type: string
+ *                 enum: [air, sea, land]
+ *                 example: air
+ *               transporterId:
+ *                 type: string
+ *                 nullable: true
+ *               costCalculationMethod:
+ *                 type: string
+ *                 enum: [fixed, per_kg, per_km, per_cbm]
+ *                 default: fixed
+ *               baseCost:
+ *                 type: number
+ *                 nullable: true
+ *                 example: 100000
+ *               estimatedDays:
+ *                 type: integer
+ *                 nullable: true
+ *                 example: 3
+ *               isActive:
+ *                 type: boolean
+ *                 default: true
+ *               description:
+ *                 type: string
+ *                 nullable: true
+ *     responses:
+ *       201:
+ *         description: Shipping method created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request - Missing required fields or duplicate code
+ *       500:
+ *         description: Internal server error
+ */
 router.post('/', authorized('ADMIN', 'master-data.create'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
@@ -205,6 +426,75 @@ router.post('/', authorized('ADMIN', 'master-data.create'), async (req, res) => 
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/master-data/shipping-methods/{id}:
+ *   put:
+ *     tags:
+ *       - Master Data - Shipping Methods
+ *     summary: Update shipping method
+ *     description: Update an existing shipping method
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Shipping method ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               code:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 enum: [air, sea, land]
+ *               transporterId:
+ *                 type: string
+ *                 nullable: true
+ *               costCalculationMethod:
+ *                 type: string
+ *                 enum: [fixed, per_kg, per_km, per_cbm]
+ *               baseCost:
+ *                 type: number
+ *                 nullable: true
+ *               estimatedDays:
+ *                 type: integer
+ *                 nullable: true
+ *               isActive:
+ *                 type: boolean
+ *               description:
+ *                 type: string
+ *                 nullable: true
+ *     responses:
+ *       200:
+ *         description: Shipping method updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request - Duplicate code
+ *       404:
+ *         description: Shipping method not found
+ *       500:
+ *         description: Internal server error
+ */
 router.put('/:id', authorized('ADMIN', 'master-data.edit'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
@@ -270,6 +560,40 @@ router.put('/:id', authorized('ADMIN', 'master-data.edit'), async (req, res) => 
   }
 });
 
+/**
+ * @swagger
+ * /api/modules/master-data/shipping-methods/{id}:
+ *   delete:
+ *     tags:
+ *       - Master Data - Shipping Methods
+ *     summary: Delete shipping method
+ *     description: Delete a shipping method by ID
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Shipping method ID
+ *     responses:
+ *       200:
+ *         description: Shipping method deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Shipping method not found
+ *       500:
+ *         description: Internal server error
+ */
 router.delete('/:id', authorized('ADMIN', 'master-data.delete'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
