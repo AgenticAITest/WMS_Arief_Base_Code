@@ -45,6 +45,11 @@ const router = express.Router();
  *           type: string
  *           enum: [all, created, submitted, approved, rejected, applied]
  *         description: Filter by status
+ *       - in: query
+ *         name: excludeStatus
+ *         schema:
+ *           type: string
+ *         description: Exclude specific status from results
  *     responses:
  *       200:
  *         description: List of adjustments
@@ -60,6 +65,7 @@ router.get('/adjustments', authorized('ADMIN', 'inventory-items.view'), async (r
     const perPage = Math.min(Math.max(1, parseInt(req.query.perPage as string) || 20), 500);
     const offset = (page - 1) * perPage;
     const statusParam = req.query.status as string;
+    const excludeStatusParam = req.query.excludeStatus as string;
 
     const whereConditions = [eq(adjustments.tenantId, tenantId)];
 
@@ -74,6 +80,12 @@ router.get('/adjustments', authorized('ADMIN', 'inventory-items.view'), async (r
         });
       }
       whereConditions.push(eq(adjustments.status, status));
+    }
+
+    // Add excludeStatus filter if provided
+    if (excludeStatusParam) {
+      const excludeStatus = excludeStatusParam.trim().toLowerCase();
+      whereConditions.push(sql`${adjustments.status} != ${excludeStatus}`);
     }
 
     // Get total count

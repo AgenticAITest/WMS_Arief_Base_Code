@@ -47,7 +47,7 @@ export const AdjustmentHistory: React.FC = () => {
 
   // Pagination
   const [page, setPage] = useState(Number(params.get('page')) || 1);
-  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
+  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 3);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all');
@@ -95,6 +95,7 @@ export const AdjustmentHistory: React.FC = () => {
         const apiParams: any = {
           page,
           perPage,
+          excludeStatus: 'created', // Exclude 'created' status for history view
         };
 
         if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
@@ -104,11 +105,7 @@ export const AdjustmentHistory: React.FC = () => {
         });
 
         if (response.data.success) {
-          // Filter out adjustments with status 'created' for history view
-          const filteredAdjustments = (response.data.data || []).filter(
-            (adj: Adjustment) => adj.status !== 'created'
-          );
-          setAdjustments(filteredAdjustments);
+          setAdjustments(response.data.data || []);
           setCount(response.data.pagination?.total || 0);
         }
       } catch (error: any) {
