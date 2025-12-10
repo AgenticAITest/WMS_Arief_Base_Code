@@ -94,7 +94,8 @@ const RelocationHistory: React.FC = () => {
         setLoading(true);
         const apiParams: any = {
           page,
-          limit: perPage,
+          perPage,
+          excludeStatus: 'created', // Exclude 'created' status for history view
         };
 
         if (statusFilter && statusFilter !== 'all') apiParams.status = statusFilter;
@@ -104,11 +105,7 @@ const RelocationHistory: React.FC = () => {
         });
 
         if (response.data.success) {
-          // Filter out relocations with status 'created' for history view
-          const filteredRelocations = (response.data.data || []).filter(
-            (reloc: Relocation) => reloc.status !== 'created'
-          );
-          setRelocations(filteredRelocations);
+          setRelocations(response.data.data || []);
           setCount(response.data.pagination?.total || 0);
         }
       } catch (error: any) {

@@ -244,7 +244,7 @@ router.post('/relocations', authorized('ADMIN', 'inventory-items.manage'), async
  *           type: integer
  *         description: Page number
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
  *         description: Items per page
@@ -254,6 +254,11 @@ router.post('/relocations', authorized('ADMIN', 'inventory-items.manage'), async
  *           type: string
  *           enum: [created, approved, rejected]
  *         description: Filter by status
+ *       - in: query
+ *         name: excludeStatus
+ *         schema:
+ *           type: string
+ *         description: Exclude specific status from results
  *     responses:
  *       200:
  *         description: List of relocations
@@ -266,11 +271,10 @@ router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (r
   try {
     const tenantId = req.user!.activeTenantId;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string) || 20), 500);
-    const perPage = Math.min(Math.max(1, parseInt(req.query.perPage as string) || limit), 500);
-    const pageSize = perPage !== 20 ? perPage : limit;
-    const offset = (page - 1) * pageSize;
+    const perPage = Math.min(Math.max(1, parseInt(req.query.perPage as string) || 20), 500);
+    const offset = (page - 1) * perPage;
     const statusParam = req.query.status as string;
+    const excludeStatusParam = req.query.excludeStatus as string;
 
     const whereConditions = [eq(relocations.tenantId, tenantId)];
 
@@ -287,6 +291,12 @@ router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (r
       whereConditions.push(eq(relocations.status, status));
     }
 
+    // Add excludeStatus filter if provided
+    if (excludeStatusParam) {
+      const excludeStatus = excludeStatusParam.trim().toLowerCase();
+      whereConditions.push(sql`${relocations.status} != ${excludeStatus}`);
+    }
+
     // Get total count
     const [totalResult] = await db
       .select({ count: count() })
@@ -299,11 +309,11 @@ router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (r
       .from(relocations)
       .where(and(...whereConditions))
       .orderBy(desc(relocations.createdAt))
-      .limit(pageSize)
+      .limit(perPage)
       .offset(offset);
 
     const totalCount = totalResult?.count || 0;
-    const totalPages = Math.ceil(totalCount / pageSize);
+    const totalPages = Math.ceil(totalCount / perPage);
 
     res.json({
       success: true,
@@ -312,7 +322,7 @@ router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (r
         total: totalCount,
         totalPages,
         page,
-        perPage: pageSize,
+        perPage: perPage,
       },
     });
   } catch (error) {

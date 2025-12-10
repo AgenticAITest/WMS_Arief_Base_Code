@@ -60,7 +60,7 @@ const RelocationCreate: React.FC = () => {
         params: {
           status: 'created',
           page: 1,
-          limit: 100,
+          perPage: 100,
         },
       });
       const relocationsList = response.data.data || [];
