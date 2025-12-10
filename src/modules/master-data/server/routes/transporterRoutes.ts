@@ -29,16 +29,28 @@ const router = express.Router();
  *           default: 1
  *         description: Page number
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
  *           default: 10
  *         description: Items per page
  *       - in: query
- *         name: search
+ *         name: sort
  *         schema:
  *           type: string
- *         description: Search by name or code
+ *           default: code
+ *         description: Sort by field (e.g., name, code)
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           default: asc
+ *         description: Sort order (asc or desc)
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: Filter by name, code, or contact person 
  *     responses:
  *       200:
  *         description: List of transporters
@@ -104,17 +116,32 @@ router.get('/', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = req.query.search as string;
-    const offset = (page - 1) * limit;
+    const perPage = parseInt(req.query.perPage as string) || 10;
+    const sort = (req.query.sort as string) || 'code';
+    const order = (req.query.order as string) || 'asc';
+    const filter = req.query.filter as string;
+    const offset = (page - 1) * perPage;
+
+    // Map allowed sort keys to columns
+    const sortColumns = {
+      id: transporters.id,
+      code: transporters.code,
+      name: transporters.name,
+      contactPerson: transporters.contactPerson,
+      phone: transporters.phone,
+      email: transporters.email,
+    } as const;
+
+    const sortColumn = sortColumns[sort as keyof typeof sortColumns] || transporters.code;
 
     const whereConditions = [eq(transporters.tenantId, tenantId)];
 
-    if (search) {
+    if (filter) {
       whereConditions.push(
         or(
-          ilike(transporters.name, `%${search}%`),
-          ilike(transporters.code, `%${search}%`)
+          ilike(transporters.name, `%${filter}%`),
+          ilike(transporters.code, `%${filter}%`),
+          ilike(transporters.contactPerson, `%${filter}%`)
         )!
       );
     }
@@ -128,23 +155,19 @@ router.get('/', authorized('ADMIN', 'master-data.view'), async (req, res) => {
       .select()
       .from(transporters)
       .where(and(...whereConditions))
-      .orderBy(desc(transporters.createdAt))
-      .limit(limit)
+      .orderBy(order === 'asc' ? transporters[sort as keyof typeof transporters] : desc(transporters[sort as keyof typeof transporters]))
+      .limit(perPage)
       .offset(offset);
-
-    const totalPages = Math.ceil(totalResult.count / limit);
 
     res.json({
       success: true,
-      data,
-      pagination: {
-        page,
-        limit,
-        total: totalResult.count,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
+      transporters: data,
+      count: totalResult.count,
+      page,
+      perPage,
+      sort,
+      order,
+      filter: filter || '',
     });
   } catch (error) {
     console.error('Error fetching transporters:', error);

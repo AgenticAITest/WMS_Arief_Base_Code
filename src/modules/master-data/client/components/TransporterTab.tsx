@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router';
 import { useAuth } from '@client/provider/AuthProvider';
 import { Button } from '@client/components/ui/button';
 import { Badge } from '@client/components/ui/badge';
@@ -25,6 +26,9 @@ import {
   AlertDialogTitle,
 } from '@client/components/ui/alert-dialog';
 import TransporterDialog from './TransporterDialog';
+import DataPagination from '@client/components/console/DataPagination';
+import SortButton from '@client/components/console/SortButton';
+import InputGroup from '@client/components/console/InputGroup';
 
 interface Transporter {
   id: string;
@@ -41,35 +45,84 @@ interface Transporter {
 
 const TransporterTab = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const params = new URLSearchParams(window.location.search);
+
   const [transporters, setTransporters] = useState<Transporter[]>([]);
+  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState(params.get('filter') || '');
+  const [sort, setSort] = useState(params.get('sort') || 'code');
+  const [order, setOrder] = useState(params.get('order') || 'asc');
+  const [page, setPage] = useState(Number(params.get('page')) || 1);
+  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Transporter | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<Transporter | null>(null);
 
-  const fetchTransporters = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/modules/master-data/transporters', {
-        params: {
-          page: 1,
-          limit: 100,
-          search: searchTerm || undefined,
-        },
-      });
-      setTransporters(response.data.data || []);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to fetch transporters');
-    } finally {
-      setLoading(false);
+  function gotoPage(p: number) {
+    if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
+    const params = new URLSearchParams(window.location.search);
+    setPage(p);
+    params.set('page', p.toString());
+    params.set('perPage', perPage.toString());
+    params.set('sort', sort);
+    params.set('order', order);
+    params.set('filter', filter);
+    navigate(`${window.location.pathname}?${params.toString()}`);
+    setLoading(true);
+  }
+
+  function sortBy(column: string) {
+    if (sort === column) {
+      setOrder(order === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSort(column);
+      setOrder('asc');
     }
-  };
+  }
+
+  function applyFilter() {
+    gotoPage(1);
+  }
+
+  function clearFilter() {
+    setFilter('');
+  }
 
   useEffect(() => {
-    fetchTransporters();
-  }, [searchTerm]);
+    gotoPage(1);
+  }, [sort, order, filter]);
+
+  useEffect(() => {
+    gotoPage(page);
+  }, [page, perPage]);
+
+  useEffect(() => {
+    if (loading) {
+      axios.get('/api/modules/master-data/transporters', {
+        params: {
+          page,
+          perPage,
+          sort,
+          order,
+          filter
+        }
+      })
+        .then(response => {
+          setTransporters(response.data.transporters || []);
+          setCount(response.data.count || 0);
+        })
+        .catch(error => {
+          console.error(error);
+          toast.error(error.response?.data?.message || 'Failed to fetch transporters');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [loading]);
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -92,7 +145,7 @@ const TransporterTab = () => {
     try {
       await axios.delete(`/api/modules/master-data/transporters/${deletingItem.id}`);
       toast.success('Transporter deleted successfully');
-      fetchTransporters();
+      setLoading(true);
       setDeleteDialogOpen(false);
       setDeletingItem(null);
     } catch (error: any) {
@@ -103,13 +156,23 @@ const TransporterTab = () => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4 flex-1">
-          <Input
-            placeholder="Search transporters..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-sm"
-          />
+        <div className="flex items-center gap-4 flex-1">        
+          <InputGroup>
+            <Input
+              placeholder="Search transporters..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
+              className="h-8 px-1 w-60 max-w-sm border-0 focus-visible:ring-0 shadow-none dark:bg-input/0"
+            />
+            {filter !== '' && (
+              <X size={20} className="text-muted-foreground cursor-pointer mx-2 hover:text-foreground" 
+                  onClick={clearFilter}/>
+            )}
+            {filter === '' && (
+              <Search size={20} className="text-muted-foreground mx-2 hover:text-foreground" />
+            )}
+          </InputGroup>
         </div>
         <Button onClick={handleAdd}>
           <Plus className="mr-2 h-4 w-4" />
@@ -119,16 +182,27 @@ const TransporterTab = () => {
 
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/20 font-semibold">
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Contact Person</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Service Areas</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[50px] py-2 text-center">#</TableHead>
+              <TableHead className="py-2">
+                <SortButton column="name" label="Name" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">
+                <SortButton column="code" label="Code" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">
+                <SortButton column="contactPerson" label="Contact Person" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">
+                <SortButton column="phone" label="Phone" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">
+                <SortButton column="email" label="Email" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">Service Areas</TableHead>
+              <TableHead className="py-2">Status</TableHead>
+              <TableHead className="w-[60px] py-2 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -145,8 +219,9 @@ const TransporterTab = () => {
                 </TableCell>
               </TableRow>
             ) : (
-              transporters.map((transporter) => (
+              transporters.map((transporter, i) => (
                 <TableRow key={transporter.id}>
+                  <TableCell className="text-center">{(page - 1) * perPage + i + 1}</TableCell>
                   <TableCell className="font-medium">{transporter.name}</TableCell>
                   <TableCell>{transporter.code}</TableCell>
                   <TableCell>{transporter.contactPerson || '-'}</TableCell>
@@ -200,11 +275,18 @@ const TransporterTab = () => {
         </Table>
       </div>
 
+      <DataPagination
+        count={count}
+        perPage={perPage}
+        page={page}
+        gotoPage={gotoPage}
+      />
+
       <TransporterDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         editingItem={editingItem}
-        onSuccess={fetchTransporters}
+        onSuccess={() => setLoading(true)}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
