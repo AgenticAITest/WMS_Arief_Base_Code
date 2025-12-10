@@ -57,12 +57,12 @@ const MasterDataManagement = () => {
           >
             Customer
           </TabsTrigger>
-          <TabsTrigger 
+          {/* <TabsTrigger 
             value="number"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
           >
             Number
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="product" className="mt-6">

@@ -14,6 +14,7 @@ import {
 import { sampleModuleSidebarMenus } from "../../modules/sample-module/client/menus/sideBarMenus";
 
 import { generalSidebarMenus } from "../../modules/general/client/menus/sideBarMenus";
+import { documentNumberingSidebarMenus } from "../../modules/document-numbering/client/menus/sideBarMenus";
 import {
   cycleCountSidebarMenus,
   inventoryItemsSidebarMenus
@@ -189,6 +190,8 @@ const data = {
     salesOrderSidebarMenus,
 
     inventoryItemsSidebarMenus,
+
+    documentNumberingSidebarMenus,
 
     masterDataSidebarMenus,
 
