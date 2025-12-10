@@ -2,7 +2,7 @@ import express from 'express';
 import { db } from '@server/lib/db';
 import { transporters } from '../lib/db/schemas/masterData';
 import { authorized } from '@server/middleware/authMiddleware';
-import { eq, and, desc, count, ilike, or } from 'drizzle-orm';
+import { eq, and, desc, count, ilike, or, asc } from 'drizzle-orm';
 import crypto from 'crypto';
 
 const router = express.Router();
@@ -155,7 +155,7 @@ router.get('/', authorized('ADMIN', 'master-data.view'), async (req, res) => {
       .select()
       .from(transporters)
       .where(and(...whereConditions))
-      .orderBy(order === 'asc' ? transporters[sort as keyof typeof transporters] : desc(transporters[sort as keyof typeof transporters]))
+      .orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn))
       .limit(perPage)
       .offset(offset);
 
