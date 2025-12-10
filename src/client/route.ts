@@ -176,7 +176,7 @@ export const router = createBrowserRouter([
             salesOrderReactRoutes("modules/sales-order"),
             workflowReactRoutes("modules/workflow"),
             documentNumberingReactRoutes("modules/document-numbering"),
-            reportsReactRoutes("reports"),
+            reportsReactRoutes("modules/reports"),
             generalReactRoutes("modules/general"),
 ],
       },
