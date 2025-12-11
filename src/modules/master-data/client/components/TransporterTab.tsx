@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router';
 import { useAuth } from '@client/provider/AuthProvider';
 import { Button } from '@client/components/ui/button';
 import { Badge } from '@client/components/ui/badge';
@@ -45,17 +44,14 @@ interface Transporter {
 
 const TransporterTab = () => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const params = new URLSearchParams(window.location.search);
-
   const [transporters, setTransporters] = useState<Transporter[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState(params.get('filter') || '');
-  const [sort, setSort] = useState(params.get('sort') || 'code');
-  const [order, setOrder] = useState(params.get('order') || 'asc');
-  const [page, setPage] = useState(Number(params.get('page')) || 1);
-  const [perPage, setPerPage] = useState(Number(params.get('perPage')) || 10);
+  const [filter, setFilter] = useState('');
+  const [sort, setSort] = useState('code');
+  const [order, setOrder] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Transporter | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -63,14 +59,7 @@ const TransporterTab = () => {
 
   function gotoPage(p: number) {
     if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
-    const params = new URLSearchParams(window.location.search);
     setPage(p);
-    params.set('page', p.toString());
-    params.set('perPage', perPage.toString());
-    params.set('sort', sort);
-    params.set('order', order);
-    params.set('filter', filter);
-    navigate(`${window.location.pathname}?${params.toString()}`);
     setLoading(true);
   }
 
@@ -84,7 +73,8 @@ const TransporterTab = () => {
   }
 
   function applyFilter() {
-    gotoPage(1);
+    setPage(1);
+    setLoading(true);
   }
 
   function clearFilter() {
@@ -92,12 +82,9 @@ const TransporterTab = () => {
   }
 
   useEffect(() => {
-    gotoPage(1);
+    setPage(1);
+    setLoading(true);
   }, [sort, order, filter]);
-
-  useEffect(() => {
-    gotoPage(page);
-  }, [page, perPage]);
 
   useEffect(() => {
     if (loading) {

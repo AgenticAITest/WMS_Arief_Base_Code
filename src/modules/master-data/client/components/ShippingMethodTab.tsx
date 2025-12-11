@@ -10,10 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from '@client/components/ui/table';
-import { Card, CardContent } from '@client/components/ui/card';
-import { Plus, Pencil, Trash2, Search, RefreshCw } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ShippingMethodDialog from './ShippingMethodDialog';
+import DataPagination from '@client/components/console/DataPagination';
+import SortButton from '@client/components/console/SortButton';
+import InputGroup from '@client/components/console/InputGroup';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,31 +42,71 @@ interface ShippingMethod {
 
 export default function ShippingMethodTab() {
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
+  const [count, setCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
+  const [sort, setSort] = useState('code');
+  const [order, setOrder] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<ShippingMethod | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [methodToDelete, setMethodToDelete] = useState<ShippingMethod | null>(null);
 
-  useEffect(() => {
-    fetchShippingMethods();
-  }, [search]);
-
-  const fetchShippingMethods = async () => {
+  function gotoPage(p: number) {
+    if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
+    setPage(p);
     setLoading(true);
-    try {
-      const response = await axios.get('/api/modules/master-data/shipping-methods', {
-        params: { search, limit: 100 },
-      });
-      setShippingMethods(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching shipping methods:', error);
-      toast.error('Failed to fetch shipping methods');
-    } finally {
-      setLoading(false);
+  }
+
+  function sortBy(column: string) {
+    if (sort === column) {
+      setOrder(order === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSort(column);
+      setOrder('asc');
     }
-  };
+  }
+
+  function applyFilter() {
+    setPage(1);
+    setLoading(true);
+  }
+
+  function clearFilter() {
+    setFilter('');
+  }
+
+  useEffect(() => {
+    setPage(1);
+    setLoading(true);
+  }, [sort, order, filter]);
+
+  useEffect(() => {
+    if (loading) {
+      axios.get('/api/modules/master-data/shipping-methods', {
+        params: {
+          page,
+          perPage,
+          sort,
+          order,
+          filter
+        }
+      })
+        .then(response => {
+          setShippingMethods(response.data.shippingMethods || []);
+          setCount(response.data.count || 0);
+        })
+        .catch(error => {
+          console.error(error);
+          toast.error(error.response?.data?.message || 'Failed to fetch shipping methods');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [loading]);
 
   const handleCreate = () => {
     setSelectedMethod(null);
@@ -87,39 +129,42 @@ export default function ShippingMethodTab() {
     try {
       await axios.delete(`/api/modules/master-data/shipping-methods/${methodToDelete.id}`);
       toast.success('Shipping method deleted successfully');
-      fetchShippingMethods();
+      setLoading(true);
+      setDeleteDialogOpen(false);
+      setMethodToDelete(null);
     } catch (error: any) {
       console.error('Error deleting shipping method:', error);
       toast.error(error.response?.data?.message || 'Failed to delete shipping method');
-    } finally {
-      setDeleteDialogOpen(false);
-      setMethodToDelete(null);
     }
   };
 
   const handleSuccess = () => {
     setDialogOpen(false);
     setSelectedMethod(null);
-    fetchShippingMethods();
+    setLoading(true);
   };
 
   return (
     <>
       <div className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex gap-2 flex-1 max-w-md">
-              <div className="relative flex-1">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4 flex-1">
+              <InputGroup>
                 <Input
                   placeholder="Search shipping methods..."
-                  value={search}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-                  className="pl-8"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
+                  className="h-8 px-1 w-60 max-w-sm border-0 focus-visible:ring-0 shadow-none dark:bg-input/0"
                 />
-              </div>
-              <Button variant="outline" size="icon" onClick={fetchShippingMethods}>
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+                {filter !== '' && (
+                  <X size={20} className="text-muted-foreground cursor-pointer mx-2 hover:text-foreground" 
+                      onClick={clearFilter}/>
+                )}
+                {filter === '' && (
+                  <Search size={20} className="text-muted-foreground mx-2 hover:text-foreground" />
+                )}
+              </InputGroup>
             </div>
             <Button onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" />
@@ -127,30 +172,50 @@ export default function ShippingMethodTab() {
             </Button>
           </div>
 
-          {loading ? (
-            <div className="text-center py-8">Loading shipping methods...</div>
-          ) : shippingMethods.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No shipping methods found. Click "Add Shipping Method" to create one.
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader className="bg-muted/20 font-semibold">
+                <TableRow>
+                  <TableHead className="w-[50px] py-2 text-center">#</TableHead>
+                  <TableHead className="py-2">
+                    <SortButton column="name" label="Name" sort={sort} order={order} sortBy={sortBy} />
+                  </TableHead>
+                  <TableHead className="py-2">
+                    <SortButton column="code" label="Code" sort={sort} order={order} sortBy={sortBy} />
+                  </TableHead>
+                  <TableHead className="py-2">
+                    <SortButton column="type" label="Type" sort={sort} order={order} sortBy={sortBy} />
+                  </TableHead>
+                  <TableHead className="py-2">
+                    <SortButton column="costCalculationMethod" label="Cost Method" sort={sort} order={order} sortBy={sortBy} />
+                  </TableHead>
+                  <TableHead className="py-2">
+                    <SortButton column="baseCost" label="Base Cost" sort={sort} order={order} sortBy={sortBy} />
+                  </TableHead>
+                  <TableHead className="py-2">
+                    <SortButton column="estimatedDays" label="Est. Days" sort={sort} order={order} sortBy={sortBy} />
+                  </TableHead>
+                  <TableHead className="py-2">Status</TableHead>
+                  <TableHead className="w-[60px] py-2 text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Cost Method</TableHead>
-                    <TableHead>Base Cost</TableHead>
-                    <TableHead>Est. Days</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableCell colSpan={9} className="text-center">
+                      Loading...
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {shippingMethods.map((method) => (
+                ) : shippingMethods.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center">
+                      No shipping methods found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  shippingMethods.map((method, i) => ( (
                     <TableRow key={method.id}>
+                      <TableCell className="text-center">{(page - 1) * perPage + i + 1}</TableCell>
                       <TableCell className="font-medium">{method.name}</TableCell>
                       <TableCell>
                         <code className="text-sm">{method.code}</code>
@@ -199,11 +264,18 @@ export default function ShippingMethodTab() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  ))
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+
+          <DataPagination
+            count={count}
+            perPage={perPage}
+            page={page}
+            gotoPage={gotoPage}
+          />
       </div>
 
       <ShippingMethodDialog

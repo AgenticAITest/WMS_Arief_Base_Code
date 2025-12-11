@@ -1,7 +1,7 @@
 import express from 'express';
 import { db } from '@server/lib/db';
 import { authorized } from '@server/middleware/authMiddleware';
-import { sql, eq, and } from 'drizzle-orm';
+import { sql, eq, and, count, desc, asc, or, ilike } from 'drizzle-orm';
 import crypto from 'crypto';
 import { shippingMethods } from '../lib/db/schemas/masterData';
 
@@ -29,16 +29,28 @@ const router = express.Router();
  *           default: 1
  *         description: Page number
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
  *           default: 10
  *         description: Items per page
  *       - in: query
- *         name: search
+ *         name: sort
  *         schema:
  *           type: string
- *         description: Search by name
+ *           default: code
+ *         description: Sort by field (e.g., name, code)
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           default: asc
+ *         description: Sort order (asc or desc)
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: Filter by name, code, or type 
  *     responses:
  *       200:
  *         description: List of shipping methods
@@ -102,54 +114,61 @@ const router = express.Router();
  */
 router.get('/', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const offset = (page - 1) * limit;
-    const search = req.query.search as string;
     const tenantId = req.user!.activeTenantId;
+    const page = parseInt(req.query.page as string) || 1;
+    const perPage = parseInt(req.query.perPage as string) || 10;
+    const sort = (req.query.sort as string) || 'code';
+    const order = (req.query.order as string) || 'asc';
+    const filter = req.query.filter as string;
+    const offset = (page - 1) * perPage;
 
-    const result = await db.execute(sql`
-      SELECT 
-        id,
-        name,
-        code,
-        type,
-        transporter_id as "transporterId",
-        cost_calculation_method as "costCalculationMethod",
-        base_cost as "baseCost",
-        estimated_days as "estimatedDays",
-        is_active as "isActive",
-        description,
-        created_at as "createdAt",
-        updated_at as "updatedAt"
-      FROM shipping_methods
-      WHERE tenant_id = ${tenantId}
-        ${search ? sql`AND name ILIKE ${'%' + search + '%'}` : sql``}
-      ORDER BY name
-      LIMIT ${limit} OFFSET ${offset}
-    `);
+    // Map allowed sort keys to columns
+    const sortColumns = {
+      id: shippingMethods.id,
+      code: shippingMethods.code,
+      name: shippingMethods.name,
+      type: shippingMethods.type,
+      costCalculationMethod: shippingMethods.costCalculationMethod,
+      baseCost: shippingMethods.baseCost,
+      estimatedDays: shippingMethods.estimatedDays,
+    } as const;
 
-    const [totalResult] = await db.execute(sql`
-      SELECT COUNT(*) as count
-      FROM shipping_methods
-      WHERE tenant_id = ${tenantId}
-        ${search ? sql`AND name ILIKE ${'%' + search + '%'}` : sql``}
-    `);
+    const sortColumn = sortColumns[sort as keyof typeof sortColumns] || shippingMethods.code;
 
-    const total = Number(totalResult.count) || 0;
-    const totalPages = Math.ceil(total / limit);
+    const whereConditions = [eq(shippingMethods.tenantId, tenantId)];
+
+    if (filter) {
+      whereConditions.push(
+        or(
+          ilike(shippingMethods.name, `%${filter}%`),
+          ilike(shippingMethods.code, `%${filter}%`),
+          ilike(shippingMethods.type, `%${filter}%`)
+        )!
+      );
+    }
+
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(shippingMethods)
+      .where(and(...whereConditions));
+
+    const data = await db
+      .select()
+      .from(shippingMethods)
+      .where(and(...whereConditions))
+      .orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn))
+      .limit(perPage)
+      .offset(offset);
 
     res.json({
       success: true,
-      data: result,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
+      shippingMethods: data,
+      count: totalResult.count,
+      page,
+      perPage,
+      sort,
+      order,
+      filter: filter || '',
     });
   } catch (error) {
     console.error('Error fetching shipping methods:', error);
