@@ -87,9 +87,9 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0', // Specify OpenAPI version
     info: {
-      title: 'React Admin API',
+      title: 'WMS API',
       version: '1.0.0',
-      description: 'API documentation for react admin application',
+      description: 'API documentation for WMS application',
     },
     servers: [
       {
