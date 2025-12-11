@@ -69,3 +69,8 @@ externalPort = 3000
 deploymentTarget = "autoscale"
 run = ["npm", "run", "start"]
 build = ["npm", "run", "build"]
+
+[userenv]
+
+[userenv.shared]
+BASE_URL = "https://51c87ca7-4076-4194-ac7f-983c9c3f2f7a-00-1emdqlbgdbiby.pike.replit.dev"

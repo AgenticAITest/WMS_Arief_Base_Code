@@ -93,7 +93,7 @@ const swaggerOptions = {
     },
     servers: [
       {
-        url: 'https://51c87ca7-4076-4194-ac7f-983c9c3f2f7a-00-1emdqlbgdbiby.pike.replit.dev', // Replace with your API base URL
+        url: process.env.BASE_URL || 'https://51c87ca7-4076-4194-ac7f-983c9c3f2f7a-00-1emdqlbgdbiby.pike.replit.dev', // Replace with your API base URL
         description: 'Development server',
       },
     ],
