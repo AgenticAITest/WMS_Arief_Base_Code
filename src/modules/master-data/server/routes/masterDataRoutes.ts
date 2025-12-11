@@ -2,7 +2,7 @@ import express from 'express';
 import { db } from '@server/lib/db';
 import { productTypes, packageTypes, products, suppliers, supplierLocations, customers, customerLocations, transporters } from '../lib/db/schemas/masterData';
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
-import { eq, and, desc, count, ilike, sql, or } from 'drizzle-orm';
+import { eq, and, asc, desc, count, ilike, sql, or } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 import crypto from 'crypto';
 import transporterRoutes from './transporterRoutes';
@@ -799,34 +799,144 @@ router.delete('/package-types/:id', authorized('ADMIN', 'master-data.delete'), a
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Page number
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
  *           default: 10
+ *         description: Items per page
  *       - in: query
- *         name: search
+ *         name: sort
  *         schema:
  *           type: string
+ *           default: sku
+ *         description: Sort by field (e.g., sku, name, minimumStockLevel, weight)
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           default: asc
+ *         description: Sort order (asc or desc)
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: Filter by name or SKU
  *     responses:
  *       200:
- *         description: List of products
+ *         description: List of products with pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 products:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       sku:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       inventoryTypeId:
+ *                         type: string
+ *                       packageTypeId:
+ *                         type: string
+ *                       weight:
+ *                         type: number
+ *                       dimensions:
+ *                         type: string
+ *                       minimumStockLevel:
+ *                         type: integer
+ *                       reorderPoint:
+ *                         type: integer
+ *                       requiredTemperatureMin:
+ *                         type: number
+ *                       requiredTemperatureMax:
+ *                         type: number
+ *                       hasExpiryDate:
+ *                         type: boolean
+ *                       active:
+ *                         type: boolean
+ *                       productType:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                       packageType:
+ *                         type: object
+ *                         nullable: true
+ *                         properties:
+ *                           id:
+ *                             type: string
+ *                           name:
+ *                             type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                 count:
+ *                   type: integer
+ *                   description: Total number of products
+ *                 page:
+ *                   type: integer
+ *                   description: Current page number
+ *                 perPage:
+ *                   type: integer
+ *                   description: Items per page
+ *                 sort:
+ *                   type: string
+ *                   description: Sort field
+ *                 order:
+ *                   type: string
+ *                   description: Sort order
+ *                 filter:
+ *                   type: string
+ *                   description: Filter text
+ *       500:
+ *         description: Internal server error
  */
 router.get('/products', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = req.query.search as string;
-    const offset = (page - 1) * limit;
+    const perPage = parseInt(req.query.perPage as string) || 10;
+    const sort = (req.query.sort as string) || 'sku';
+    const order = (req.query.order as string) || 'asc';
+    const filter = req.query.filter as string;
+    const offset = (page - 1) * perPage;
+
+    // Map allowed sort keys to columns
+    const sortColumns = {
+      id: products.id,
+      sku: products.sku,
+      name: products.name,
+      minimumStockLevel: products.minimumStockLevel,
+      weight: products.weight,
+    } as const;
+
+    const sortColumn = sortColumns[sort as keyof typeof sortColumns] || products.sku;
 
     const whereConditions = [eq(products.tenantId, tenantId)];
-    
-    if (search) {
+
+    if (filter) {
       whereConditions.push(
         or(
-          ilike(products.name, `%${search}%`),
-          ilike(products.sku, `%${search}%`)
+          ilike(products.name, `%${filter}%`),
+          ilike(products.sku, `%${filter}%`)
         )!
       );
     }
@@ -864,8 +974,8 @@ router.get('/products', authorized('ADMIN', 'master-data.view'), async (req, res
       .leftJoin(productTypes, eq(products.inventoryTypeId, productTypes.id))
       .leftJoin(packageTypes, eq(products.packageTypeId, packageTypes.id))
       .where(and(...whereConditions))
-      .orderBy(desc(products.createdAt))
-      .limit(limit)
+      .orderBy(order === 'asc' ? asc(sortColumn) : desc(sortColumn))
+      .limit(perPage)
       .offset(offset);
 
     const data = rawData.map(row => ({
@@ -896,19 +1006,15 @@ router.get('/products', authorized('ADMIN', 'master-data.view'), async (req, res
       } : null,
     }));
 
-    const totalPages = Math.ceil(totalResult.count / limit);
-
     res.json({
       success: true,
-      data,
-      pagination: {
-        page,
-        limit,
-        total: totalResult.count,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
+      products: data,
+      count: totalResult.count,
+      page,
+      perPage,
+      sort,
+      order,
+      filter: filter || '',
     });
   } catch (error) {
     console.error('Error fetching products:', error);

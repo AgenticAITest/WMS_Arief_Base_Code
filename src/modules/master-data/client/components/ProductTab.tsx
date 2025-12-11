@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@client/provider/AuthProvider';
 import { Button } from '@client/components/ui/button';
@@ -25,6 +25,9 @@ import {
   AlertDialogTitle,
 } from '@client/components/ui/alert-dialog';
 import ProductDialog from './ProductDialog';
+import DataPagination from '@client/components/console/DataPagination';
+import SortButton from '@client/components/console/SortButton';
+import InputGroup from '@client/components/console/InputGroup';
 
 interface Product {
   id: string;
@@ -48,34 +51,71 @@ interface Product {
 const ProductTab = () => {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState('');
+  const [sort, setSort] = useState('sku');
+  const [order, setOrder] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<Product | null>(null);
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/modules/master-data/products', {
-        params: {
-          page: 1,
-          limit: 100,
-          search: searchTerm || undefined,
-        },
-      });
-      setProducts(response.data.data || []);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to fetch products');
-    } finally {
-      setLoading(false);
+  function gotoPage(p: number) {
+    if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
+    setPage(p);
+    setLoading(true);
+  }
+
+  function sortBy(column: string) {
+    if (sort === column) {
+      setOrder(order === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSort(column);
+      setOrder('asc');
     }
-  };
+  }
+
+  function applyFilter() {
+    setPage(1);
+    setLoading(true);
+  }
+
+  function clearFilter() {
+    setFilter('');
+  }
 
   useEffect(() => {
-    fetchProducts();
-  }, [searchTerm]);
+    setPage(1);
+    setLoading(true);
+  }, [sort, order, filter]);
+
+  useEffect(() => {
+    if (loading) {
+      axios.get('/api/modules/master-data/products', {
+        params: {
+          page,
+          perPage,
+          sort,
+          order,
+          filter
+        }
+      })
+        .then(response => {
+          setProducts(response.data.products || []);
+          setCount(response.data.count || 0);
+        })
+        .catch(error => {
+          console.error(error);
+          toast.error(error.response?.data?.message || 'Failed to fetch products');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [loading]);
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -98,82 +138,94 @@ const ProductTab = () => {
     try {
       await axios.delete(`/api/modules/master-data/products/${deletingItem.id}`);
       toast.success('Product deleted successfully');
-      fetchProducts();
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to delete product');
-    } finally {
+      setLoading(true);
       setDeleteDialogOpen(false);
       setDeletingItem(null);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete product');
     }
   };
 
   const handleDialogSuccess = () => {
     setDialogOpen(false);
     setEditingItem(null);
-    fetchProducts();
+    setLoading(true);
   };
 
-  const filteredProducts = products.filter(
-    (product) =>
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-lg font-semibold">Inventory Items</h2>
           <p className="text-sm text-muted-foreground">
             Manage your inventory master data
           </p>
         </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4 flex-1">
+          <InputGroup>
+            <Input
+              placeholder="Search products..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
+              className="h-8 px-1 w-60 max-w-sm border-0 focus-visible:ring-0 shadow-none dark:bg-input/0"
+            />
+            {filter !== '' && (
+              <X size={20} className="text-muted-foreground cursor-pointer mx-2 hover:text-foreground" 
+                  onClick={clearFilter}/>
+            )}
+            {filter === '' && (
+              <Search size={20} className="text-muted-foreground mx-2 hover:text-foreground" />
+            )}
+          </InputGroup>
+        </div>
         <Button onClick={handleAdd}>
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 h-4 w-4" />
           Add Inventory Item
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
-        <Input
-          placeholder="Search by SKU or name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
-
-      <div className="border rounded-lg overflow-x-auto">
+      <div className="rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-muted/20 font-semibold">
             <TableRow>
-              <TableHead>SKU</TableHead>
-              <TableHead>Item Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Package</TableHead>
-              <TableHead>Size/Weight</TableHead>
-              <TableHead>Min Stock</TableHead>
-              <TableHead>Expiry</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[50px] py-2 text-center">#</TableHead>
+              <TableHead className="py-2">
+                <SortButton column="sku" label="SKU" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">
+                <SortButton column="name" label="Item Name" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">Type</TableHead>
+              <TableHead className="py-2">Package</TableHead>
+              <TableHead className="py-2">
+                <SortButton column="weight" label="Size/Weight" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">
+                <SortButton column="minimumStockLevel" label="Min Stock" sort={sort} order={order} sortBy={sortBy} />
+              </TableHead>
+              <TableHead className="py-2">Expiry</TableHead>
+              <TableHead className="py-2">Status</TableHead>
+              <TableHead className="w-[60px] py-2 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10">
+                <TableCell colSpan={10} className="text-center">
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : filteredProducts.length === 0 ? (
+            ) : products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center">
                   No products found
                 </TableCell>
               </TableRow>
             ) : (
-              filteredProducts.map((product) => (
+              products.map((product, i) => (
                 <TableRow key={product.id}>
+                  <TableCell className="text-center">{(page - 1) * perPage + i + 1}</TableCell>
                   <TableCell className="font-medium">{product.sku}</TableCell>
                   <TableCell>{product.name}</TableCell>
                   <TableCell>{product.productType?.name || '-'}</TableCell>
@@ -206,7 +258,7 @@ const ProductTab = () => {
                         size="icon"
                         onClick={() => handleDelete(product)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </TableCell>
@@ -216,6 +268,13 @@ const ProductTab = () => {
           </TableBody>
         </Table>
       </div>
+
+      <DataPagination
+        count={count}
+        perPage={perPage}
+        page={page}
+        gotoPage={gotoPage}
+      />
 
       <ProductDialog
         open={dialogOpen}
