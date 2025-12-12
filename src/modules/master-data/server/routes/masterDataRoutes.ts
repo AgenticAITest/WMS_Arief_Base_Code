@@ -65,33 +65,95 @@ router.use('/shipping-methods', shippingMethodRoutes);
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Page number
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
  *           default: 10
+ *         description: Items per page
  *       - in: query
- *         name: search
+ *         name: sort
  *         schema:
  *           type: string
+ *           default: name
+ *         description: Sort by field (e.g., name, category, isActive)
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           default: asc
+ *         description: Sort order (asc or desc)
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: Filter by name or description
  *     responses:
  *       200:
- *         description: List of product types
- *       401:
- *         description: Unauthorized
+ *         description: List of product types with pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 productTypes:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/ProductType'
+ *                 count:
+ *                   type: integer
+ *                   description: Total number of product types
+ *                 page:
+ *                   type: integer
+ *                   description: Current page number
+ *                 perPage:
+ *                   type: integer
+ *                   description: Items per page
+ *                 sort:
+ *                   type: string
+ *                   description: Sort field
+ *                 order:
+ *                   type: string
+ *                   description: Sort order
+ *                 filter:
+ *                   type: string
+ *                   description: Filter text
+ *       500:
+ *         description: Internal server error
  */
 router.get('/product-types', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = req.query.search as string;
-    const offset = (page - 1) * limit;
+    const perPage = parseInt(req.query.perPage as string) || 10;
+    const sort = (req.query.sort as string) || 'name';
+    const order = (req.query.order as string) || 'asc';
+    const filter = req.query.filter as string;
+    const offset = (page - 1) * perPage;
+
+    // Define sortable columns
+    const sortColumns: Record<string, any> = {
+      id: productTypes.id,
+      name: productTypes.name,
+      category: productTypes.category,
+      isActive: productTypes.isActive,
+    };
+
+    const sortColumn = sortColumns[sort] || productTypes.name;
+    const orderFn = order === 'desc' ? desc : asc;
 
     const whereConditions = [eq(productTypes.tenantId, tenantId)];
-    
-    if (search) {
-      whereConditions.push(ilike(productTypes.name, `%${search}%`));
+
+    if (filter) {
+      whereConditions.push(
+        or(
+          ilike(productTypes.name, `%${filter}%`),
+          ilike(productTypes.description, `%${filter}%`)
+        )!
+      );
     }
 
     const [totalResult] = await db
@@ -103,23 +165,19 @@ router.get('/product-types', authorized('ADMIN', 'master-data.view'), async (req
       .select()
       .from(productTypes)
       .where(and(...whereConditions))
-      .orderBy(desc(productTypes.createdAt))
-      .limit(limit)
+      .orderBy(orderFn(sortColumn))
+      .limit(perPage)
       .offset(offset);
-
-    const totalPages = Math.ceil(totalResult.count / limit);
 
     res.json({
       success: true,
-      data,
-      pagination: {
-        page,
-        limit,
-        total: totalResult.count,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
+      productTypes: data,
+      count: totalResult.count,
+      page,
+      perPage,
+      sort,
+      order,
+      filter: filter || '',
     });
   } catch (error) {
     console.error('Error fetching product types:', error);
