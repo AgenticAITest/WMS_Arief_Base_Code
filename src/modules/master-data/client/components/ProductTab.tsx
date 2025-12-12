@@ -139,10 +139,11 @@ const ProductTab = () => {
       await axios.delete(`/api/modules/master-data/products/${deletingItem.id}`);
       toast.success('Product deleted successfully');
       setLoading(true);
-      setDeleteDialogOpen(false);
-      setDeletingItem(null);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete product');
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeletingItem(null);
     }
   };
 

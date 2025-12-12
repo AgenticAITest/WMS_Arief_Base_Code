@@ -132,8 +132,6 @@ const PackageTypeTab = () => {
       await axios.delete(`/api/modules/master-data/package-types/${deletingItem.id}`);
       toast.success('Package type deleted successfully');
       setLoading(true);
-      setDeleteDialogOpen(false);
-      setDeletingItem(null);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete package type');
     } finally {

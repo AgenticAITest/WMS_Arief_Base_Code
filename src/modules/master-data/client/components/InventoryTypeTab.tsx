@@ -52,54 +52,59 @@ const InventoryTypeTab = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<InventoryType | null>(null);
 
-  const fetchInventoryTypes = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/modules/master-data/product-types', {
-        params: {
-          page,
-          perPage,
-          sort,
-          order,
-          filter: filter || undefined,
-        },
-      });
-      setInventoryTypes(response.data.productTypes || []);
-      setCount(response.data.count || 0);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to fetch inventory types');
-    } finally {
-      setLoading(false);
-    }
-  };
+  function gotoPage(p: number) {
+    if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
+    setPage(p);
+    setLoading(true);
+  }
 
-  useEffect(() => {
-    fetchInventoryTypes();
-  }, [page, perPage, sort, order, filter]);
-
-  const gotoPage = (newPage: number) => {
-    setPage(newPage);
-  };
-
-  const sortBy = (column: string) => {
+  function sortBy(column: string) {
     if (sort === column) {
       setOrder(order === 'asc' ? 'desc' : 'asc');
     } else {
       setSort(column);
       setOrder('asc');
     }
-    setPage(1);
-  };
+  }
 
   function applyFilter() {
     setPage(1);
     setLoading(true);
   }
 
-  const clearFilter = () => {
+  function clearFilter() {
     setFilter('');
+  }
+
+  useEffect(() => {
     setPage(1);
-  };
+    setLoading(true);
+  }, [sort, order, filter]);
+
+  useEffect(() => {
+    if (loading) {
+      axios.get('/api/modules/master-data/product-types', {
+        params: {
+          page,
+          perPage,
+          sort,
+          order,
+          filter
+        }
+      })
+        .then(response => {
+          setInventoryTypes(response.data.productTypes || []);
+          setCount(response.data.count || 0);
+        })
+        .catch(error => {
+          console.error(error);
+          toast.error(error.response?.data?.message || 'Failed to fetch product types');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [loading]);
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -122,7 +127,7 @@ const InventoryTypeTab = () => {
     try {
       await axios.delete(`/api/modules/master-data/product-types/${deletingItem.id}`);
       toast.success('Inventory type deleted successfully');
-      fetchInventoryTypes();
+      setLoading(true);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete inventory type');
     } finally {
@@ -134,7 +139,7 @@ const InventoryTypeTab = () => {
   const handleDialogSuccess = () => {
     setDialogOpen(false);
     setEditingItem(null);
-    fetchInventoryTypes();
+    setLoading(true);
   };
 
   return (
