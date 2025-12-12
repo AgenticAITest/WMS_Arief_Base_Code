@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Pencil, Trash2, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@client/provider/AuthProvider';
 import { Button } from '@client/components/ui/button';
@@ -25,6 +25,9 @@ import {
   AlertDialogTitle,
 } from '@client/components/ui/alert-dialog';
 import CustomerDialog from './CustomerDialog';
+import DataPagination from '@client/components/console/DataPagination';
+import SortButton from '@client/components/console/SortButton';
+import InputGroup from '@client/components/console/InputGroup';
 
 interface CustomerLocation {
   id: string;
@@ -54,33 +57,70 @@ const CustomerTab = () => {
   const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState('');
+  const [sort, setSort] = useState('name');
+  const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+  const [count, setCount] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Customer | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingItem, setDeletingItem] = useState<Customer | null>(null);
 
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('/api/modules/master-data/customers', {
-        params: {
-          page: 1,
-          limit: 100,
-          search: searchTerm || undefined,
-        },
-      });
-      setCustomers(response.data.data || []);
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to fetch customers');
-    } finally {
-      setLoading(false);
+  function gotoPage(p: number) {
+    if (p < 1 || (count !== 0 && p > Math.ceil(count / perPage))) return;
+    setPage(p);
+    setLoading(true);
+  }
+
+  function sortBy(column: string) {
+    if (sort === column) {
+      setOrder(order === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSort(column);
+      setOrder('asc');
     }
-  };
+  }
+
+  function applyFilter() {
+    setPage(1);
+    setLoading(true);
+  }
+
+  function clearFilter() {
+    setFilter('');
+  }
 
   useEffect(() => {
-    fetchCustomers();
-  }, [searchTerm]);
+    setPage(1);
+    setLoading(true);
+  }, [sort, order, filter]);
+
+  useEffect(() => {
+    if (loading) {
+      axios.get('/api/modules/master-data/customers', {
+        params: {
+          page,
+          perPage,
+          sort,
+          order,
+          filter
+        }
+      })
+        .then(response => {
+          setCustomers(response.data.customers || []);
+          setCount(response.data.count || 0);
+        })
+        .catch(error => {
+          console.error(error);
+          toast.error(error.response?.data?.message || 'Failed to fetch customers');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    }
+  }, [loading]);
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -108,7 +148,7 @@ const CustomerTab = () => {
     try {
       await axios.delete(`/api/modules/master-data/customers/${deletingItem.id}`);
       toast.success('Customer deleted successfully');
-      fetchCustomers();
+      setLoading(true);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete customer');
     } finally {
@@ -120,12 +160,8 @@ const CustomerTab = () => {
   const handleDialogSuccess = () => {
     setDialogOpen(false);
     setEditingItem(null);
-    fetchCustomers();
+    setLoading(true);
   };
-
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -136,49 +172,69 @@ const CustomerTab = () => {
             Manage customers and their delivery locations
           </p>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4 flex-1">
+          <InputGroup>
+            <Input
+              placeholder="Search customers..."
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
+              className="h-8 px-1 w-60 max-w-sm border-0 focus-visible:ring-0 shadow-none dark:bg-input/0"
+            />
+            {filter !== '' && (
+              <X size={20} className="text-muted-foreground cursor-pointer mx-2 hover:text-foreground" 
+                  onClick={clearFilter}/>
+            )}
+            {filter === '' && (
+              <Search size={20} className="text-muted-foreground mx-2 hover:text-foreground" />
+            )}
+          </InputGroup>
+        </div>
         <Button onClick={handleAdd}>
           <Plus className="h-4 w-4 mr-2" />
           Add Customer
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
-        <Input
-          placeholder="Search customers..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
-
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Contact</TableHead>
+              <TableHead className="w-[50px] py-2 text-center">#</TableHead>
+              <TableHead>
+                <SortButton label="Customer" column="name" sort={sort} order={order} sortBy={sortBy}/>
+              </TableHead>
+              <TableHead>
+                <SortButton label="Code" column="taxId" sort={sort} order={order} sortBy={sortBy}/>
+              </TableHead>
+              <TableHead>
+                <SortButton label="Contact" column="contactPerson" sort={sort} order={order} sortBy={sortBy}/>
+              </TableHead>
               <TableHead>Delivery Locations</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[60px] py-2 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   Loading...
                 </TableCell>
               </TableRow>
-            ) : filteredCustomers.length === 0 ? (
+            ) : customers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No customers found
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCustomers.map((customer) => (
+              customers.map((customer, index) => (
                 <TableRow key={customer.id}>
+                  <TableCell className="text-center">{(page - 1) * perPage + index + 1}</TableCell>
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="font-medium">{customer.name}</span>
@@ -231,7 +287,7 @@ const CustomerTab = () => {
                         size="icon"
                         onClick={() => handleDelete(customer)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </TableCell>
@@ -241,6 +297,13 @@ const CustomerTab = () => {
           </TableBody>
         </Table>
       </div>
+
+      <DataPagination
+        count={count}
+        perPage={perPage}
+        page={page}
+        gotoPage={gotoPage}
+      />
 
       <CustomerDialog
         open={dialogOpen}

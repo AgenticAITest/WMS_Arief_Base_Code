@@ -2192,32 +2192,105 @@ router.delete('/suppliers/:id', authorized('ADMIN', 'master-data.delete'), async
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Page number
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
  *           default: 10
+ *         description: Items per page
  *       - in: query
- *         name: search
+ *         name: sort
  *         schema:
  *           type: string
+ *           default: name
+ *         description: Sort by field (e.g., name, contactPerson, email, phone, taxId)
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           default: asc
+ *         description: Sort order (asc or desc)
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: Filter by name, contact person, email, or tax ID
  *     responses:
  *       200:
- *         description: List of customers
+ *         description: List of customers with pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 customers:
+ *                   type: array
+ *                   items:
+ *                     allOf:
+ *                       - $ref: '#/components/schemas/Customer'
+ *                       - type: object
+ *                         properties:
+ *                           locationCount:
+ *                             type: integer
+ *                             description: Number of locations for this customer
+ *                 count:
+ *                   type: integer
+ *                   description: Total number of customers
+ *                 page:
+ *                   type: integer
+ *                   description: Current page number
+ *                 perPage:
+ *                   type: integer
+ *                   description: Items per page
+ *                 sort:
+ *                   type: string
+ *                   description: Sort field
+ *                 order:
+ *                   type: string
+ *                   description: Sort order
+ *                 filter:
+ *                   type: string
+ *                   description: Filter text
+ *       500:
+ *         description: Internal server error
  */
 router.get('/customers', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = req.query.search as string;
-    const includeLocations = req.query.includeLocations === 'true';
-    const offset = (page - 1) * limit;
+    const perPage = parseInt(req.query.perPage as string) || 10;
+    const sort = (req.query.sort as string) || 'name';
+    const order = (req.query.order as string) || 'asc';
+    const filter = req.query.filter as string;
+    const offset = (page - 1) * perPage;
+
+    // Define sortable columns
+    const sortColumns: Record<string, any> = {
+      id: customers.id,
+      name: customers.name,
+      contactPerson: customers.contactPerson,
+      email: customers.email,
+      phone: customers.phone,
+      taxId: customers.taxId,
+    };
+
+    const sortColumn = sortColumns[sort] || customers.name;
+    const orderFn = order === 'desc' ? desc : asc;
 
     const whereConditions = [eq(customers.tenantId, tenantId)];
-    
-    if (search) {
-      whereConditions.push(ilike(customers.name, `%${search}%`));
+
+    if (filter) {
+      whereConditions.push(
+        or(
+          ilike(customers.name, `%${filter}%`),
+          ilike(customers.contactPerson, `%${filter}%`),
+          ilike(customers.email, `%${filter}%`),
+          ilike(customers.taxId, `%${filter}%`)
+        )!
+      );
     }
 
     const [totalResult] = await db
@@ -2229,50 +2302,33 @@ router.get('/customers', authorized('ADMIN', 'master-data.view'), async (req, re
       .select()
       .from(customers)
       .where(and(...whereConditions))
-      .orderBy(desc(customers.createdAt))
-      .limit(limit)
+      .orderBy(orderFn(sortColumn))
+      .limit(perPage)
       .offset(offset);
 
     const data = await Promise.all(
       customersList.map(async (customer) => {
-        if (includeLocations) {
-          const locations = await db
-            .select()
-            .from(customerLocations)
-            .where(eq(customerLocations.customerId, customer.id));
-          
-          return {
-            ...customer,
-            locations,
-            locationCount: locations.length,
-          };
-        } else {
-          const [locationCount] = await db
-            .select({ count: count() })
-            .from(customerLocations)
-            .where(eq(customerLocations.customerId, customer.id));
-          
-          return {
-            ...customer,
-            locationCount: Number(locationCount?.count) || 0,
-          };
-        }
+        const [locationCount] = await db
+          .select({ count: count() })
+          .from(customerLocations)
+          .where(eq(customerLocations.customerId, customer.id));
+
+        return {
+          ...customer,
+          locationCount: Number(locationCount?.count) || 0,
+        };
       })
     );
 
-    const totalPages = Math.ceil(totalResult.count / limit);
-
     res.json({
       success: true,
-      data,
-      pagination: {
-        page,
-        limit,
-        total: totalResult.count,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
+      customers: data,
+      count: totalResult.count,
+      page,
+      perPage,
+      sort,
+      order,
+      filter: filter || '',
     });
   } catch (error) {
     console.error('Error fetching customers:', error);
