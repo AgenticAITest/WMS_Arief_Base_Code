@@ -477,31 +477,97 @@ router.delete('/product-types/:id', authorized('ADMIN', 'master-data.delete'), a
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Page number
  *       - in: query
- *         name: limit
+ *         name: perPage
  *         schema:
  *           type: integer
  *           default: 10
+ *         description: Items per page
  *       - in: query
- *         name: search
+ *         name: sort
  *         schema:
  *           type: string
+ *           default: name
+ *         description: Sort by field (e.g., name, barcode, weight, unitsPerPackage, isActive)
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           default: asc
+ *         description: Sort order (asc or desc)
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *         description: Filter by name or description
  *     responses:
  *       200:
- *         description: List of package types
+ *         description: List of package types with pagination
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 packageTypes:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PackageType'
+ *                 count:
+ *                   type: integer
+ *                   description: Total number of package types
+ *                 page:
+ *                   type: integer
+ *                   description: Current page number
+ *                 perPage:
+ *                   type: integer
+ *                   description: Items per page
+ *                 sort:
+ *                   type: string
+ *                   description: Sort field
+ *                 order:
+ *                   type: string
+ *                   description: Sort order
+ *                 filter:
+ *                   type: string
+ *                   description: Filter text
+ *       500:
+ *         description: Internal server error
  */
 router.get('/package-types', authorized('ADMIN', 'master-data.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const search = req.query.search as string;
-    const offset = (page - 1) * limit;
+    const perPage = parseInt(req.query.perPage as string) || 10;
+    const sort = (req.query.sort as string) || 'name';
+    const order = (req.query.order as string) || 'asc';
+    const filter = req.query.filter as string;
+    const offset = (page - 1) * perPage;
+
+    // Define sortable columns
+    const sortColumns: Record<string, any> = {
+      id: packageTypes.id,
+      name: packageTypes.name,
+      barcode: packageTypes.barcode,
+      weight: packageTypes.weight,
+      unitsPerPackage: packageTypes.unitsPerPackage,
+      isActive: packageTypes.isActive,
+    };
+
+    const sortColumn = sortColumns[sort] || packageTypes.name;
+    const orderFn = order === 'desc' ? desc : asc;
 
     const whereConditions = [eq(packageTypes.tenantId, tenantId)];
-    
-    if (search) {
-      whereConditions.push(ilike(packageTypes.name, `%${search}%`));
+
+    if (filter) {
+      whereConditions.push(
+        or(
+          ilike(packageTypes.name, `%${filter}%`),
+          ilike(packageTypes.description, `%${filter}%`)
+        )!
+      );
     }
 
     const [totalResult] = await db
@@ -513,23 +579,19 @@ router.get('/package-types', authorized('ADMIN', 'master-data.view'), async (req
       .select()
       .from(packageTypes)
       .where(and(...whereConditions))
-      .orderBy(desc(packageTypes.createdAt))
-      .limit(limit)
+      .orderBy(orderFn(sortColumn))
+      .limit(perPage)
       .offset(offset);
-
-    const totalPages = Math.ceil(totalResult.count / limit);
 
     res.json({
       success: true,
-      data,
-      pagination: {
-        page,
-        limit,
-        total: totalResult.count,
-        totalPages,
-        hasNext: page < totalPages,
-        hasPrev: page > 1,
-      },
+      packageTypes: data,
+      count: totalResult.count,
+      page,
+      perPage,
+      sort,
+      order,
+      filter: filter || '',
     });
   } catch (error) {
     console.error('Error fetching package types:', error);
