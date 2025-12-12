@@ -203,7 +203,7 @@ const PackageTypeTab = () => {
               <TableHead>
                 <SortButton label="Status" column="isActive" sort={sort} order={order} sortBy={sortBy}/>
               </TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="w-[60px] py-2 text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
