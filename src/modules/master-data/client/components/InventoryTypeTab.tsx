@@ -182,7 +182,7 @@ const InventoryTypeTab = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16">No</TableHead>
+              <TableHead className="w-[50px] py-2 text-center">#</TableHead>
               <TableHead>
                 <SortButton label="Name" column="name" sort={sort} order={order} sortBy={sortBy}/>
               </TableHead>
@@ -212,7 +212,7 @@ const InventoryTypeTab = () => {
             ) : (
               inventoryTypes.map((type, index) => (
                 <TableRow key={type.id}>
-                  <TableCell>{(page - 1) * perPage + index + 1}</TableCell>
+                  <TableCell className="text-center">{(page - 1) * perPage + index + 1}</TableCell>
                   <TableCell className="font-medium">{type.name}</TableCell>
                   <TableCell>{type.description || '-'}</TableCell>
                   <TableCell>{type.category || '-'}</TableCell>
