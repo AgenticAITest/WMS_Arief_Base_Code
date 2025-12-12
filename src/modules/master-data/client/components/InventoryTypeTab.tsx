@@ -28,6 +28,7 @@ import InventoryTypeDialog from './InventoryTypeDialog';
 import DataPagination from '@client/components/console/DataPagination';
 import SortButton from '@client/components/console/SortButton';
 import InputGroup from '@client/components/console/InputGroup';
+import { DebouncedInput } from '@client/components/DebouncedInput';
 
 interface InventoryType {
   id: string;
@@ -156,12 +157,18 @@ const InventoryTypeTab = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4 flex-1">
           <InputGroup>
-            <Input
-              placeholder="Search products..."
+            {/* <Input
+              placeholder="Search inventory types..."
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
               className="h-8 px-1 w-60 max-w-sm border-0 focus-visible:ring-0 shadow-none dark:bg-input/0"
+            /> */}
+            <DebouncedInput
+              value={filter}
+              onChange={(value) => setFilter(String(value))}
+              placeholder="Search inventory types..."
+              debounce={500}
             />
             {filter !== '' && (
               <X size={20} className="text-muted-foreground cursor-pointer mx-2 hover:text-foreground" 
