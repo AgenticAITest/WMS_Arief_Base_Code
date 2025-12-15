@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import DataPagination from '@client/components/console/DataPagination';
 import { useNavigate } from 'react-router';
+import { DebouncedInput } from '@client/components/DebouncedInput';
 
 interface MovementRecord {
   id: string;
@@ -304,11 +305,19 @@ const MovementHistory: React.FC = () => {
             <Label>Search</Label>
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
+              {/* <Input
                 placeholder="Search SKU or product..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                className="pl-10"
+              /> */}
+              <DebouncedInput
+                value={search}
+                onChange={(value) => setSearch(String(value))}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Search SKU or product..."
+                debounce={500}
                 className="pl-10"
               />
             </div>
