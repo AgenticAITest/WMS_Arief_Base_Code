@@ -3,9 +3,11 @@ import { authenticated, authorized } from '@server/middleware/authMiddleware';
 import { and, desc, eq, ilike, or } from 'drizzle-orm';
 import express from 'express';
 import { documentNumberConfig } from '../lib/db/schemas/documentNumbering';
+import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 
 const router = express.Router();
 router.use(authenticated());
+router.use(checkModuleAuthorization('document-numbering'));
 
 /**
  * @swagger
