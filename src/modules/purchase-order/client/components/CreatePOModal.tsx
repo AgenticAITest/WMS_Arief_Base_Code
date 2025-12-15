@@ -118,9 +118,9 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({
         params: { page: 1, limit: 100 },
       });
       setSuppliers(response.data.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching suppliers:', error);
-      toast.error('Failed to fetch suppliers');
+      toast.error(error.response?.data?.message || 'Failed to fetch suppliers');
     }
   };
 
@@ -130,8 +130,9 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({
       if (response.data.success) {
         setSupplierLocations(response.data.data.locations || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching supplier locations:', error);
+      toast.error(error.response?.data?.message || 'Failed to fetch supplier locations');
     }
   };
 
@@ -141,9 +142,9 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({
         params: { page: 1, limit: 100 },
       });
       setWarehouses(response.data.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching warehouses:', error);
-      toast.error('Failed to fetch warehouses');
+      toast.error(error.response?.data?.message || 'Failed to fetch warehouses');
     }
   };
 
@@ -158,9 +159,9 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({
       });
       setProducts(response.data.data || []);
       setTotalPages(response.data.pagination?.totalPages || 1);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching products:', error);
-      toast.error('Failed to fetch products');
+      toast.error(error.response?.data?.message || 'Failed to fetch products');
     }
   };
 

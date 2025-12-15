@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@client/components/ui/select';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface Adjustment {
   id: string;
@@ -37,7 +38,7 @@ interface Adjustment {
   approvedBy: string | null;
 }
 
-export const AdjustmentHistory: React.FC = () => {
+const AdjustmentHistory: React.FC = () => {
   const navigate = useNavigate();
   const params = new URLSearchParams(window.location.search);
 
@@ -299,3 +300,9 @@ export const AdjustmentHistory: React.FC = () => {
     </div>
   );
 };
+
+
+export default withModuleAuthorization(AdjustmentHistory, {
+  moduleId: 'inventory-items',
+  moduleName: 'Inventory Items'
+});

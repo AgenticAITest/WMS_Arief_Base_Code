@@ -7,6 +7,7 @@ import { Package, RefreshCw, FileText } from 'lucide-react';
 import AllocationConfirmationModal from '../components/AllocationConfirmationModal';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import { AllocationPrintView } from '../components/AllocationPrintView';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface SOItem {
   id: string;
@@ -55,9 +56,9 @@ const SalesOrderAllocate: React.FC = () => {
       setLoading(true);
       const response = await axios.get('/api/modules/sales-order/allocations');
       setSalesOrders(response.data.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching allocatable orders:', error);
-      toast.error('Failed to fetch sales orders');
+      toast.error(error.response?.data?.message || 'Failed to fetch sales orders');
     } finally {
       setLoading(false);
     }
@@ -233,4 +234,7 @@ const SalesOrderAllocate: React.FC = () => {
   );
 };
 
-export default SalesOrderAllocate;
+export default withModuleAuthorization(SalesOrderAllocate, {
+  moduleId: 'sales-order',
+  moduleName: 'Sales Order'
+});

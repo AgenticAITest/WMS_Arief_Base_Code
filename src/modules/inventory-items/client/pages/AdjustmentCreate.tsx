@@ -26,6 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@client/components/ui/alert-dialog';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface Adjustment {
   id: string;
@@ -37,7 +38,7 @@ interface Adjustment {
   createdBy: string;
 }
 
-export const AdjustmentCreate: React.FC = () => {
+const AdjustmentCreate: React.FC = () => {
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -285,3 +286,8 @@ export const AdjustmentCreate: React.FC = () => {
     </div>
   );
 };
+
+export default withModuleAuthorization(AdjustmentCreate, {
+  moduleId: 'inventory-items',
+  moduleName: 'Inventory Items'
+});

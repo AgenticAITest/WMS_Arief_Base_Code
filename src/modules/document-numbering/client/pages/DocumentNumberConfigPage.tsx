@@ -30,6 +30,7 @@ import {
   AlertDialogTitle,
 } from '@client/components/ui/alert-dialog';
 import NumberDialog from '../components/NumberDialog';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface DocumentNumberConfig {
   id: string;
@@ -412,4 +413,7 @@ const DocumentNumberConfigPage = () => {
   );
 };
 
-export default DocumentNumberConfigPage;
+export default withModuleAuthorization(DocumentNumberConfigPage, {
+  moduleId: 'document-numbering',
+  moduleName: 'Document Numbering'
+});

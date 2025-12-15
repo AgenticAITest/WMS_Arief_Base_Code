@@ -37,6 +37,7 @@ import {
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface FinancialSummary {
   totalRevenue: number;
@@ -300,7 +301,7 @@ const FinancialReport: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching financial data:', error);
-      toast.error('Failed to fetch financial data');
+      toast.error(error.response?.data?.message || 'Failed to fetch financial data');
     } finally {
       setLoading(false);
     }
@@ -334,7 +335,7 @@ const FinancialReport: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching order profitability:', error);
-      toast.error('Failed to fetch order profitability data');
+      toast.error(error.response?.data?.message || 'Failed to fetch profitability data');
     } finally {
       setOrderProfitabilityLoading(false);
     }
@@ -434,7 +435,7 @@ const FinancialReport: React.FC = () => {
       toast.success(`Exported ${orders.length} orders (${periodLabel})`);
     } catch (error: any) {
       console.error('Error exporting order profitability:', error);
-      toast.error('Failed to export order profitability data');
+      toast.error(error.response?.data?.message || 'Failed to fetch order profitability data');
     } finally {
       setOrderProfitabilityExporting(false);
     }
@@ -468,7 +469,7 @@ const FinancialReport: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching product analysis:', error);
-      toast.error('Failed to fetch product analysis data');
+      toast.error(error.response?.data?.message || 'Failed to fetch product analysis data');
     } finally {
       setProductAnalysisLoading(false);
     }
@@ -538,7 +539,7 @@ const FinancialReport: React.FC = () => {
       toast.success(`Exported ${products.length} products (${periodLabel})`);
     } catch (error: any) {
       console.error('Error exporting product analysis:', error);
-      toast.error('Failed to export product analysis data');
+      toast.error(error.response?.data?.message || 'Failed to export product analysis data');
     } finally {
       setProductAnalysisExporting(false);
     }
@@ -561,7 +562,7 @@ const FinancialReport: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching inventory valuation:', error);
-      toast.error('Failed to fetch inventory valuation data');
+      toast.error(error.response?.data?.message || 'Failed to fetch inventory valuation data');
     } finally {
       setInventoryValuationLoading(false);
     }
@@ -620,7 +621,7 @@ const FinancialReport: React.FC = () => {
       toast.success(`Exported ${items.length} products (Total Value: $${totalValue.toLocaleString()})`);
     } catch (error: any) {
       console.error('Error exporting inventory valuation:', error);
-      toast.error('Failed to export inventory valuation data');
+      toast.error(error.response?.data?.message || 'Failed to export inventory valuation data');
     } finally {
       setInventoryValuationExporting(false);
     }
@@ -654,7 +655,7 @@ const FinancialReport: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching supplier analysis:', error);
-      toast.error('Failed to fetch supplier analysis data');
+      toast.error(error.response?.data?.message || 'Failed to fetch supplier analysis data');
     } finally {
       setSupplierAnalysisLoading(false);
     }
@@ -721,7 +722,7 @@ const FinancialReport: React.FC = () => {
       toast.success(`Exported ${suppliers.length} suppliers (${periodLabel})`);
     } catch (error: any) {
       console.error('Error exporting supplier analysis:', error);
-      toast.error('Failed to export supplier analysis data');
+      toast.error(error.response?.data?.message || 'Failed to export supplier analysis data');
     } finally {
       setSupplierAnalysisExporting(false);
     }
@@ -755,7 +756,7 @@ const FinancialReport: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error fetching customer revenue analysis:', error);
-      toast.error('Failed to fetch customer revenue analysis data');
+      toast.error(error.response?.data?.message || 'Failed to fetch customer revenue analysis data');
     } finally {
       setCustomerRevenueLoading(false);
     }
@@ -822,7 +823,7 @@ const FinancialReport: React.FC = () => {
       toast.success(`Exported ${customers.length} customers (${periodLabel})`);
     } catch (error: any) {
       console.error('Error exporting customer revenue analysis:', error);
-      toast.error('Failed to export customer revenue analysis data');
+      toast.error(error.response?.data?.message || 'Failed to export customer revenue analysis data');
     } finally {
       setCustomerRevenueExporting(false);
     }
@@ -1506,4 +1507,7 @@ const FinancialReport: React.FC = () => {
   );
 };
 
-export default FinancialReport;
+export default withModuleAuthorization(FinancialReport, {
+  moduleId: 'reports',
+  moduleName: 'Reports'
+});

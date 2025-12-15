@@ -40,7 +40,7 @@ const CycleCountApprove: React.FC = () => {
       setCycleCounts(response.data.data || []);
     } catch (error: any) {
       console.error('Error fetching cycle counts:', error);
-      toast.error('Failed to fetch cycle counts');
+      toast.error(error.response?.data?.message || 'Failed to fetch cycle counts');
     } finally {
       setLoading(false);
     }

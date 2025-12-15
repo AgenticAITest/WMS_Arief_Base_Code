@@ -113,7 +113,7 @@ const PurchaseOrderReceive: React.FC = () => {
       setReceivedItems(initialReceived);
     } catch (error: any) {
       console.error('Error fetching receivable orders:', error);
-      toast.error('Failed to fetch receivable orders');
+      toast.error(error.response?.data?.message || 'Failed to fetch receivable orders');
     } finally {
       setLoading(false);
     }

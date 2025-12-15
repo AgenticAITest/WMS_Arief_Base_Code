@@ -8,6 +8,7 @@ import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import PackageCreationModal from '../components/PackageCreationModal';
 import PackConfirmationModal from '../components/PackConfirmationModal';
 import { PackPrintView } from '../components/PackPrintView';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface SOItem {
   id: string;
@@ -365,4 +366,7 @@ const SalesOrderPack: React.FC = () => {
   );
 };
 
-export default SalesOrderPack;
+export default withModuleAuthorization(SalesOrderPack, {
+  moduleId: 'sales-order',
+  moduleName: 'Sales Order'
+});

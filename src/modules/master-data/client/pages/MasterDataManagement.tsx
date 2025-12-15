@@ -7,6 +7,7 @@ import ProductTab from '../components/ProductTab';
 import SupplierTab from '../components/SupplierTab';
 import CustomerTab from '../components/CustomerTab';
 import NumberTab from '../components/NumberTab';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 const MasterDataManagement = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -93,4 +94,7 @@ const MasterDataManagement = () => {
   );
 };
 
-export default MasterDataManagement;
+export default withModuleAuthorization(MasterDataManagement, {
+  moduleId: 'master-data',
+  moduleName: 'Master Data'
+});

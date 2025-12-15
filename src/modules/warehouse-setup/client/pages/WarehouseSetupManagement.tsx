@@ -1,3 +1,4 @@
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 import { WarehouseHierarchyView } from '../components/WarehouseHierarchyView';
 
 const WarehouseSetupManagement = () => {
@@ -15,4 +16,7 @@ const WarehouseSetupManagement = () => {
   );
 };
 
-export default WarehouseSetupManagement;
+export default withModuleAuthorization(WarehouseSetupManagement, {
+  moduleId: 'warehouse-setup',
+  moduleName: 'Warehouse Setup'
+});

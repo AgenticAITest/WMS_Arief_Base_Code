@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import DataPagination from '@client/components/console/DataPagination';
 import { useNavigate } from 'react-router';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface MovementRecord {
   id: string;
@@ -139,7 +140,7 @@ const MovementHistory: React.FC = () => {
         }
       } catch (error: any) {
         console.error('Error fetching movement history:', error);
-        toast.error('Failed to fetch movement history');
+        toast.error(error.response?.data?.message || 'Failed to fetch movement history');
       } finally {
         setLoading(false);
       }
@@ -213,8 +214,8 @@ const MovementHistory: React.FC = () => {
       link.parentNode?.removeChild(link);
 
       toast.success('Movement history exported successfully');
-    } catch (error) {
-      toast.error('Failed to export movement history');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to fetch movement history');
     }
   };
 
@@ -468,4 +469,7 @@ const MovementHistory: React.FC = () => {
   );
 };
 
-export default MovementHistory;
+export default withModuleAuthorization(MovementHistory, {
+  moduleId: 'inventory-items',
+  moduleName: 'Inventory Items'
+});

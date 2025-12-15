@@ -90,9 +90,9 @@ const SalesOrderCreate: React.FC = () => {
         locationsMap.set(customer.id, customer.locations || []);
       });
       setAllCustomerLocations(locationsMap);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching customers with locations:', error);
-      toast.error('Failed to fetch customers');
+      toast.error(error.response?.data?.message || 'Failed to fetch customers with locations');
     }
   };
 
@@ -129,9 +129,9 @@ const SalesOrderCreate: React.FC = () => {
         },
       });
       setAllProducts(response.data.data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching products:', error);
-      toast.error('Failed to fetch products');
+      toast.error(error.response?.data?.message || 'Failed to fetch products');
     }
   };
 

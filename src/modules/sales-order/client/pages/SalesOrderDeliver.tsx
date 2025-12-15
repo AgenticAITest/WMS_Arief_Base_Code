@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { CheckCircle, RefreshCw, Package, FileText } from 'lucide-react';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import DeliveryConfirmationModal from '../components/DeliveryConfirmationModal';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface SalesOrder {
   id: string;
@@ -255,4 +256,7 @@ const SalesOrderDeliver: React.FC = () => {
   );
 };
 
-export default SalesOrderDeliver;
+export default withModuleAuthorization(SalesOrderDeliver, {
+  moduleId: 'sales-order',
+  moduleName: 'Sales Order'
+});

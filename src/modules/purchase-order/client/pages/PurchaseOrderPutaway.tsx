@@ -181,7 +181,7 @@ const PurchaseOrderPutaway: React.FC = () => {
       setPutawayLocations(initialLocations);
     } catch (error: any) {
       console.error('Error fetching putaway data:', error);
-      toast.error('Failed to fetch putaway data');
+      toast.error(error.response?.data?.message || 'Failed to fetch putaway data');
     } finally {
       setLoading(false);
     }
@@ -748,4 +748,7 @@ const PurchaseOrderPutaway: React.FC = () => {
   );
 };
 
-export default withModuleAuthorization(PurchaseOrderPutaway, { moduleId: 'purchase-order', moduleName: 'Purchase Order' });
+export default withModuleAuthorization(PurchaseOrderPutaway, {
+  moduleId: "purchase-order",
+  moduleName: "Purchase Order",
+});

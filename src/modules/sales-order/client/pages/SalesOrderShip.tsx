@@ -7,6 +7,7 @@ import { Ship, RefreshCw, FileText } from 'lucide-react';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import ShipConfirmationModal from '../components/ShipConfirmationModal';
 import { ShipPrintView } from '../components/ShipPrintView';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface SOItem {
   id: string;
@@ -307,4 +308,7 @@ const SalesOrderShip: React.FC = () => {
   );
 };
 
-export default SalesOrderShip;
+export default withModuleAuthorization(SalesOrderShip, {
+  moduleId: 'sales-order',
+  moduleName: 'Sales Order'
+});

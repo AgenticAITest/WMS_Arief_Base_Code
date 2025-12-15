@@ -33,7 +33,7 @@ const PurchaseOrderApprove: React.FC = () => {
       setPendingPOs(response.data.data || []);
     } catch (error: any) {
       console.error('Error fetching pending approvals:', error);
-      toast.error('Failed to fetch pending approvals');
+      toast.error(error.response?.data?.message || 'Failed to fetch pending approvals');
     } finally {
       setLoading(false);
     }
@@ -174,4 +174,7 @@ const PurchaseOrderApprove: React.FC = () => {
   );
 };
 
-export default withModuleAuthorization(PurchaseOrderApprove, { moduleId: 'purchase-order', moduleName: 'Purchase Order' });
+export default withModuleAuthorization(PurchaseOrderApprove, {
+  moduleId: "purchase-order",
+  moduleName: "Purchase Order",
+});

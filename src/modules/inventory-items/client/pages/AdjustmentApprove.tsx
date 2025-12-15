@@ -14,6 +14,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ApproveAdjustmentModal } from '../components/ApproveAdjustmentModal';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface Adjustment {
   id: string;
@@ -25,7 +26,7 @@ interface Adjustment {
   createdBy: string;
 }
 
-export const AdjustmentApprove: React.FC = () => {
+const AdjustmentApprove: React.FC = () => {
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [approveModalOpen, setApproveModalOpen] = useState(false);
@@ -187,3 +188,8 @@ export const AdjustmentApprove: React.FC = () => {
     </div>
   );
 };
+
+export default withModuleAuthorization(AdjustmentApprove, {
+  moduleId: 'inventory-items',
+  moduleName: 'Inventory Items'
+});

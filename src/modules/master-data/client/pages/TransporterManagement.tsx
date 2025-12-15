@@ -2,8 +2,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@client/components/ui/
 import TransporterTab from '../components/TransporterTab';
 import ShippingMethodTab from '../components/ShippingMethodTab';
 import { Package, Truck } from 'lucide-react';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
-export default function TransporterManagement() {
+const TransporterManagement = () => {
   return (
     <div className="space-y-6">
       <div>
@@ -36,3 +37,8 @@ export default function TransporterManagement() {
     </div>
   );
 }
+
+export default withModuleAuthorization(TransporterManagement, {
+  moduleId: 'master-data',
+  moduleName: 'Master Data'
+});

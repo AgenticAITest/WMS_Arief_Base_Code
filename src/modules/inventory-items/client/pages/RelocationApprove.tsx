@@ -60,7 +60,7 @@ const RelocationApprove: React.FC = () => {
       setItemCounts(counts);
     } catch (error: any) {
       console.error('Error fetching relocations:', error);
-      toast.error('Failed to fetch relocations');
+      toast.error(error.response?.data?.message || 'Failed to fetch relocations');
     } finally {
       setLoading(false);
     }

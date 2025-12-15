@@ -5,6 +5,7 @@ import { Switch } from '@client/components/ui/switch';
 import { Button } from '@client/components/ui/button';
 import { Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@client/components/ui/card';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface WorkflowStep {
   id: string;
@@ -81,9 +82,9 @@ const WorkflowSettings: React.FC = () => {
       // Set all step states at once to avoid race conditions
       setStepStates(newStepStates);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching workflows:', error);
-      toast.error('Failed to load workflow settings');
+      toast.error(error.response?.data?.message || 'Failed to fetch workflows');
     } finally {
       setLoading(false);
     }
@@ -255,4 +256,7 @@ const WorkflowSettings: React.FC = () => {
   );
 };
 
-export default WorkflowSettings;
+export default withModuleAuthorization(WorkflowSettings, {
+  moduleId: 'workflow',
+  moduleName: 'Workflow'
+});

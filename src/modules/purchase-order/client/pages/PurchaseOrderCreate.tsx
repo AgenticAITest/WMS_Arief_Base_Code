@@ -56,7 +56,7 @@ const PurchaseOrderCreate: React.FC = () => {
       setUnapprovedPOs(response.data.data || []);
     } catch (error: any) {
       console.error('Error fetching unapproved POs:', error);
-      toast.error('Failed to fetch purchase orders');
+      toast.error(error.response?.data?.message || 'Failed to fetch purchase orders');
     } finally {
       setLoading(false);
     }

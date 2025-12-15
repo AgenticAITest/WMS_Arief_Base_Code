@@ -8,6 +8,7 @@ import { Package, RefreshCw, FileText, MapPin, Check } from 'lucide-react';
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import PickConfirmationModal from '../components/PickConfirmationModal';
 import { PickPrintView } from '../components/PickPrintView';
+import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
 
 interface Allocation {
   allocationId: string;
@@ -137,9 +138,9 @@ const SalesOrderPick: React.FC = () => {
       
       // Auto-populate pick quantities based on available inventory
       dispatch({ type: 'INITIALIZE', salesOrders: orders });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching pickable orders:', error);
-      toast.error('Failed to fetch sales orders');
+      toast.error(error.response?.data?.message || 'Failed to fetch sales orders');
     } finally {
       setLoading(false);
     }
@@ -411,4 +412,7 @@ const SalesOrderPick: React.FC = () => {
   );
 };
 
-export default SalesOrderPick;
+export default withModuleAuthorization(SalesOrderPick, {
+  moduleId: 'sales-order',
+  moduleName: 'Sales Order'
+});
