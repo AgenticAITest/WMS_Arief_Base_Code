@@ -40,6 +40,7 @@ import { withModuleAuthorization } from '@client/components/auth/withModuleAutho
 import { DocumentViewerModal } from '@client/components/DocumentViewerModal';
 import DataPagination from '@client/components/console/DataPagination';
 import { useNavigate } from 'react-router';
+import { DebouncedInput } from '@client/components/DebouncedInput';
 
 interface AuditLog {
   id: string;
@@ -534,11 +535,18 @@ const AuditLog: React.FC = () => {
                 <Label>Search</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
+                  {/* <Input
                     placeholder="Search description or resource ID..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    className="pl-10"
+                  /> */}
+                  <DebouncedInput
+                    value={searchTerm}
+                    onChange={(value) => setSearchTerm(String(value))}
+                    placeholder="Search description or resource ID..."
+                    debounce={500}
                     className="pl-10"
                   />
                 </div>
