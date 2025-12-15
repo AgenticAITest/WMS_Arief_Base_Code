@@ -91,42 +91,42 @@ const data = {
     //     },
     //   ],
     // },
-    {
-      id: "showcase",
-      title: "Showcase",
-      url: "/console/showcase",
-      icon: BookOpen,
-      items: [
-        {
-          id: "card",
-          title: "Card",
-          url: "/console/showcase/card",
-        },
-        {
-          id: "tabs",
-          title: "Tabs",
-          url: "/console/showcase/tabs",
-        },
-        {
-          id: "form",
-          title: "Form",
-          url: "/console/showcase/form",
-        },
-      ],
-    },
-    {
-      id: "demo",
-      title: "Demo",
-      url: "/console/demo",
-      icon: Puzzle,
-      items: [
-        {
-          id: "department",
-          title: "Department",
-          url: "/console/demo/department",
-        },
-      ],
-    },
+    // {
+    //   id: "showcase",
+    //   title: "Showcase",
+    //   url: "/console/showcase",
+    //   icon: BookOpen,
+    //   items: [
+    //     {
+    //       id: "card",
+    //       title: "Card",
+    //       url: "/console/showcase/card",
+    //     },
+    //     {
+    //       id: "tabs",
+    //       title: "Tabs",
+    //       url: "/console/showcase/tabs",
+    //     },
+    //     {
+    //       id: "form",
+    //       title: "Form",
+    //       url: "/console/showcase/form",
+    //     },
+    //   ],
+    // },
+    // {
+    //   id: "demo",
+    //   title: "Demo",
+    //   url: "/console/demo",
+    //   icon: Puzzle,
+    //   items: [
+    //     {
+    //       id: "department",
+    //       title: "Department",
+    //       url: "/console/demo/department",
+    //     },
+    //   ],
+    // },
     {
       id: "system",
       title: "System",
