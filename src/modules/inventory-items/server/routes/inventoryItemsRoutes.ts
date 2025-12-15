@@ -4,7 +4,7 @@ import { inventoryItems } from '../lib/db/schemas/inventoryItems';
 import { products } from '@modules/master-data/server/lib/db/schemas/masterData';
 import { bins } from '@modules/warehouse-setup/server/lib/db/schemas/warehouseSetup';
 import { authenticated, authorized } from '@server/middleware/authMiddleware';
-import { eq, and, desc, count, ilike, sql, or } from 'drizzle-orm';
+import { eq, and, desc, count, ilike, sql, or, asc } from 'drizzle-orm';
 import { checkModuleAuthorization } from '@server/middleware/moduleAuthMiddleware';
 import cycleCountRoutes from './cycleCountRoutes';
 import adjustmentRoutes from './adjustmentRoutes';
@@ -137,11 +137,11 @@ router.get('/inventory-items', authorized('ADMIN', 'inventory-items.view'), asyn
 
     // Build where conditions
     const whereConditions = [eq(inventoryItems.tenantId, tenantId)];
-    
+
     if (productId) {
       whereConditions.push(eq(inventoryItems.productId, productId));
     }
-    
+
     if (binId) {
       whereConditions.push(eq(inventoryItems.binId, binId));
     }
@@ -722,8 +722,24 @@ router.get('/stock-information', authorized('ADMIN', 'inventory-items.view'), as
       );
     }
 
-    // Build query for stock information
-    const allResults = await db
+    // Get total count with filters
+    const totalCount = await db
+      .select({ productId: inventoryItems.productId })
+      .from(inventoryItems)
+      .leftJoin(products, eq(inventoryItems.productId, products.id))
+      .where(and(...whereConditions))
+      .groupBy(
+        inventoryItems.productId,
+        products.sku,
+        products.name,
+        products.description,
+        products.hasExpiryDate,
+      );
+
+    const total = totalCount.length;
+
+    // Get paginated stock information with pagination applied at database level
+    const data = await db
       .select({
         productId: inventoryItems.productId,
         productSku: products.sku,
@@ -747,13 +763,10 @@ router.get('/stock-information', authorized('ADMIN', 'inventory-items.view'), as
         products.name,
         products.description,
         products.hasExpiryDate
-      );
-    const total = allResults.length;
-
-    // Apply pagination
-    const data = allResults
-      .sort((a, b) => (a.productSku || '').localeCompare(b.productSku || ''))
-      .slice(offset, offset + limit);
+      )
+      .orderBy(asc(products.sku))
+      .limit(limit)
+      .offset(offset);
 
     const totalPages = Math.ceil(total / limit);
 
