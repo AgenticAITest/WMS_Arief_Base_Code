@@ -14,7 +14,7 @@ export default function TransporterManagement() {
       </div>
 
       <Tabs defaultValue="transporters" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="transporters" className="flex items-center gap-2">
             <Truck className="h-4 w-4" />
             Transporters
