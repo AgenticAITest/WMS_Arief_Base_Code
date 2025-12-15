@@ -18,6 +18,7 @@ import { ViewStockDetailsDialog } from '../components/ViewStockDetailsDialog';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { DebouncedInput } from '@client/components/DebouncedInput';
 
 interface StockItem {
   productId: string;
@@ -153,10 +154,17 @@ const StockInformation = () => {
           <div className="flex gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
+              {/* <Input
                 placeholder="Search by product SKU or name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              /> */}
+              <DebouncedInput
+                value={searchTerm}
+                onChange={(value) => setSearchTerm(String(value))}
+                placeholder="Search by product SKU or name..."
+                debounce={500}
                 className="pl-10"
               />
             </div>

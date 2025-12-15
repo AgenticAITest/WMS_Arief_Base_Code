@@ -27,34 +27,34 @@ const MasterDataManagement = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="w-full justify-start bg-transparent border-b rounded-none h-auto p-0">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger 
             value="product" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            className="flex items-center gap-2"
           >
             Product
           </TabsTrigger>
           <TabsTrigger 
             value="inventory-type"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            className="flex items-center gap-2"
           >
             Inventory Type
           </TabsTrigger>
           <TabsTrigger 
             value="package-type"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            className="flex items-center gap-2"
           >
             Package Type
           </TabsTrigger>
           <TabsTrigger 
             value="supplier"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            className="flex items-center gap-2"
           >
             Supplier
           </TabsTrigger>
           <TabsTrigger 
             value="customer"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+            className="flex items-center gap-2"
           >
             Customer
           </TabsTrigger>
