@@ -81,7 +81,7 @@ const PurchaseOrderApprove: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Approve Purchase Orders</h1>
