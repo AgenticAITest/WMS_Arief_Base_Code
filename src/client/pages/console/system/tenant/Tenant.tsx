@@ -139,11 +139,11 @@ const Tenant = () => {
         <div className="flex flex-col gap-4 px-2 py-2 md:gap-6">
           
           <div className="flex  gap-2 ">
-            <Authorized roles="SYSADMIN">
+            {/* <Authorized roles="SYSADMIN">
               <Button onClick={() => navigate('/console/system/tenant/add')}>
                 <Plus/><span className="hidden lg:inline-block">Add Tenant</span>
               </Button>
-            </Authorized>
+            </Authorized> */}
             <div className="ml-auto flex items-center gap-2">
               <InputGroup>
                 <Input
