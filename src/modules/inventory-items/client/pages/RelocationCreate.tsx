@@ -153,10 +153,10 @@ const RelocationCreate: React.FC = () => {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold">Inventory Relocation</h2>
+          <h2 className="text-3xl font-bold">Inventory Relocation</h2>
           <p className="text-gray-600">Create and manage inventory relocations</p>
         </div>
         <Button onClick={() => setModalOpen(true)}>

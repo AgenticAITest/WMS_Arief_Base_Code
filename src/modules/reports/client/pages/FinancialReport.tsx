@@ -954,40 +954,40 @@ const FinancialReport: React.FC = () => {
         </div>
       )}
 
-      {/* Tabs Section */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-        <TabsList className="border-b w-full justify-start rounded-none h-auto p-0 bg-transparent">
-          <TabsTrigger 
-            value="order-profitability"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-          >
-            Order Profitability
-          </TabsTrigger>
-          <TabsTrigger 
-            value="product-analysis"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-          >
-            Product Analysis
-          </TabsTrigger>
-          <TabsTrigger 
-            value="inventory-valuation"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-          >
-            Inventory Valuation
-          </TabsTrigger>
-          <TabsTrigger 
-            value="supplier-analysis"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-          >
-            Supplier Analysis
-          </TabsTrigger>
-          <TabsTrigger 
-            value="customer-analysis"
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
-          >
-            Customer Revenue Analysis
-          </TabsTrigger>
-        </TabsList>
+        {/* Tabs Section */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
+          <TabsList className="grid w-full grid-cols-5 flex items-center justify-start flex-wrap h-auto space-y-1">
+            <TabsTrigger 
+              value="order-profitability"
+              className="flex items-center gap-2"
+            >
+              Order Profitability
+            </TabsTrigger>
+            <TabsTrigger 
+              value="product-analysis"
+              className="flex items-center gap-2"
+            >
+              Product Analysis
+            </TabsTrigger>
+            <TabsTrigger 
+              value="inventory-valuation"
+              className="flex items-center gap-2"
+            >
+              Inventory Valuation
+            </TabsTrigger>
+            <TabsTrigger 
+              value="supplier-analysis"
+              className="flex items-center gap-2"
+            >
+              Supplier Analysis
+            </TabsTrigger>
+            <TabsTrigger 
+              value="customer-analysis"
+              className="flex items-center gap-2"
+            >
+              Customer Revenue Analysis
+            </TabsTrigger>
+          </TabsList>
 
         {/* Order Profitability Tab */}
         <TabsContent value="order-profitability" className="mt-4">
