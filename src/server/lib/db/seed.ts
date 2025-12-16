@@ -120,6 +120,32 @@ async function seed() {
     { id: crypto.randomUUID(), code: "system.module.view", name: "View Module", description: "Permission to view module", tenantId: pubTenantId },
     { id: crypto.randomUUID(), code: "system.module.manage", name: "Manage Module", description: "Permission to manage module", tenantId: pubTenantId },
 
+    // add master data module permissions  
+    { id: crypto.randomUUID(), code: "master-data.view", name: "View Master Data", description: "Permission to view master data", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "master-data.create", name: "Create Master Data", description: "Permission to add master data", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "master-data.edit", name: "Edit Master Data", description: "Permission to edit master data", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "master-data.delete", name: "Delete Master Data", description: "Permission to delete master data", tenantId: sysTenantId },
+
+    // add document numbering module permissions
+    { id: crypto.randomUUID(), code: "document-numbering.view", name: "View Document Numbering", description: "Permission to view document numbering", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "document-numbering.create", name: "Create Document Numbering", description: "Permission to add document numbering", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "document-numbering.edit", name: "Edit Document Numbering", description: "Permission to edit document numbering", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "document-numbering.delete", name: "Delete Document Numbering", description: "Permission to delete document numbering", tenantId: sysTenantId },
+
+    // add workflow module permissions
+    { id: crypto.randomUUID(), code: "workflow.view", name: "View Workflow", description: "Permission to view workflow", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "workflow.edit", name: "Edit Workflow", description: "Permission to edit workflow", tenantId: sysTenantId },
+
+    // add warehouse-setup module permissions
+    { id: crypto.randomUUID(), code: "warehouse-setup.view", name: "View Warehouse Setup", description: "Permission to view warehouse setup", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "warehouse-setup.delete", name: "Delete Warehouse Setup", description: "Permission to delete warehouse setup", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "warehouse-setup.edit", name: "Edit Warehouse Setup", description: "Permission to edit warehouse setup", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "warehouse-setup.create", name: "Create Warehouse Setup", description: "Permission to add warehouse setup", tenantId: sysTenantId },
+    
+    // add report module permissions
+    { id: crypto.randomUUID(), code: "report.financial-report.view", name: "View Financial Report", description: "Permission to view financial report", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "report.audit-log.view", name: "View Audit Log", description: "Permission to view audit log", tenantId: sysTenantId },
+  
   ]);
 
   console.log("Seeding module registry");
