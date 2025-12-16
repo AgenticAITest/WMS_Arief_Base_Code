@@ -956,7 +956,7 @@ const FinancialReport: React.FC = () => {
 
         {/* Tabs Section */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-5 flex items-center justify-start flex-wrap h-auto space-y-1">
             <TabsTrigger 
               value="order-profitability"
               className="flex items-center gap-2"

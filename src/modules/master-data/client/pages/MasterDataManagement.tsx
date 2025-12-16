@@ -18,16 +18,16 @@ const MasterDataManagement = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Master Data</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Master Data</h1>
         <p className="text-muted-foreground">
           Manage inventory items, types, suppliers and customers
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-5 flex items-center justify-start flex-wrap h-auto space-y-1">
           <TabsTrigger 
             value="product" 
             className="flex items-center gap-2"
