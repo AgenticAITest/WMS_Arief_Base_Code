@@ -108,7 +108,7 @@ router.use(checkModuleAuthorization('document-numbering'));
  *       401:
  *         description: Unauthorized
  */
-router.get('/configs', async (req, res) => {
+router.get('/configs', authorized('ADMIN', 'document-numbering.view'), async (req, res) => {
   try {
     // Fetch document number configurations with pagination
     const page = parseInt(req.query.page as string) || 1;
@@ -190,7 +190,7 @@ router.get('/configs', async (req, res) => {
  *       404:
  *         description: Configuration not found
  */
-router.get('/configs/:id', async (req, res) => {
+router.get('/configs/:id', authorized('ADMIN', 'document-numbering.view'),async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user?.activeTenantId;
@@ -239,7 +239,7 @@ router.get('/configs/:id', async (req, res) => {
  *       409:
  *         description: Document type already exists
  */
-router.post('/configs', async (req, res) => {
+router.post('/configs', authorized('ADMIN', 'document-numbering.create'), async (req, res) => {
   try {
     const tenantId = req.user?.activeTenantId;
 
@@ -319,7 +319,7 @@ router.post('/configs', async (req, res) => {
  *       404:
  *         description: Configuration not found
  */
-router.put('/configs/:id', async (req, res) => {
+router.put('/configs/:id',authorized('ADMIN', 'document-numbering.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user?.activeTenantId;
@@ -388,7 +388,7 @@ router.put('/configs/:id', async (req, res) => {
  *       404:
  *         description: Configuration not found
  */
-router.delete('/configs/:id', async (req, res) => {
+router.delete('/configs/:id', authorized('ADMIN', 'document-numbering.delete'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user?.activeTenantId;

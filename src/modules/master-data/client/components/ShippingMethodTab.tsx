@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '@client/components/ui/alert-dialog';
 import { DebouncedInput } from '@client/components/DebouncedInput';
+import Authorized from '@client/components/auth/Authorized';
 
 interface ShippingMethod {
   id: string;
@@ -173,10 +174,12 @@ export default function ShippingMethodTab() {
                 )}
               </InputGroup>
             </div>
+            <Authorized roles="ADMIN" permissions="master-data.create">
             <Button onClick={handleCreate}>
               <Plus className="mr-2 h-4 w-4" />
               Add Shipping Method
             </Button>
+            </Authorized>
           </div>
 
           <div className="rounded-md border">
@@ -254,6 +257,7 @@ export default function ShippingMethodTab() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Authorized roles="ADMIN" permissions="master-data.edit">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -261,6 +265,8 @@ export default function ShippingMethodTab() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
+                          </Authorized>
+                          <Authorized roles="ADMIN" permissions="master-data.delete">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -268,6 +274,7 @@ export default function ShippingMethodTab() {
                           >
                             <Trash2 className="h-4 w-4 text-red-600" />
                           </Button>
+                          </Authorized>
                         </div>
                       </TableCell>
                     </TableRow>

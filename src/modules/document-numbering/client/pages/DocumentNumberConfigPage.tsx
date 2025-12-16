@@ -31,6 +31,7 @@ import {
 } from '@client/components/ui/alert-dialog';
 import NumberDialog from '../components/NumberDialog';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
+import Authorized from '@client/components/auth/Authorized';
 
 interface DocumentNumberConfig {
   id: string;
@@ -274,6 +275,7 @@ const DocumentNumberConfigPage = () => {
       </TableCell>
       <TableCell className="text-right">
         <div className="flex justify-end gap-2">
+          <Authorized permissions="document-numbering.edit">
           <Button
             size="sm"
             variant="ghost"
@@ -281,6 +283,8 @@ const DocumentNumberConfigPage = () => {
           >
             <Pencil className="h-4 w-4" />
           </Button>
+          </Authorized>
+          <Authorized permissions="document-numbering.delete">
           <Button
             size="sm"
             variant="ghost"
@@ -288,6 +292,7 @@ const DocumentNumberConfigPage = () => {
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+          </Authorized>
         </div>
       </TableCell>
     </TableRow>
@@ -306,15 +311,17 @@ const DocumentNumberConfigPage = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          {configs.length === 0 && !loading && (
-            <Button onClick={initializeDefaultConfigs} disabled={initializing} variant="outline">
-              {initializing ? 'Initializing...' : 'Initialize Defaults'}
+          <Authorized permissions="document-numbering.create">
+            {configs.length === 0 && !loading && (
+              <Button onClick={initializeDefaultConfigs} disabled={initializing} variant="outline">
+                {initializing ? 'Initializing...' : 'Initialize Defaults'}
+              </Button>
+            )}
+            <Button onClick={handleAdd}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Configuration
             </Button>
-          )}
-          <Button onClick={handleAdd}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Configuration
-          </Button>
+          </Authorized>
         </div>
       </div>
 

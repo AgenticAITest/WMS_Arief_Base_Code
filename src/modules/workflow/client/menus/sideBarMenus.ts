@@ -20,7 +20,7 @@ export const workflowSidebarMenus = {
         title: "Workflow Settings",
         url: "/console/modules/workflow/settings",
         roles: "ADMIN",
-        permissions: "workflow.edit",
+        permissions: "workflow.view",
         icon: Settings,
       },
     ],

@@ -22,6 +22,7 @@ import { EditZoneDialog } from './EditZoneDialog';
 import { EditAisleDialog } from './EditAisleDialog';
 import { EditShelfDialog } from './EditShelfDialog';
 import { EditBinDialog } from './EditBinDialog';
+import Authorized from '@client/components/auth/Authorized';
 
 interface Bin {
   id: string;
@@ -266,10 +267,12 @@ export const WarehouseHierarchyView = () => {
           <p className="text-sm text-muted-foreground mb-4">
             Get started by creating your first warehouse
           </p>
-          <Button onClick={() => setWarehouseDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Warehouse
-          </Button>
+          <Authorized roles="ADMIN" permissions="warehouse-setup.create">
+            <Button onClick={() => setWarehouseDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Warehouse
+            </Button>
+          </Authorized>
         </div>
 
         <AddWarehouseDialog
@@ -290,10 +293,12 @@ export const WarehouseHierarchyView = () => {
             Hierarchical view of warehouses, zones, aisles, shelves, and bins
           </p>
         </div>
-        <Button onClick={() => setWarehouseDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Warehouse
-        </Button>
+        <Authorized roles="ADMIN" permissions="warehouse-setup.create">
+          <Button onClick={() => setWarehouseDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Warehouse
+          </Button>
+        </Authorized>
       </div>
 
       <div className="space-y-2" key={refreshKey}>
@@ -322,43 +327,51 @@ export const WarehouseHierarchyView = () => {
                       </Badge>
                     </div>
                   </AccordionTrigger>
-                  <div className="absolute right-4 top-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedWarehouse({ id: warehouse.id, name: warehouse.name });
-                            setZoneDialogOpen(true);
-                          }}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Zone
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            console.log('Editing warehouse:', warehouse);
-                            setEditingWarehouse(warehouse);
-                            setEditWarehouseDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={() => handleDeleteWarehouse(warehouse.id, warehouse.name)}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <Authorized roles="ADMIN" permissions={["warehouse-setup.create","warehouse-setup.edit","warehouse-setup.delete"]}>
+                    <div className="absolute right-4 top-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <Authorized roles="ADMIN" permissions="warehouse-setup.create">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedWarehouse({ id: warehouse.id, name: warehouse.name });
+                                setZoneDialogOpen(true);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Zone
+                            </DropdownMenuItem>
+                          </Authorized>
+                          <Authorized roles="ADMIN" permissions="warehouse-setup.edit">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                console.log('Editing warehouse:', warehouse);
+                                setEditingWarehouse(warehouse);
+                                setEditWarehouseDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Edit
+                            </DropdownMenuItem>
+                          </Authorized>
+                          <Authorized roles="ADMIN" permissions="warehouse-setup.delete">
+                            <DropdownMenuItem 
+                              className="text-destructive"
+                              onClick={() => handleDeleteWarehouse(warehouse.id, warehouse.name)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </Authorized>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </Authorized>
                 </div>
                 <AccordionContent className="px-4 pb-3">
                   {!warehouse.zones || warehouse.zones.length === 0 ? (
@@ -387,42 +400,50 @@ export const WarehouseHierarchyView = () => {
                                 </div>
                               </div>
                             </AccordionTrigger>
-                            <div className="absolute right-3 top-2">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedZone({ id: zone.id, name: zone.name });
-                                      setAisleDialogOpen(true);
-                                    }}
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Aisle
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setEditingZone(zone);
-                                      setEditZoneDialogOpen(true);
-                                    }}
-                                  >
-                                    <Edit className="h-4 w-4 mr-2" />
-                                    Edit
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem 
-                                    className="text-destructive"
-                                    onClick={() => handleDeleteZone(zone.id, zone.name)}
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
+                            <Authorized roles="ADMIN" permissions={["warehouse-setup.create","warehouse-setup.edit","warehouse-setup.delete"]}>
+                              <div className="absolute right-3 top-2">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <Authorized roles="ADMIN" permissions="warehouse-setup.create">
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setSelectedZone({ id: zone.id, name: zone.name });
+                                        setAisleDialogOpen(true);
+                                      }}
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Add Aisle
+                                    </DropdownMenuItem>
+                                    </Authorized>
+                                    <Authorized roles="ADMIN" permissions="warehouse-setup.edit">
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setEditingZone(zone);
+                                        setEditZoneDialogOpen(true);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Edit
+                                    </DropdownMenuItem>
+                                    </Authorized>
+                                    <Authorized roles="ADMIN" permissions="warehouse-setup.delete">
+                                    <DropdownMenuItem 
+                                      className="text-destructive"
+                                      onClick={() => handleDeleteZone(zone.id, zone.name)}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                    </Authorized>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </Authorized>
                           </div>
                           <AccordionContent className="px-4 pb-2">
                             {!zone.aisles || zone.aisles.length === 0 ? (
@@ -451,42 +472,50 @@ export const WarehouseHierarchyView = () => {
                                           </div>
                                         </div>
                                       </AccordionTrigger>
-                                      <div className="absolute right-3 top-2">
-                                        <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                                              <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                          </DropdownMenuTrigger>
-                                          <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                              onClick={() => {
-                                                setSelectedAisle({ id: aisle.id, name: aisle.name });
-                                                setShelfDialogOpen(true);
-                                              }}
-                                            >
-                                              <Plus className="h-4 w-4 mr-2" />
-                                              Add Shelf
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                              onClick={() => {
-                                                setEditingAisle(aisle);
-                                                setEditAisleDialogOpen(true);
-                                              }}
-                                            >
-                                              <Edit className="h-4 w-4 mr-2" />
-                                              Edit
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem 
-                                              className="text-destructive"
-                                              onClick={() => handleDeleteAisle(aisle.id, aisle.name)}
-                                            >
-                                              <Trash2 className="h-4 w-4 mr-2" />
-                                              Delete
-                                            </DropdownMenuItem>
-                                          </DropdownMenuContent>
-                                        </DropdownMenu>
-                                      </div>
+                                      <Authorized roles="ADMIN" permissions={["warehouse-setup.create","warehouse-setup.edit","warehouse-setup.delete"]}>
+                                        <div className="absolute right-3 top-2">
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                                                <MoreVertical className="h-4 w-4" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <Authorized roles="ADMIN" permissions="warehouse-setup.create">
+                                              <DropdownMenuItem
+                                                onClick={() => {
+                                                  setSelectedAisle({ id: aisle.id, name: aisle.name });
+                                                  setShelfDialogOpen(true);
+                                                }}
+                                              >
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Add Shelf
+                                              </DropdownMenuItem>
+                                              </Authorized>
+                                              <Authorized roles="ADMIN" permissions="warehouse-setup.edit">
+                                              <DropdownMenuItem
+                                                onClick={() => {
+                                                  setEditingAisle(aisle);
+                                                  setEditAisleDialogOpen(true);
+                                                }}
+                                              >
+                                                <Edit className="h-4 w-4 mr-2" />
+                                                Edit
+                                              </DropdownMenuItem>
+                                              </Authorized>
+                                              <Authorized roles="ADMIN" permissions="warehouse-setup.delete">
+                                              <DropdownMenuItem 
+                                                className="text-destructive"
+                                                onClick={() => handleDeleteAisle(aisle.id, aisle.name)}
+                                              >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Delete
+                                              </DropdownMenuItem>
+                                              </Authorized>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        </div>
+                                      </Authorized>
                                     </div>
                                     <AccordionContent className="px-4 pb-2">
                                       {!aisle.shelves || aisle.shelves.length === 0 ? (
@@ -515,42 +544,50 @@ export const WarehouseHierarchyView = () => {
                                                     </div>
                                                   </div>
                                                 </AccordionTrigger>
-                                                <div className="absolute right-3 top-2">
-                                                  <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                      <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
-                                                        <MoreVertical className="h-4 w-4" />
-                                                      </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                      <DropdownMenuItem
-                                                        onClick={() => {
-                                                          setSelectedShelf({ id: shelf.id, name: shelf.name });
-                                                          setBinDialogOpen(true);
-                                                        }}
-                                                      >
-                                                        <Plus className="h-4 w-4 mr-2" />
-                                                        Add Bin
-                                                      </DropdownMenuItem>
-                                                      <DropdownMenuItem
-                                                        onClick={() => {
-                                                          setEditingShelf(shelf);
-                                                          setEditShelfDialogOpen(true);
-                                                        }}
-                                                      >
-                                                        <Edit className="h-4 w-4 mr-2" />
-                                                        Edit
-                                                      </DropdownMenuItem>
-                                                      <DropdownMenuItem 
-                                                        className="text-destructive"
-                                                        onClick={() => handleDeleteShelf(shelf.id, shelf.name)}
-                                                      >
-                                                        <Trash2 className="h-4 w-4 mr-2" />
-                                                        Delete
-                                                      </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                  </DropdownMenu>
-                                                </div>
+                                                <Authorized roles="ADMIN" permissions={["warehouse-setup.create","warehouse-setup.edit","warehouse-setup.delete"]}>
+                                                  <div className="absolute right-3 top-2">
+                                                    <DropdownMenu>
+                                                      <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
+                                                          <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                      </DropdownMenuTrigger>
+                                                      <DropdownMenuContent align="end">
+                                                        <Authorized roles="ADMIN" permissions="warehouse-setup.create">
+                                                        <DropdownMenuItem
+                                                          onClick={() => {
+                                                            setSelectedShelf({ id: shelf.id, name: shelf.name });
+                                                            setBinDialogOpen(true);
+                                                          }}
+                                                        >
+                                                          <Plus className="h-4 w-4 mr-2" />
+                                                          Add Bin
+                                                        </DropdownMenuItem>
+                                                        </Authorized>
+                                                        <Authorized roles="ADMIN" permissions="warehouse-setup.edit">
+                                                        <DropdownMenuItem
+                                                          onClick={() => {
+                                                            setEditingShelf(shelf);
+                                                            setEditShelfDialogOpen(true);
+                                                          }}
+                                                        >
+                                                          <Edit className="h-4 w-4 mr-2" />
+                                                          Edit
+                                                        </DropdownMenuItem>
+                                                        </Authorized>
+                                                        <Authorized roles="ADMIN" permissions="warehouse-setup.delete">
+                                                        <DropdownMenuItem 
+                                                          className="text-destructive"
+                                                          onClick={() => handleDeleteShelf(shelf.id, shelf.name)}
+                                                        >
+                                                          <Trash2 className="h-4 w-4 mr-2" />
+                                                          Delete
+                                                        </DropdownMenuItem>
+                                                        </Authorized>
+                                                      </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                  </div>
+                                                </Authorized>
                                               </div>
                                               <AccordionContent className="px-4 pb-2">
                                                 {!shelf.bins || shelf.bins.length === 0 ? (
@@ -575,31 +612,37 @@ export const WarehouseHierarchyView = () => {
                                                             )}
                                                           </div>
                                                         </div>
-                                                        <DropdownMenu>
-                                                          <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="sm">
-                                                              <MoreVertical className="h-4 w-4" />
-                                                            </Button>
-                                                          </DropdownMenuTrigger>
-                                                          <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem
-                                                              onClick={() => {
-                                                                setEditingBin(bin);
-                                                                setEditBinDialogOpen(true);
-                                                              }}
-                                                            >
-                                                              <Edit className="h-4 w-4 mr-2" />
-                                                              Edit
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem 
-                                                              className="text-destructive"
-                                                              onClick={() => handleDeleteBin(bin.id, bin.name)}
-                                                            >
-                                                              <Trash2 className="h-4 w-4 mr-2" />
-                                                              Delete
-                                                            </DropdownMenuItem>
-                                                          </DropdownMenuContent>
-                                                        </DropdownMenu>
+                                                        <Authorized roles="ADMIN" permissions={["warehouse-setup.edit","warehouse-setup.delete"]}>
+                                                          <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                              <Button variant="ghost" size="sm">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                              </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                              <Authorized roles="ADMIN" permissions="warehouse-setup.edit">
+                                                              <DropdownMenuItem
+                                                                onClick={() => {
+                                                                  setEditingBin(bin);
+                                                                  setEditBinDialogOpen(true);
+                                                                }}
+                                                              >
+                                                                <Edit className="h-4 w-4 mr-2" />
+                                                                Edit
+                                                              </DropdownMenuItem>
+                                                              </Authorized>
+                                                              <Authorized roles="ADMIN" permissions="warehouse-setup.delete">
+                                                              <DropdownMenuItem 
+                                                                className="text-destructive"
+                                                                onClick={() => handleDeleteBin(bin.id, bin.name)}
+                                                              >
+                                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                                Delete
+                                                              </DropdownMenuItem>
+                                                              </Authorized>
+                                                            </DropdownMenuContent>
+                                                          </DropdownMenu>
+                                                        </Authorized>
                                                       </div>
                                                     ))}
                                                   </div>

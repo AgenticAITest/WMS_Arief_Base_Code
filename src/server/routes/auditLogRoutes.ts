@@ -1,7 +1,7 @@
 import express from 'express';
 import { db } from '../lib/db';
 import { auditLogs } from '../lib/db/schema';
-import { authenticated } from '../middleware/authMiddleware';
+import { authenticated, authorized } from '../middleware/authMiddleware';
 import { and, eq, desc, gte, lte, sql } from 'drizzle-orm';
 import fs from 'fs/promises';
 import path from 'path';
@@ -84,7 +84,7 @@ router.use(authenticated());
  *       401:
  *         description: Unauthorized
  */
-router.get('/', async (req, res) => {
+router.get('/', authorized('ADMIN', 'reports.audit-log.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const {
@@ -207,7 +207,7 @@ router.get('/', async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-router.get('/resource/:type/:id', async (req, res) => {
+router.get('/resource/:type/:id', authorized('ADMIN', 'reports.audit-log.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { type, id } = req.params;
@@ -272,7 +272,7 @@ router.get('/resource/:type/:id', async (req, res) => {
  *       404:
  *         description: Document not found
  */
-router.get('/document', async (req, res) => {
+router.get('/document', authorized('ADMIN', 'reports.audit-log.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { path: documentPath } = req.query;

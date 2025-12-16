@@ -88,6 +88,11 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
     const userRoles = authUser?.roles || [];
     const userPermissions = authUser?.permissions || [];
 
+    // if user has SYSADMIN role, always return true
+    if (userRoles.includes('SYSADMIN')) {
+      return true;
+    }
+
     // If neither roles nor permissions are provided, return false
     if (!roles && !permissions) {
       return false;

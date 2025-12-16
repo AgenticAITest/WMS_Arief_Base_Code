@@ -29,6 +29,7 @@ import DataPagination from '@client/components/console/DataPagination';
 import SortButton from '@client/components/console/SortButton';
 import InputGroup from '@client/components/console/InputGroup';
 import { DebouncedInput } from '@client/components/DebouncedInput';
+import Authorized from '@client/components/auth/Authorized';
 
 interface Transporter {
   id: string;
@@ -168,10 +169,12 @@ const TransporterTab = () => {
             )}
           </InputGroup>
         </div>
+        <Authorized roles="ADMIN" permissions="master-data.create">
         <Button onClick={handleAdd}>
           <Plus className="mr-2 h-4 w-4" />
           Add Transporter
         </Button>
+        </Authorized>
       </div>
 
       <div className="rounded-md border">
@@ -246,6 +249,7 @@ const TransporterTab = () => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <Authorized roles="ADMIN" permissions="master-data.edit">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -253,6 +257,8 @@ const TransporterTab = () => {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      </Authorized>
+                      <Authorized roles="ADMIN" permissions="master-data.delete">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -260,6 +266,7 @@ const TransporterTab = () => {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
+                      </Authorized>
                     </div>
                   </TableCell>
                 </TableRow>

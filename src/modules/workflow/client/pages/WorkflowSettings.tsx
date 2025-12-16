@@ -6,6 +6,8 @@ import { Button } from '@client/components/ui/button';
 import { Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@client/components/ui/card';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
+import Authorized from '@client/components/auth/Authorized';
+import { useAuth } from '@client/provider/AuthProvider';
 
 interface WorkflowStep {
   id: string;
@@ -35,6 +37,9 @@ const WorkflowSettings: React.FC = () => {
   const [poWorkflow, setPoWorkflow] = useState<Workflow | null>(null);
   const [soWorkflow, setSoWorkflow] = useState<Workflow | null>(null);
   const [stepStates, setStepStates] = useState<Record<string, boolean>>({});
+  const {isAuthorized} = useAuth();
+
+  const canEdit = isAuthorized('ADMIN','workflow.edit');
 
   useEffect(() => {
     fetchWorkflows();
@@ -122,9 +127,9 @@ const WorkflowSettings: React.FC = () => {
       // Refresh the data
       await fetchWorkflows();
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving workflow settings:', error);
-      toast.error('Failed to save workflow settings');
+      toast.error(error.response?.data?.message || 'Failed to save workflow settings');
     } finally {
       setSaving(false);
     }
@@ -183,7 +188,7 @@ const WorkflowSettings: React.FC = () => {
                 <Switch
                   checked={stepStates[step.id]}
                   onCheckedChange={() => handleToggleStep(step.id)}
-                  disabled={step.isInitial || step.isTerminal}
+                  disabled={step.isInitial || step.isTerminal || !canEdit}
                 />
               </div>
             ))}
@@ -228,7 +233,7 @@ const WorkflowSettings: React.FC = () => {
                 <Switch
                   checked={stepStates[step.id]}
                   onCheckedChange={() => handleToggleStep(step.id)}
-                  disabled={step.isInitial || step.isTerminal}
+                  disabled={step.isInitial || step.isTerminal || !canEdit}
                 />
               </div>
             ))}
@@ -243,14 +248,16 @@ const WorkflowSettings: React.FC = () => {
 
       {/* Save Button */}
       <div className="mt-6 flex justify-end">
-        <Button 
-          onClick={handleSaveChanges} 
-          disabled={saving}
-          size="lg"
-        >
-          <Save className="mr-2 h-4 w-4" />
-          {saving ? 'Saving...' : 'Save Changes'}
-        </Button>
+        <Authorized permissions="workflow.edit">
+          <Button 
+            onClick={handleSaveChanges} 
+            disabled={saving}
+            size="lg"
+          >
+            <Save className="mr-2 h-4 w-4" />
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </Authorized>
       </div>
     </div>
   );

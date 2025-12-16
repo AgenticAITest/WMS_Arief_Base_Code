@@ -10,7 +10,7 @@ export const reportsSidebarMenus = {
     url: '/console/modules/reports',
     icon: FileText,
     roles: 'ADMIN',
-    permissions: ['reports.view'],
+    permissions: ['reports.audit-log.view','reports.financial-report.view'],
     items: [
       {
         id: "audit-log",

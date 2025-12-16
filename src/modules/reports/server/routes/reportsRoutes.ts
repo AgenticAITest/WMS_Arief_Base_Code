@@ -305,7 +305,7 @@ router.get('/reports/:id', authorized('ADMIN','reports.view'), async (req, res) 
  *       500:
  *         description: Server error
  */
-router.get('/financial/summary', authorized('ADMIN', 'reports.view'), async (req, res) => {
+router.get('/financial/summary', authorized('ADMIN', 'reports.financial-report.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const year = req.query.year ? parseInt(req.query.year as string) : null;
@@ -565,7 +565,7 @@ router.get('/financial/summary', authorized('ADMIN', 'reports.view'), async (req
  *       500:
  *         description: Server error
  */
-router.get('/financial/order-profitability', authorized('ADMIN', 'reports.view'), async (req, res) => {
+router.get('/financial/order-profitability', authorized('ADMIN', 'reports.financial-report.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const year = req.query.year ? parseInt(req.query.year as string) : null;
@@ -821,7 +821,7 @@ router.get('/financial/order-profitability', authorized('ADMIN', 'reports.view')
  *       500:
  *         description: Server error
  */
-router.get('/financial/product-analysis', authorized('ADMIN', 'reports.view'), async (req, res) => {
+router.get('/financial/product-analysis', authorized('ADMIN', 'reports.financial-report.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const year = req.query.year ? parseInt(req.query.year as string) : null;
@@ -1039,7 +1039,7 @@ router.get('/financial/product-analysis', authorized('ADMIN', 'reports.view'), a
  *       500:
  *         description: Server error
  */
-router.get('/financial/inventory-valuation', authorized('ADMIN', 'reports.view'), async (req, res) => {
+router.get('/financial/inventory-valuation', authorized('ADMIN', 'reports.financial-report.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = parseInt(req.query.page as string) || 1;
@@ -1235,7 +1235,7 @@ router.get('/financial/inventory-valuation', authorized('ADMIN', 'reports.view')
  *       500:
  *         description: Server error
  */
-router.get('/financial/supplier-analysis', authorized('ADMIN', 'reports.view'), async (req, res) => {
+router.get('/financial/supplier-analysis', authorized('ADMIN', 'reports.financial-report.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const year = req.query.year ? parseInt(req.query.year as string) : null;
@@ -1445,7 +1445,7 @@ router.get('/financial/supplier-analysis', authorized('ADMIN', 'reports.view'), 
  *       500:
  *         description: Server error
  */
-router.get('/financial/customer-revenue-analysis', authorized('ADMIN', 'reports.view'), async (req, res) => {
+router.get('/financial/customer-revenue-analysis', authorized('ADMIN', 'reports.financial-report.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const year = req.query.year ? parseInt(req.query.year as string) : null;

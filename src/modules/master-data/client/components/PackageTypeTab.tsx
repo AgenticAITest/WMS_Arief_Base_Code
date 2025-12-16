@@ -29,6 +29,7 @@ import DataPagination from '@client/components/console/DataPagination';
 import SortButton from '@client/components/console/SortButton';
 import InputGroup from '@client/components/console/InputGroup';
 import { DebouncedInput } from '@client/components/DebouncedInput';
+import Authorized from '@client/components/auth/Authorized';
 
 interface PackageType {
   id: string;
@@ -183,10 +184,12 @@ const PackageTypeTab = () => {
             )}
           </InputGroup>
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Package Type
-        </Button>
+        <Authorized roles="ADMIN" permissions="master-data.create">
+          <Button onClick={handleAdd}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Package Type
+          </Button>
+        </Authorized>
       </div>
 
       <div className="border rounded-lg">
@@ -242,6 +245,7 @@ const PackageTypeTab = () => {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <Authorized roles="ADMIN" permissions="master-data.edit">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -249,6 +253,8 @@ const PackageTypeTab = () => {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      </Authorized>
+                      <Authorized roles="ADMIN" permissions="master-data.delete">
                       <Button
                         variant="ghost"
                         size="icon"
@@ -256,6 +262,7 @@ const PackageTypeTab = () => {
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
+                      </Authorized>
                     </div>
                   </TableCell>
                 </TableRow>
