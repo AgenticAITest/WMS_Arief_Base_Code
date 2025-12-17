@@ -145,6 +145,24 @@ async function seed() {
     // add report module permissions
     { id: crypto.randomUUID(), code: "report.financial-report.view", name: "View Financial Report", description: "Permission to view financial report", tenantId: sysTenantId },
     { id: crypto.randomUUID(), code: "report.audit-log.view", name: "View Audit Log", description: "Permission to view audit log", tenantId: sysTenantId },
+
+    // add purchase-order module permissions
+    { id: crypto.randomUUID(), code: "purchase-order.view", name: "View Purchase Order", description: "Permission to view purchase order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "purchase-order.create", name: "Create Purchase Order", description: "Permission to create purchase order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "purchase-order.edit", name: "Edit Purchase Order", description: "Permission to edit purchase order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "purchase-order.delete", name: "Delete Purchase Order", description: "Permission to delete purchase order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "purchase-order.approval", name: "Purchase Order Approval", description: "Permission to approve purchase order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "purchase-order.receive", name: "Receive Purchase Order", description: "Permission to receive purchase order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "purchase-order.putaway", name: "Putaway Purchase Order", description: "Permission to putaway purchase order", tenantId: sysTenantId },
+
+    // add sales-order module permissions
+    { id: crypto.randomUUID(), code: "sales-order.view", name: "View Sales Order", description: "Permission to view sales order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "sales-order.create", name: "Create Sales Order", description: "Permission to create sales order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "sales-order.allocate", name: "Allocate Sales Order", description: "Permission to allocate sales order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "sales-order.pick", name: "Pick Sales Order", description: "Permission to pick sales order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "sales-order.pack", name: "Pack Sales Order", description: "Permission to pack sales order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "sales-order.ship", name: "Ship Sales Order", description: "Permission to ship sales order", tenantId: sysTenantId },
+    { id: crypto.randomUUID(), code: "sales-order.deliver", name: "Deliver Sales Order", description: "Permission to deliver sales order", tenantId: sysTenantId },
   
   ]);
 
