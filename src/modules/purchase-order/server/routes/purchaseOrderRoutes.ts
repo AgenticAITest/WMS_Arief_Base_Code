@@ -443,7 +443,7 @@ router.post('/preview-html', authorized('ADMIN', 'purchase-order.create'), async
  *       401:
  *         description: Unauthorized
  */
-router.get('/products-with-stock', authorized('ADMIN', 'purchase-order.create'), async (req, res) => {
+router.get('/products-with-stock', authorized('ADMIN', 'purchase-order.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = parseInt(req.query.page as string) || 1;
@@ -2416,7 +2416,7 @@ router.delete('/items/:id', authorized('ADMIN', 'purchase-order.delete'), async 
  *       401:
  *         description: Unauthorized
  */
-router.post('/orders/:id/approve', authorized('ADMIN', 'purchase-order.approve'), async (req, res) => {
+router.post('/orders/:id/approve', authorized('ADMIN', 'purchase-order.approval'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -2535,7 +2535,7 @@ router.post('/orders/:id/approve', authorized('ADMIN', 'purchase-order.approve')
  *       401:
  *         description: Unauthorized
  */
-router.post('/orders/:id/reject', authorized('ADMIN', 'purchase-order.reject'), async (req, res) => {
+router.post('/orders/:id/reject', authorized('ADMIN', 'purchase-order.approval'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -2639,7 +2639,7 @@ router.post('/orders/:id/reject', authorized('ADMIN', 'purchase-order.reject'), 
  *       500:
  *         description: Server error
  */
-router.get('/receive/approved', async (req, res) => {
+router.get('/receive/approved', authorized('ADMIN', 'purchase-order.receive'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -2715,7 +2715,7 @@ router.get('/receive/approved', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.get('/receive/incomplete', async (req, res) => {
+router.get('/receive/incomplete', authorized('ADMIN', 'purchase-order.receive'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -2791,7 +2791,7 @@ router.get('/receive/incomplete', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.get('/receive/received', async (req, res) => {
+router.get('/receive/received', authorized('ADMIN', 'purchase-order.receive'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -2874,7 +2874,7 @@ router.get('/receive/received', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.get('/putaway', async (req, res) => {
+router.get('/putaway', authorized('ADMIN', 'purchase-order.putaway'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -3060,7 +3060,7 @@ router.get('/putaway', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/putaway/smart-allocate', async (req, res) => {
+router.post('/putaway/smart-allocate', authorized('ADMIN', 'purchase-order.putaway'), async (req, res) => {
   try {
     const { productId, warehouseId, quantity = 0 } = req.body;
     const tenantId = req.user!.activeTenantId;
@@ -3276,7 +3276,7 @@ router.post('/putaway/smart-allocate', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/putaway/:id/confirm', async (req, res) => {
+router.post('/putaway/:id/confirm', authorized('ADMIN', 'purchase-order.putaway'), async (req, res) => {
   const { id: receiptId } = req.params;
   
   try {
@@ -3582,7 +3582,7 @@ router.post('/putaway/:id/confirm', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/receive/:id/submit', async (req, res) => {
+router.post('/receive/:id/submit', authorized('ADMIN', 'purchase-order.receive'), async (req, res) => {
   try {
     const { id } = req.params;
     const { items: receivedItems, notes } = req.body;
@@ -4021,7 +4021,7 @@ router.get('/grn/:documentId/html', async (req, res) => {
  *       401:
  *         description: Unauthorized
  */
-router.get('/putaway/:documentId/html', async (req, res) => {
+router.get('/putaway/:documentId/html', authorized('ADMIN', 'purchase-order.putaway'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { documentId } = req.params;
