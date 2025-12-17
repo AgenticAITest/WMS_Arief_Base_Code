@@ -296,9 +296,9 @@ const SalesOrderPick: React.FC = () => {
                               <div className="col-span-3 text-xs font-semibold text-muted-foreground uppercase">
                                 Pick Qty
                               </div>
-                              <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase text-right">
+                              {/* <div className="col-span-2 text-xs font-semibold text-muted-foreground uppercase text-right">
                                 Action
-                              </div>
+                              </div> */}
                             </div>
 
                             {item.allocations.map((allocation, idx) => {
@@ -348,7 +348,7 @@ const SalesOrderPick: React.FC = () => {
                                       />
                                     </div>
 
-                                    <div className="col-span-2 flex justify-end">
+                                    {/* <div className="col-span-2 flex justify-end">
                                       <Button
                                         size="sm"
                                         variant={currentPick > 0 ? "default" : "outline"}
@@ -359,7 +359,7 @@ const SalesOrderPick: React.FC = () => {
                                       >
                                         Pick
                                       </Button>
-                                    </div>
+                                    </div> */}
                                   </div>
                                 </div>
                               );

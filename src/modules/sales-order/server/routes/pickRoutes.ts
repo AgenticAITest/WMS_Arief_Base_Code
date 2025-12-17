@@ -11,6 +11,7 @@ router.use(authenticated());
 router.use(checkModuleAuthorization('sales-order'));
 
 router.get('/picks', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+  console.log('Fetching picks from pickRoutes');
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;

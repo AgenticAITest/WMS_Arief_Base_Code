@@ -155,11 +155,11 @@ app.use('/api/modules/purchase-order', purchaseOrderRoutes);
 // sales-order routes
 app.use('/api/modules/sales-order', shippingMethodRoutes);
 app.use('/api/modules/sales-order', salesOrderRoutes);
-app.use('/api/modules/sales-order', allocationRoutes);
-app.use('/api/modules/sales-order', pickRoutes);
+//app.use('/api/modules/sales-order', allocationRoutes);
+//app.use('/api/modules/sales-order', pickRoutes);
 app.use('/api/modules/sales-order', packRoutes);
 app.use('/api/modules/sales-order', shipRoutes);
-app.use('/api/modules/sales-order', shipmentRoutes);
+//app.use('/api/modules/sales-order', shipmentRoutes);
 app.use('/api/modules/sales-order', deliverRoutes);
 
 // workflow routes

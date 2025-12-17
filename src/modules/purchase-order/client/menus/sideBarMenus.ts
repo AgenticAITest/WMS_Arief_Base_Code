@@ -1,3 +1,4 @@
+import { role } from '@server/lib/db/schema';
 import { ShoppingCart, Package, CheckCircle, ClipboardCheck, PackageCheck, type LucideIcon } from 'lucide-react';
 
 export const stepIconMap: Record<string, LucideIcon> = {
@@ -32,7 +33,8 @@ export const purchaseOrderSidebarMenus = {
   title: 'Purchase Order',
   url: '/console/modules/purchase-order',
   icon: ShoppingCart,
-  permissions: 'purchase-order.view',
+  roles: 'ADMIN',
+  permissions: ['purchase-order.view', 'purchase-order.approval', 'purchase-order.receive', 'purchase-order.putaway'],
   items: [
     {
       id: "purchase-order-create",
@@ -46,21 +48,21 @@ export const purchaseOrderSidebarMenus = {
       title: "Approve",
       url: "/console/modules/purchase-order/approve",
       roles: "ADMIN",
-      permissions: "purchase-order.view",
+      permissions: "purchase-order.approval",
     },
     {
       id: "purchase-order-receive",
       title: "Receive",
       url: "/console/modules/purchase-order/receive",
       roles: "ADMIN",
-      permissions: "purchase-order.view",
+      permissions: "purchase-order.receive",
     },
     {
       id: "purchase-order-putaway",
       title: "Putaway",
       url: "/console/modules/purchase-order/putaway",
       roles: "ADMIN",
-      permissions: "purchase-order.view",
+      permissions: "purchase-order.putaway",
     },
   ],
 };

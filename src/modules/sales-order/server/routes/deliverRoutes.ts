@@ -26,7 +26,8 @@ router.use(authenticated());
 router.use(checkModuleAuthorization('sales-order'));
 
 // GET /delivers - Fetch sales orders ready for delivery confirmation
-router.get('/delivers', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+router.get('/delivers', authorized('ADMIN', 'sales-order.deliver'), async (req, res) => {
+  console.log('Fetching delivers from deliverRoutes');
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -85,7 +86,7 @@ router.get('/delivers', authorized('ADMIN', 'sales-order.view'), async (req, res
 });
 
 // GET /delivers/:id/details - Fetch delivery details with packages and items
-router.get('/delivers/:id/details', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+router.get('/delivers/:id/details', authorized('ADMIN', 'sales-order.deliver'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;
@@ -162,7 +163,7 @@ router.get('/delivers/:id/details', authorized('ADMIN', 'sales-order.view'), asy
 });
 
 // POST /delivers/:id/complete - Confirm complete delivery
-router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.manage'), async (req, res) => {
+router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.deliver'), async (req, res) => {
   try {
     const { id } = req.params;
     const { recipientName, notes } = req.body;
@@ -391,7 +392,7 @@ router.post('/delivers/:id/complete', authorized('ADMIN', 'sales-order.manage'),
 });
 
 // POST /delivers/:id/partial - Confirm partial delivery with returns
-router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.manage'), async (req, res) => {
+router.post('/delivers/:id/partial', authorized('ADMIN', 'sales-order.deliver'), async (req, res) => {
   try {
     const { id } = req.params;
     const { recipientName, notes, items } = req.body;

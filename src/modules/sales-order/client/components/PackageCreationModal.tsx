@@ -408,25 +408,35 @@ const PackageCreationModal: React.FC<PackageCreationModalProps> = ({
                           key={itemIndex}
                           className="grid grid-cols-[1fr,120px,40px] gap-2 items-end"
                         >
-                          <div>
-                            <Label className="text-xs">Product</Label>
-                            <Select
-                              value={item.salesOrderItemId}
-                              onValueChange={(value) =>
-                                handleItemFieldChange(packageIndex, itemIndex, 'salesOrderItemId', value)
-                              }
+                          <div className='flex gap-2 items-end'>
+                            <div>
+                              <Label className="text-xs">Product</Label>
+                              <Select
+                                value={item.salesOrderItemId}
+                                onValueChange={(value) =>
+                                  handleItemFieldChange(packageIndex, itemIndex, 'salesOrderItemId', value)
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select product..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {salesOrder.items.map((soItem) => (
+                                    <SelectItem key={soItem.id} value={soItem.id}>
+                                      {soItem.sku} - {soItem.productName}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <Button
+                              onClick={() => handleRemoveItemFromPackage(packageIndex, itemIndex)}
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive h-10"
                             >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select product..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {salesOrder.items.map((soItem) => (
-                                  <SelectItem key={soItem.id} value={soItem.id}>
-                                    {soItem.sku} - {soItem.productName}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                           <div>
                             <Label className="text-xs">Quantity</Label>
@@ -440,14 +450,7 @@ const PackageCreationModal: React.FC<PackageCreationModalProps> = ({
                               placeholder="0.00"
                             />
                           </div>
-                          <Button
-                            onClick={() => handleRemoveItemFromPackage(packageIndex, itemIndex)}
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive h-10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          
                         </div>
                       ))}
                       {pkg.items.length === 0 && (

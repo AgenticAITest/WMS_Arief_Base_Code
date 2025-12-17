@@ -21,7 +21,8 @@ router.use(authenticated());
 router.use(checkModuleAuthorization('sales-order'));
 
 // GET /packs - Fetch sales orders ready for packing
-router.get('/packs', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+router.get('/packs', authorized('ADMIN', 'sales-order.pack'), async (req, res) => {
+  console.log('Fetching packs from packRoutes');
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -86,7 +87,7 @@ router.get('/packs', authorized('ADMIN', 'sales-order.view'), async (req, res) =
 });
 
 // GET /packs/:id - Fetch sales order details with items for packing
-router.get('/packs/:id', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+router.get('/packs/:id', authorized('ADMIN', 'sales-order.pack'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;

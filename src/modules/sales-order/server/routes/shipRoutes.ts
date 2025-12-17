@@ -23,7 +23,8 @@ router.use(authenticated());
 router.use(checkModuleAuthorization('sales-order'));
 
 // GET /ships - Fetch sales orders ready for shipping
-router.get('/ships', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+router.get('/ships', authorized('ADMIN', 'sales-order.ship'), async (req, res) => {
+  console.log('Fetching ships from shipRoutes');
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -93,7 +94,7 @@ router.get('/ships', authorized('ADMIN', 'sales-order.view'), async (req, res) =
 });
 
 // GET /ships/:id/packages - Fetch packages for a specific sales order
-router.get('/ships/:id/packages', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+router.get('/ships/:id/packages', authorized('ADMIN', 'sales-order.ship'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;
@@ -148,7 +149,7 @@ router.get('/ships/:id/packages', authorized('ADMIN', 'sales-order.view'), async
 });
 
 // GET /ships/:id/customer-locations - Fetch customer delivery locations selected during SO creation
-router.get('/ships/:id/customer-locations', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+router.get('/ships/:id/customer-locations', authorized('ADMIN', 'sales-order.ship'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;

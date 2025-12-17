@@ -57,6 +57,7 @@ const DEFAULT_CONFIGS = [
   { documentType: 'GRN', documentName: 'Goods Receipt Note', periodFormat: 'YYMM', prefix1Label: 'Warehouse', prefix1DefaultValue: 'WH1', prefix1Required: true },
   { documentType: 'PUTAWAY', documentName: 'Putaway Instructions', periodFormat: 'YYMM', prefix1Label: 'Warehouse', prefix1DefaultValue: 'WH1', prefix1Required: true },
   { documentType: 'SO', documentName: 'Sales Order', periodFormat: 'YYMM', prefix1Label: 'Region', prefix1DefaultValue: 'NORTH', prefix1Required: false },
+  { documentType: 'ALLOC', documentName: 'Allocation SO', periodFormat: 'YYMM', prefix1Label: 'Warehouse', prefix1DefaultValue: 'WH1', prefix1Required: true },
   { documentType: 'PICK', documentName: 'Pick Instructions', periodFormat: 'YYMM', prefix1Label: 'Warehouse', prefix1DefaultValue: 'WH1', prefix1Required: true },
   { documentType: 'PACK', documentName: 'Pack Instructions', periodFormat: 'YYMM', prefix1Label: 'Warehouse', prefix1DefaultValue: 'WH1', prefix1Required: true },
   { documentType: 'SHIP', documentName: 'Ship Instructions', periodFormat: 'YYMM', prefix1Label: 'Carrier', prefix1DefaultValue: 'DHL', prefix1Required: false },
@@ -77,7 +78,7 @@ const PROCESS_GROUPS = {
   },
   'Sales Orders': {
     description: 'Outbound fulfillment and shipping operations',
-    types: ['SO', 'PICK', 'PACK', 'SHIP', 'DELIVERY'],
+    types: ['SO', 'ALLOC', 'PICK', 'PACK', 'SHIP', 'DELIVERY'],
   },
   'Inventory Management': {
     description: 'Stock control and warehouse operations',

@@ -34,7 +34,8 @@ export const salesOrderSidebarMenus = {
   title: "Sales Order",
   url: "/console/modules/sales-order",
   icon: ShoppingCart,
-  permissions: "sales-order.view",
+  roles: "ADMIN",
+  permissions: ["sales-order.create", "sales-order.allocate", "sales-order.pick", "sales-order.pack", "sales-order.ship", "sales-order.deliver"],
   items: [
     
     {
@@ -42,42 +43,42 @@ export const salesOrderSidebarMenus = {
       title: "Create",
       url: "/console/modules/sales-order/create",
       roles: "ADMIN",
-      permissions: "sales-order.view",
+      permissions: "sales-order.create",
     },
     {
       id: "sales-order-allocate",
       title: "Allocate",
       url: "/console/modules/sales-order/allocate",
       roles: "ADMIN",
-      permissions: "sales-order.view",
+      permissions: "sales-order.allocate",
     },
     {
       id: "sales-order-pick",
       title: "Pick",
       url: "/console/modules/sales-order/pick",
       roles: "ADMIN",
-      permissions: "sales-order.view",
+      permissions: "sales-order.pick",
     },
     {
       id: "sales-order-pack",
       title: "Pack",
       url: "/console/modules/sales-order/pack",
       roles: "ADMIN",
-      permissions: "sales-order.view",
+      permissions: "sales-order.pack",
     },
     {
       id: "sales-order-ship",
       title: "Ship",
       url: "/console/modules/sales-order/ship",
       roles: "ADMIN",
-      permissions: "sales-order.view",
+      permissions: "sales-order.ship",
     },
     {
       id: "sales-order-deliver",
       title: "Deliver",
       url: "/console/modules/sales-order/deliver",
       roles: "ADMIN",
-      permissions: "sales-order.view",
+      permissions: "sales-order.deliver",
     },
   ],
 };

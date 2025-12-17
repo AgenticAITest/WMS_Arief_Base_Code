@@ -556,6 +556,7 @@ router.post('/sales-orders', authorized('ADMIN', 'sales-order.create'), async (r
 });
 
 router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (req, res) => {
+  console.log('Fetching allocations from salesOrderRoutes');
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -640,6 +641,7 @@ router.get('/allocations', authorized('ADMIN', 'sales-order.allocate'), async (r
 });
 
 router.get('/picks', authorized('ADMIN', 'sales-order.pick'), async (req, res) => {
+  console.log('Fetching picks from salesOrderRoutes');
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -750,6 +752,7 @@ router.get('/picks', authorized('ADMIN', 'sales-order.pick'), async (req, res) =
 });
 
 router.post('/picks/:id/confirm', authorized('ADMIN', 'sales-order.pick'), async (req, res) => {
+  console.log('Confirming pick for salesOrderRoutes');
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;

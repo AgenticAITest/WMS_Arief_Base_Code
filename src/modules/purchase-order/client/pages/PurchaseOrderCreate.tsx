@@ -26,6 +26,7 @@ import { POConfirmationModal } from '../components/POConfirmationModal';
 import { POPrintView } from '../components/POPrintView';
 import axios from 'axios';
 import { toast } from 'sonner';
+import Authorized from '@client/components/auth/Authorized';
 
 const PurchaseOrderCreate: React.FC = () => {
   const [unapprovedPOs, setUnapprovedPOs] = useState<any[]>([]);
@@ -198,10 +199,12 @@ const PurchaseOrderCreate: React.FC = () => {
             Manage and create new purchase orders
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create New PO
-        </Button>
+        <Authorized roles="ADMIN" permissions="purchase-order.create">
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create New PO
+          </Button>
+        </Authorized>
       </div>
 
       <Card>
@@ -252,23 +255,27 @@ const PurchaseOrderCreate: React.FC = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditPO(po.id)}
-                            title="Edit PO"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteClick(po)}
-                            title="Delete PO"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <Authorized roles="ADMIN" permissions="purchase-order.edit">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditPO(po.id)}
+                              title="Edit PO"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </Authorized>
+                          <Authorized roles="ADMIN" permissions="purchase-order.delete">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteClick(po)}
+                              title="Delete PO"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </Authorized>
                         </div>
                       </TableCell>
                     </TableRow>

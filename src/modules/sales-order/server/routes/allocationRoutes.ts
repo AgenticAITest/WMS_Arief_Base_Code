@@ -10,7 +10,9 @@ const router = express.Router();
 router.use(authenticated());
 router.use(checkModuleAuthorization('sales-order'));
 
+// Tidak di pakai disini, karena sudah di pindah ke salesOrderRoutes.ts
 router.get('/allocations', authorized('ADMIN', 'sales-order.view'), async (req, res) => {
+  console.log('Fetching allocations from allocationRoutes');
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
