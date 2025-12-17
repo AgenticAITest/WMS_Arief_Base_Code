@@ -120,7 +120,7 @@ export const CreateSOModal: React.FC<CreateSOModalProps> = ({
       const response = await axios.get('/api/modules/master-data/customers', {
         params: { page: 1, limit: 100 },
       });
-      setCustomers(response.data.data || []);
+      setCustomers(response.data.customers || response.data.data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast.error('Failed to fetch customers');
@@ -143,7 +143,7 @@ export const CreateSOModal: React.FC<CreateSOModalProps> = ({
       const response = await axios.get('/api/modules/master-data/shipping-methods', {
         params: { page: 1, limit: 100 },
       });
-      setShippingMethods(response.data.data || []);
+      setShippingMethods(response.data.shippingMethods || response.data.data || []);
     } catch (error) {
       console.error('Error fetching shipping methods:', error);
     }

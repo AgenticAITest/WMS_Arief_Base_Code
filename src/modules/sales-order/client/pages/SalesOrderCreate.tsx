@@ -82,7 +82,7 @@ const SalesOrderCreate: React.FC = () => {
           includeLocations: true,
         },
       });
-      const customersData = response.data.data || [];
+      const customersData = response.data.customers || response.data.data || [];
       setCustomers(customersData);
       
       const locationsMap = new Map();

@@ -150,7 +150,7 @@ export default function ShippingMethodDialog({
       const response = await axios.get('/api/modules/master-data/transporters', {
         params: { limit: 100 },
       });
-      setTransporters(response.data.data || []);
+      setTransporters(response.data.transporters || response.data.data || []);
     } catch (error) {
       console.error('Error fetching transporters:', error);
       toast.error('Failed to load transporters');

@@ -86,7 +86,7 @@ export function AddBinDialog({
         headers: { Authorization: `Bearer ${accessToken}` },
         params: { limit: 100 }
       });
-      setProducts(response.data.data || []);
+      setProducts(response.data.products || response.data.data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {

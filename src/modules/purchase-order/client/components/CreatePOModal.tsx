@@ -117,7 +117,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({
       const response = await axios.get('/api/modules/master-data/suppliers', {
         params: { page: 1, limit: 100 },
       });
-      setSuppliers(response.data.data || []);
+      setSuppliers(response.data.suppliers || response.data.data || []);
     } catch (error: any) {
       console.error('Error fetching suppliers:', error);
       toast.error(error.response?.data?.message || 'Failed to fetch suppliers');

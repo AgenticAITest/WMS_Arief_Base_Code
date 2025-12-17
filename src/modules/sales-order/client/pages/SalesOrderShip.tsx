@@ -64,7 +64,7 @@ const SalesOrderShip: React.FC = () => {
       });
 
       if (response.data.success) {
-        setSalesOrders(response.data.data);
+        setSalesOrders(response.data.shippingMethods || response.data.data);
       } else {
         toast.error('Failed to fetch shippable sales orders');
       }

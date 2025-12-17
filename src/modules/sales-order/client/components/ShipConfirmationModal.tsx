@@ -172,7 +172,7 @@ const ShipConfirmationModal: React.FC<ShipConfirmationModalProps> = ({
       }
 
       if (transportersRes.data.success) {
-        setTransporters(transportersRes.data.data);
+        setTransporters(transportersRes.data.transporters || transportersRes.data.data);
       }
 
       if (methodsRes.data && methodsRes.data.data) {

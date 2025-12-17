@@ -47,9 +47,9 @@ export const POConfirmationModal: React.FC<POConfirmationModalProps> = ({
       } else {
         toast.error('Failed to generate PO preview');
       }
-    } catch (error) {
+    } catch (error : any) {
       console.error('Error generating PO preview:', error);
-      toast.error('Failed to generate PO preview');
+      toast.error(error.response?.data?.message || 'Failed to generate PO preview');
     } finally {
       setFetchingPreview(false);
     }

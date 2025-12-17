@@ -96,8 +96,8 @@ const ProductDialog = ({
           axios.get('/api/modules/master-data/product-types', { params: { page: 1, limit: 100 } }),
           axios.get('/api/modules/master-data/package-types', { params: { page: 1, limit: 100 } }),
         ]);
-        setInventoryTypes(typesRes.data.data || []);
-        setPackageTypes(packagesRes.data.data || []);
+        setInventoryTypes(typesRes.data.productTypes || typesRes.data.data || []);
+        setPackageTypes(packagesRes.data.packageTypes ||packagesRes.data.data || []);
       } catch (error) {
         console.error('Failed to fetch options:', error);
       }
