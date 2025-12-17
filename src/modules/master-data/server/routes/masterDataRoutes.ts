@@ -2265,6 +2265,7 @@ router.get('/customers', authorized('ADMIN', 'master-data.view'), async (req, re
     const sort = (req.query.sort as string) || 'name';
     const order = (req.query.order as string) || 'asc';
     const filter = req.query.filter as string;
+    const includeLocations = req.query.includeLocations === 'true';
     const offset = (page - 1) * perPage;
 
     // Define sortable columns
@@ -2308,15 +2309,28 @@ router.get('/customers', authorized('ADMIN', 'master-data.view'), async (req, re
 
     const data = await Promise.all(
       customersList.map(async (customer) => {
-        const [locationCount] = await db
-          .select({ count: count() })
-          .from(customerLocations)
-          .where(eq(customerLocations.customerId, customer.id));
+        if (includeLocations) {
+          const locations = await db
+            .select()
+            .from(customerLocations)
+            .where(eq(customerLocations.customerId, customer.id));
 
-        return {
-          ...customer,
-          locationCount: Number(locationCount?.count) || 0,
-        };
+          return {
+            ...customer,
+            locations,
+            locationCount: locations.length,
+          };
+        } else {
+          const [locationCount] = await db
+            .select({ count: count() })
+            .from(customerLocations)
+            .where(eq(customerLocations.customerId, customer.id));
+
+          return {
+            ...customer,
+            locationCount: Number(locationCount?.count) || 0,
+          };
+        }
       })
     );
 
