@@ -32,6 +32,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Search, CheckCircle, XCircle } from 'lucide-react';
+import Authorized from '@client/components/auth/Authorized';
 
 interface ApproveAdjustmentModalProps {
   open: boolean;
@@ -271,21 +272,23 @@ export const ApproveAdjustmentModal: React.FC<ApproveAdjustmentModalProps> = ({
                 <Button variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => setRejectDialogOpen(true)}
-                  disabled={adjustment.status !== 'created'}
-                >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Reject
-                </Button>
-                <Button
-                  onClick={() => setApproveDialogOpen(true)}
-                  disabled={adjustment.status !== 'created'}
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Approve
-                </Button>
+                <Authorized roles="ADMIN" permissions="inventory-items.adjustment.approval">
+                  <Button
+                    variant="destructive"
+                    onClick={() => setRejectDialogOpen(true)}
+                    disabled={adjustment.status !== 'created'}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Reject
+                  </Button>
+                  <Button
+                    onClick={() => setApproveDialogOpen(true)}
+                    disabled={adjustment.status !== 'created'}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Approve
+                  </Button>
+                </Authorized>
               </DialogFooter>
             </div>
           ) : null}

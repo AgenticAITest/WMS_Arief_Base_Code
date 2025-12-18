@@ -28,6 +28,7 @@ import { Badge } from '@client/components/ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import Authorized from '@client/components/auth/Authorized';
 
 const CycleCountCreate: React.FC = () => {
   const [cycleCounts, setCycleCounts] = useState<any[]>([]);
@@ -123,10 +124,12 @@ const CycleCountCreate: React.FC = () => {
           <h1 className="text-3xl font-bold">Cycle Count</h1>
           <p className="text-muted-foreground">Create and manage inventory cycle counts</p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create New Cycle Count
-        </Button>
+        <Authorized roles="ADMIN" permissions="inventory-items.cycle-count.create">
+          <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create New Cycle Count
+          </Button>
+        </Authorized>
       </div>
 
       <Card>
@@ -176,24 +179,28 @@ const CycleCountCreate: React.FC = () => {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditCount(count.id)}
-                          title="Edit"
-                          disabled={count.status !== 'created'}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDeleteClick(count)}
-                          title="Delete"
-                          disabled={count.status !== 'created'}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <Authorized roles="ADMIN" permissions="inventory-items.cycle-count.edit">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditCount(count.id)}
+                            title="Edit"
+                            disabled={count.status !== 'created'}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </Authorized>
+                        <Authorized roles="ADMIN" permissions="inventory-items.cycle-count.delete">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteClick(count)}
+                            title="Delete"
+                            disabled={count.status !== 'created'}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </Authorized>
                       </div>
                     </TableCell>
                   </TableRow>

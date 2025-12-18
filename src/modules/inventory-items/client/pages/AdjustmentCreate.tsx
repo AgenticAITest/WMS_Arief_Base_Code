@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '@client/components/ui/alert-dialog';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
+import Authorized from '@client/components/auth/Authorized';
 
 interface Adjustment {
   id: string;
@@ -158,10 +159,12 @@ const AdjustmentCreate: React.FC = () => {
           <h2 className="text-3xl font-bold">Inventory Adjustment</h2>
           <p className="text-gray-600">Create and manage inventory adjustments</p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Adjustment
-        </Button>
+        <Authorized roles="ADMIN" permissions="inventory-items.adjustment.create">
+          <Button onClick={() => setModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Adjustment
+          </Button>
+        </Authorized>
       </div>
 
       {adjustments.length === 0 ? (
@@ -212,25 +215,29 @@ const AdjustmentCreate: React.FC = () => {
                       </Button>
 
                       {adjustment.type !== 'cycle_count' && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEditCount(adjustment.id)}
-                          title="Edit"
-                          disabled={adjustment.status !== 'created'}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <Authorized roles="ADMIN" permissions="inventory-items.adjustment.edit">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditCount(adjustment.id)}
+                            title="Edit"
+                            disabled={adjustment.status !== 'created'}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </Authorized>
                       )}
                       
                       {adjustment.status === 'created' && adjustment.type !== 'cycle_count' && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDelete(adjustment)}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-600" />
-                        </Button>
+                        <Authorized roles="ADMIN" permissions="inventory-items.adjustment.delete">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDelete(adjustment)}
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </Button>
+                        </Authorized>
                       )}
                     </div>
                   </TableCell>

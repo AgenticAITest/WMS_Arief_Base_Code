@@ -21,6 +21,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Search } from 'lucide-react';
+import Authorized from '@client/components/auth/Authorized';
 
 interface ApproveCountModalProps {
   open: boolean;
@@ -295,12 +296,14 @@ export const ApproveCountModal: React.FC<ApproveCountModalProps> = ({
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleReject} disabled={submitting}>
-                {submitting ? 'Processing...' : 'Reject'}
-              </Button>
-              <Button onClick={handleApprove} disabled={submitting}>
-                {submitting ? 'Processing...' : 'Approve'}
-              </Button>
+              <Authorized roles="ADMIN" permissions="inventory-items.cycle-count.approval">
+                <Button variant="destructive" onClick={handleReject} disabled={submitting}>
+                  {submitting ? 'Processing...' : 'Reject'}
+                </Button>
+                <Button onClick={handleApprove} disabled={submitting}>
+                  {submitting ? 'Processing...' : 'Approve'}
+                </Button>
+              </Authorized>
             </div>
           </div>
         ) : null}

@@ -19,6 +19,7 @@ import { Badge } from '@client/components/ui/badge';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import Authorized from '@client/components/auth/Authorized';
 
 interface ApproveRelocationModalProps {
   open: boolean;
@@ -213,6 +214,7 @@ export const ApproveRelocationModal: React.FC<ApproveRelocationModalProps> = ({
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
+              <Authorized roles="ADMIN" permissions="inventory-items.relocation.approval">
               <Button
                 variant="destructive"
                 onClick={handleReject}
@@ -223,6 +225,7 @@ export const ApproveRelocationModal: React.FC<ApproveRelocationModalProps> = ({
               <Button onClick={handleApprove} disabled={submitting}>
                 {submitting ? 'Approving...' : 'Approve'}
               </Button>
+              </Authorized>
             </div>
           </div>
         ) : null}

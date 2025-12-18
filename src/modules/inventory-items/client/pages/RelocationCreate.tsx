@@ -27,6 +27,7 @@ import {
   AlertDialogTitle,
 } from '@client/components/ui/alert-dialog';
 import { withModuleAuthorization } from '@client/components/auth/withModuleAuthorization';
+import Authorized from '@client/components/auth/Authorized';
 
 interface Relocation {
   id: string;
@@ -159,10 +160,12 @@ const RelocationCreate: React.FC = () => {
           <h2 className="text-3xl font-bold">Inventory Relocation</h2>
           <p className="text-gray-600">Create and manage inventory relocations</p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Create Relocation
-        </Button>
+        <Authorized roles="ADMIN" permissions="inventory-items.relocation.create">
+          <Button onClick={() => setModalOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Relocation
+          </Button>
+        </Authorized>
       </div>
 
       {relocations.length === 0 ? (
@@ -209,22 +212,26 @@ const RelocationCreate: React.FC = () => {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditRelocation(relocation.id)}
-                        title="Edit"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(relocation)}
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+                      <Authorized roles="ADMIN" permissions="inventory-items.relocation.edit">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditRelocation(relocation.id)}
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </Authorized>
+                      <Authorized roles="ADMIN" permissions="inventory-items.relocation.delete">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(relocation)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </Authorized>
                     </div>
                   </TableCell>
                 </TableRow>
