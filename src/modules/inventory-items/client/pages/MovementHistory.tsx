@@ -325,12 +325,12 @@ const MovementHistory: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        {/* <div className="flex justify-end">
           <Button onClick={handleSearch}>
             <Search className="mr-2 h-4 w-4" />
             Search
           </Button>
-        </div>
+        </div> */}
       </div>
 
       <div className="bg-card rounded-lg border overflow-hidden">

@@ -26,8 +26,8 @@ async function seed() {
   const sysTenantId = crypto.randomUUID();
   const pubTenantId = crypto.randomUUID();
   await db.insert(tenant).values([
-    { id: sysTenantId, code: "SYSTEM", name: "System", description: "System Tenant" },
-    { id: pubTenantId, code: "PUBLIC", name: "Public", description: "Public Tenant" }
+    { id: sysTenantId, code: "system", name: "System", description: "System Tenant" },
+    { id: pubTenantId, code: "public", name: "Public", description: "Public Tenant" }
   ]);
 
   console.log("Seeding user");
@@ -171,10 +171,10 @@ async function seed() {
     { id: crypto.randomUUID(), moduleId: "sample-module", moduleName: "Sample Module", description: "Sample module for demonstrating the modular architecture with CRUD operations", version: "1.0.0", category: "Sample", isActive: true, repositoryUrl: "https://github.com/sample/sample-module",documentationUrl: "https://docs.sample.com/sample-module"},
   ]);
 
-  console.log("\nSeeding workflows for SYSTEM tenant");
+  console.log("\nSeeding workflows for system tenant");
   await seedWorkflows(sysTenantId);
   
-  console.log("\nSeeding workflows for PUBLIC tenant");
+  console.log("\nSeeding workflows for public tenant");
   await seedWorkflows(pubTenantId);
 
 }

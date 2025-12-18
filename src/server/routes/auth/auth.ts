@@ -122,7 +122,7 @@ authRoutes.post('/register', validateData(userRegistrationSchema), async (req, r
 
   try {
     // get public tenant
-    const publicTenant = (await db.select().from(table.tenant).where(eq(table.tenant.code, 'PUBLIC'))).at(0);
+    const publicTenant = (await db.select().from(table.tenant).where(eq(table.tenant.code, 'public'))).at(0);
     if (!publicTenant) {
       return res.status(500).json({ message: 'Public tenant not found' });
     }

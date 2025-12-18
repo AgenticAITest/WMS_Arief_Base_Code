@@ -63,7 +63,7 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.post('/relocations', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.post('/relocations', authorized('ADMIN', 'inventory-items.relocation.create'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -267,7 +267,7 @@ router.post('/relocations', authorized('ADMIN', 'inventory-items.manage'), async
  *       401:
  *         description: Unauthorized
  */
-router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/relocations', authorized('ADMIN', 'inventory-items.relocation.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -356,7 +356,7 @@ router.get('/relocations', authorized('ADMIN', 'inventory-items.view'), async (r
  *       401:
  *         description: Unauthorized
  */
-router.get('/relocations/:id', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/relocations/:id', authorized('ADMIN', 'inventory-items.relocation.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { id } = req.params;
@@ -419,7 +419,7 @@ router.get('/relocations/:id', authorized('ADMIN', 'inventory-items.view'), asyn
  *       401:
  *         description: Unauthorized
  */
-router.get('/relocations/:id/items', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/relocations/:id/items', authorized('ADMIN', 'inventory-items.relocation.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { id } = req.params;
@@ -581,7 +581,7 @@ router.get('/relocations/:id/items', authorized('ADMIN', 'inventory-items.view')
  *       401:
  *         description: Unauthorized
  */
-router.put('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.put('/relocations/:id', authorized('ADMIN', 'inventory-items.relocation.edit'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -747,7 +747,7 @@ router.put('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'), as
  *       401:
  *         description: Unauthorized
  */
-router.delete('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.delete('/relocations/:id', authorized('ADMIN', 'inventory-items.relocation.delete'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -827,7 +827,7 @@ router.delete('/relocations/:id', authorized('ADMIN', 'inventory-items.manage'),
  *       401:
  *         description: Unauthorized
  */
-router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.relocation.approval'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -1150,7 +1150,7 @@ router.post('/relocations/:id/approve', authorized('ADMIN', 'inventory-items.man
  *       401:
  *         description: Unauthorized
  */
-router.post('/relocations/:id/reject', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.post('/relocations/:id/reject', authorized('ADMIN', 'inventory-items.relocation.approval'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -1238,7 +1238,7 @@ router.post('/relocations/:id/reject', authorized('ADMIN', 'inventory-items.mana
  *       401:
  *         description: Unauthorized
  */
-router.get('/relocations/:id/document', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/relocations/:id/document', authorized('ADMIN', 'inventory-items.relocation.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { id } = req.params;

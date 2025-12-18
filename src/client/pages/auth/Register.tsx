@@ -34,7 +34,7 @@ const Register = () => {
     mode: "onSubmit",
     reValidateMode: "onSubmit",
     defaultValues: {
-      activeTenantCode: "PUBLIC",
+      activeTenantCode: "public",
       username: "",
       fullname: "",
       email: "",

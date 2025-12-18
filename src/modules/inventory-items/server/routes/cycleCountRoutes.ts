@@ -55,7 +55,7 @@ const router = express.Router();
  *       401:
  *         description: Unauthorized
  */
-router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.cycle-count.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -188,7 +188,7 @@ router.get('/cycle-counts', authorized('ADMIN', 'inventory-items.view'), async (
  *       401:
  *         description: Unauthorized
  */
-router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.cycle-count.create'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const userId = req.user!.id;
@@ -354,7 +354,7 @@ router.post('/cycle-counts', authorized('ADMIN', 'inventory-items.manage'), asyn
  *       401:
  *         description: Unauthorized
  */
-router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.cycle-count.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
 
@@ -455,7 +455,7 @@ router.get('/cycle-counts/filter-options', authorized('ADMIN', 'inventory-items.
  *       401:
  *         description: Unauthorized
  */
-router.get('/cycle-counts/search-sku', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/cycle-counts/search-sku', authorized('ADMIN', ['inventory-items.cycle-count.view','inventory-items.relocation.view','inventory-items.adjustment.view']), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { sku } = req.query;
@@ -570,7 +570,7 @@ router.get('/cycle-counts/search-sku', authorized('ADMIN', 'inventory-items.view
  *       401:
  *         description: Unauthorized
  */
-router.get('/cycle-counts/items', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/cycle-counts/items', authorized('ADMIN', 'inventory-items.cycle-count.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { inventoryTypeId, zoneId, countType, binIds } = req.query;
@@ -666,7 +666,7 @@ router.get('/cycle-counts/items', authorized('ADMIN', 'inventory-items.view'), a
  *       401:
  *         description: Unauthorized
  */
-router.get('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.cycle-count.view'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;
@@ -733,7 +733,7 @@ router.get('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.view'), asy
  *       401:
  *         description: Unauthorized
  */
-router.get('/cycle-counts/:id/document', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/cycle-counts/:id/document', authorized('ADMIN', 'inventory-items.cycle-count.view'), async (req, res) => {
   try {
     const tenantId = req.user!.activeTenantId;
     const { id } = req.params;
@@ -838,7 +838,7 @@ router.get('/cycle-counts/:id/document', authorized('ADMIN', 'inventory-items.vi
  *       401:
  *         description: Unauthorized
  */
-router.get('/cycle-counts/:id/items', authorized('ADMIN', 'inventory-items.view'), async (req, res) => {
+router.get('/cycle-counts/:id/items', authorized('ADMIN', 'inventory-items.cycle-count.view'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;
@@ -993,7 +993,7 @@ router.get('/cycle-counts/:id/items', authorized('ADMIN', 'inventory-items.view'
  *       401:
  *         description: Unauthorized
  */
-router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.cycle-count.edit'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;
@@ -1161,7 +1161,7 @@ router.put('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), a
  *       401:
  *         description: Unauthorized
  */
-router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.cycle-count.approval'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;
@@ -1426,7 +1426,7 @@ router.put('/cycle-counts/:id/approve', authorized('ADMIN', 'inventory-items.man
  *       401:
  *         description: Unauthorized
  */
-router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.cycle-count.approval'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;
@@ -1518,7 +1518,7 @@ router.put('/cycle-counts/:id/reject', authorized('ADMIN', 'inventory-items.mana
  *       401:
  *         description: Unauthorized
  */
-router.delete('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.manage'), async (req, res) => {
+router.delete('/cycle-counts/:id', authorized('ADMIN', 'inventory-items.cycle-count.delete'), async (req, res) => {
   try {
     const { id } = req.params;
     const tenantId = req.user!.activeTenantId;

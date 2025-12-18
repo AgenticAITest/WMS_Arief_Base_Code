@@ -16,7 +16,6 @@ import { sampleModuleSidebarMenus } from "../../modules/sample-module/client/men
 import { generalSidebarMenus } from "../../modules/general/client/menus/sideBarMenus";
 import { documentNumberingSidebarMenus } from "../../modules/document-numbering/client/menus/sideBarMenus";
 import {
-  cycleCountSidebarMenus,
   inventoryItemsSidebarMenus
 } from "../../modules/inventory-items/client/menus/sideBarMenus";
 import { masterDataSidebarMenus } from "../../modules/master-data/client/menus/sideBarMenus";
