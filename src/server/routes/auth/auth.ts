@@ -302,6 +302,27 @@ authRoutes.post('/register-tenant', validateData(tenantRegistrationSchema), asyn
         { id: crypto.randomUUID(), code: "sales-order.pack", name: "Pack Sales Order", description: "Permission to pack sales order", tenantId: newTenant.id },
         { id: crypto.randomUUID(), code: "sales-order.ship", name: "Ship Sales Order", description: "Permission to ship sales order", tenantId: newTenant.id },
         { id: crypto.randomUUID(), code: "sales-order.deliver", name: "Deliver Sales Order", description: "Permission to deliver sales order", tenantId: newTenant.id },
+
+        // add inventory-items module permissions
+        { id: crypto.randomUUID(), code: "inventory-items.view", name: "View Inventory Items", description: "Permission to view inventory items", tenantId: newTenant.id },
+
+        { id: crypto.randomUUID(), code: "inventory-items.adjustment.view", name: "View Inventory Adjustments", description: "Permission to view inventory adjustments", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.adjustment.create", name: "Create Inventory Adjustment", description: "Permission to create inventory adjustment", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.adjustment.edit", name: "Edit Inventory Adjustment", description: "Permission to edit inventory adjustment", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.adjustment.delete", name: "Delete Inventory Adjustment", description: "Permission to delete inventory adjustment", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.adjustment.approval", name: "Inventory Adjustment Approval", description: "Permission to approve inventory adjustment", tenantId: newTenant.id },
+
+        { id: crypto.randomUUID(), code: "inventory-items.relocation.view", name: "View Relocations", description: "Permission to view relocations", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.relocation.create", name: "Create Relocation", description: "Permission to create relocation", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.relocation.edit", name: "Edit Relocation", description: "Permission to edit relocation", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.relocation.delete", name: "Delete Relocation", description: "Permission to delete relocation", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.relocation.approval", name: "Relocation Approval", description: "Permission to approve relocation", tenantId: newTenant.id },
+        
+        { id: crypto.randomUUID(), code: "inventory-items.cycle-count.view", name: "View Cycle Counts", description: "Permission to view cycle counts", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.cycle-count.create", name: "Create Cycle Count", description: "Permission to create cycle count", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.cycle-count.edit", name: "Edit Cycle Count", description: "Permission to edit cycle count", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.cycle-count.delete", name: "Delete Cycle Count", description: "Permission to delete cycle count", tenantId: newTenant.id },
+        { id: crypto.randomUUID(), code: "inventory-items.cycle-count.approval", name: "Cycle Count Approval", description: "Permission to approve cycle count", tenantId: newTenant.id }, 
         
       ]).returning().then((rows) => rows.map(r => r.id));
 
