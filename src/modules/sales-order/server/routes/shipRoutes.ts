@@ -211,12 +211,12 @@ router.post('/ships/:id/confirm', authorized('ADMIN', 'sales-order.ship'), async
     const userId = req.user!.id;
 
     // Validate required fields
-    if (!transporterId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Transporter is required',
-      });
-    }
+    // if (!transporterId) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: 'Transporter is required',
+    //   });
+    // }
 
     if (!packageLocations || packageLocations.length === 0) {
       return res.status(400).json({

@@ -609,7 +609,7 @@ export class ShipDocumentGenerator {
       .where(eq(transportersTable.id, data.transporterId))
       .limit(1);
 
-    const transporterName = transporter?.name || 'Unknown Transporter';
+    const transporterName = transporter?.name || 'Internal Transporter';
 
     // Fetch shipping method name if provided
     let shippingMethodName: string | null = null;
