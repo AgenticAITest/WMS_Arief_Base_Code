@@ -290,9 +290,9 @@ const PackageCreationModal: React.FC<PackageCreationModalProps> = ({
                       <tr key={item.id} className="border-t">
                         <td className="px-3 py-2 font-medium">{item.sku}</td>
                         <td className="px-3 py-2">{item.productName}</td>
-                        <td className="px-3 py-2 text-right">{parseFloat(item.pickedQuantity).toFixed(2)}</td>
+                        <td className="px-3 py-2 text-right">{parseInt(item.pickedQuantity, 10)}</td>
                         <td className={`px-3 py-2 text-right font-medium ${remainingColor}`}>
-                          {remaining.toFixed(2)}
+                          {parseInt(remaining.toFixed(2), 10)}
                         </td>
                       </tr>
                     );
@@ -442,7 +442,7 @@ const PackageCreationModal: React.FC<PackageCreationModalProps> = ({
                             <Label className="text-xs">Quantity</Label>
                             <Input
                               type="number"
-                              step="0.01"
+                              step="1"
                               value={item.quantity || ''}
                               onChange={(e) =>
                                 handleItemFieldChange(packageIndex, itemIndex, 'quantity', e.target.value)

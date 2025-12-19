@@ -285,12 +285,12 @@ const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps> = ({
                   <td className="px-3 py-2 text-sm font-mono">{item.sku}</td>
                   <td className="px-3 py-2 text-sm">{item.productName}</td>
                   <td className="px-3 py-2 text-sm text-center font-medium">
-                    {parseFloat(item.shippedQuantity).toFixed(3)}
+                    {parseInt(item.shippedQuantity, 10)}
                   </td>
                   <td className="px-3 py-2">
                     <Input
                       type="number"
-                      step="0.001"
+                      step="1"
                       value={item.acceptedQuantity}
                       onChange={(e) => handleAcceptedQuantityChange(key, e.target.value)}
                       className="w-24 text-center"
@@ -304,7 +304,7 @@ const DeliveryConfirmationModal: React.FC<DeliveryConfirmationModalProps> = ({
                           : 'text-gray-500'
                       }
                     >
-                      {parseFloat(item.rejectedQuantity).toFixed(3)}
+                      {parseInt(item.rejectedQuantity, 10)}
                     </span>
                   </td>
                   <td className="px-3 py-2">

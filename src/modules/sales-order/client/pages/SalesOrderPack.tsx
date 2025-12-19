@@ -280,7 +280,7 @@ const SalesOrderPack: React.FC = () => {
                                 <td className="px-4 py-2 font-medium">{item.sku}</td>
                                 <td className="px-4 py-2">{item.productName}</td>
                                 <td className="px-4 py-2 text-right">
-                                  {parseFloat(item.pickedQuantity).toFixed(2)}
+                                  {parseInt(item.pickedQuantity, 10)}
                                 </td>
                               </tr>
                             ))}

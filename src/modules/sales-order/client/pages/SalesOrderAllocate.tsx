@@ -178,7 +178,7 @@ const SalesOrderAllocate: React.FC = () => {
                             <tr key={item.id} className="border-t">
                               <td className="px-4 py-2 text-sm">{item.sku}</td>
                               <td className="px-4 py-2 text-sm font-medium">{item.productName}</td>
-                              <td className="px-4 py-2 text-sm text-right">{item.orderedQuantity}</td>
+                              <td className="px-4 py-2 text-sm text-right">{parseInt(item.orderedQuantity, 10)}</td>
                               <td className="px-4 py-2 text-sm text-right">
                                 <span className={isSufficient ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>
                                   {item.availableQuantity}

@@ -123,7 +123,7 @@ const PickConfirmationModal: React.FC<PickConfirmationModalProps> = ({
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-muted-foreground">Total Qty</p>
-                    <p className="text-lg font-semibold">{item.allocatedQuantity}</p>
+                    <p className="text-lg font-semibold">{parseInt(item.allocatedQuantity, 10)}</p>
                   </div>
                 </div>
 

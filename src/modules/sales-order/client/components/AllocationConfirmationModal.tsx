@@ -132,7 +132,7 @@ const AllocationConfirmationModal: React.FC<AllocationConfirmationModalProps> = 
                       <td className="px-4 py-2 text-sm">{item.sku}</td>
                       <td className="px-4 py-2 text-sm">{item.productName}</td>
                       <td className="px-4 py-2 text-sm text-right font-medium">
-                        {item.orderedQuantity}
+                        {parseInt(item.orderedQuantity, 10)}
                       </td>
                     </tr>
                   ))}
