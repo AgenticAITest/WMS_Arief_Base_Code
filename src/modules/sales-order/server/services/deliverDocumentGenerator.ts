@@ -73,15 +73,14 @@ export class DeliverDocumentGenerator {
     const itemsHTML = data.items.map((item, idx) => {
       const hasRejection = parseFloat(item.rejectedQuantity) > 0;
       const rowClass = hasRejection ? 'rejected-row' : '';
-      
       return `
         <tr class="${rowClass}">
           <td style="padding: 10px; text-align: center;">${idx + 1}</td>
           <td style="padding: 10px;">${item.sku}</td>
           <td style="padding: 10px;">${item.productName}</td>
-          <td style="padding: 10px; text-align: center;">${item.shippedQuantity}</td>
-          <td style="padding: 10px; text-align: center; font-weight: bold; color: #2e7d32;">${item.acceptedQuantity}</td>
-          <td style="padding: 10px; text-align: center; ${hasRejection ? 'font-weight: bold; color: #d32f2f;' : ''}">${item.rejectedQuantity}</td>
+          <td style="padding: 10px; text-align: center;">${parseInt(item.shippedQuantity, 10)}</td>
+          <td style="padding: 10px; text-align: center; font-weight: bold; color: #2e7d32;">${parseInt(item.acceptedQuantity, 10)}</td>
+          <td style="padding: 10px; text-align: center; ${hasRejection ? 'font-weight: bold; color: #d32f2f;' : ''}">${parseInt(item.rejectedQuantity, 10)}</td>
           <td style="padding: 10px; font-size: 12px; color: #666;">${item.rejectionNotes || '-'}</td>
         </tr>
       `;
@@ -98,7 +97,7 @@ export class DeliverDocumentGenerator {
           </div>
           <div class="return-detail">
             <span class="label">Total Rejected Items:</span>
-            <strong style="color: #d32f2f;">${totalRejected.toFixed(3)}</strong>
+            <strong style="color: #d32f2f;">${parseInt(totalRejected.toString(), 10)}</strong>
           </div>
           <p class="return-note">
             Rejected items will be processed through the receiving workflow and returned to inventory.
@@ -119,7 +118,7 @@ export class DeliverDocumentGenerator {
       padding: 0;
       box-sizing: border-box;
     }
-    
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       line-height: 1.6;
@@ -129,21 +128,21 @@ export class DeliverDocumentGenerator {
       max-width: 1200px;
       margin: 0 auto;
     }
-    
+
     .header {
       text-align: center;
       border-bottom: 3px solid #000;
       padding-bottom: 20px;
       margin-bottom: 30px;
     }
-    
+
     .header h1 {
       font-size: 36px;
       font-weight: bold;
       margin-bottom: 8px;
       color: ${data.status === 'complete' ? '#2e7d32' : '#ff6f00'};
     }
-    
+
     .header p {
       font-size: 14px;
       color: #666;
@@ -159,20 +158,20 @@ export class DeliverDocumentGenerator {
       background-color: ${data.status === 'complete' ? '#c8e6c9' : '#ffe0b2'};
       color: ${data.status === 'complete' ? '#1b5e20' : '#e65100'};
     }
-    
+
     .document-info {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 30px;
       margin-bottom: 30px;
     }
-    
+
     .info-section {
       border: 2px solid #e0e0e0;
       padding: 20px;
       border-radius: 8px;
     }
-    
+
     .info-section h2 {
       font-size: 14px;
       font-weight: bold;
@@ -181,18 +180,18 @@ export class DeliverDocumentGenerator {
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
-    
+
     .info-section .company-name {
       font-size: 20px;
       font-weight: bold;
       margin-bottom: 8px;
     }
-    
+
     .info-section .detail-line {
       font-size: 14px;
       margin: 6px 0;
     }
-    
+
     .info-section .label {
       font-weight: 600;
       display: inline-block;
@@ -272,18 +271,18 @@ export class DeliverDocumentGenerator {
       color: #666;
       font-style: italic;
     }
-    
+
     .items-section {
       margin-top: 30px;
     }
-    
+
     .items-section h2 {
       font-size: 18px;
       font-weight: bold;
       margin-bottom: 16px;
       color: #333;
     }
-    
+
     .items-table {
       width: 100%;
       border-collapse: collapse;
@@ -292,27 +291,27 @@ export class DeliverDocumentGenerator {
       border-radius: 8px;
       overflow: hidden;
     }
-    
+
     .items-table thead {
       background-color: #424242;
       color: #fff;
     }
-    
+
     .items-table th {
       padding: 12px 10px;
       text-align: left;
       font-weight: 600;
       font-size: 13px;
     }
-    
+
     .items-table tbody tr {
       border-bottom: 1px solid #e0e0e0;
     }
-    
+
     .items-table tbody tr:last-child {
       border-bottom: none;
     }
-    
+
     .items-table tbody tr:hover {
       background-color: #f5f5f5;
     }
@@ -324,7 +323,7 @@ export class DeliverDocumentGenerator {
     .items-table tbody tr.rejected-row:hover {
       background-color: #ffcdd2;
     }
-    
+
     .items-table td {
       padding: 10px;
       font-size: 14px;
@@ -435,21 +434,21 @@ export class DeliverDocumentGenerator {
     </div>
   </div>
 
-  <div class="delivery-info">
+    <div class="delivery-info">
     <h2>${data.status === 'complete' ? '✓ Complete Delivery' : '⚠️ Partial Delivery'}</h2>
     <div class="delivery-grid">
       <div class="delivery-detail">
         <span class="label">Total Items Shipped:</span>
-        <strong>${totalShipped.toFixed(3)}</strong>
+        <strong>${parseInt(totalShipped.toString(), 10)}</strong>
       </div>
       <div class="delivery-detail">
         <span class="label">Total Items Accepted:</span>
-        <strong style="color: #2e7d32;">${totalAccepted.toFixed(3)}</strong>
+        <strong style="color: #2e7d32;">${parseInt(totalAccepted.toString(), 10)}</strong>
       </div>
       ${data.status === 'partial' ? `
         <div class="delivery-detail">
           <span class="label">Total Items Rejected:</span>
-          <strong style="color: #d32f2f;">${totalRejected.toFixed(3)}</strong>
+          <strong style="color: #d32f2f;">${parseInt(totalRejected.toString(), 10)}</strong>
         </div>
       ` : ''}
       <div class="delivery-detail">
@@ -491,9 +490,9 @@ export class DeliverDocumentGenerator {
       <tfoot>
         <tr>
           <td colspan="3" style="text-align: right;">TOTALS:</td>
-          <td style="text-align: center;">${totalShipped.toFixed(3)}</td>
-          <td style="text-align: center; color: #2e7d32;">${totalAccepted.toFixed(3)}</td>
-          <td style="text-align: center; ${data.status === 'partial' ? 'color: #d32f2f;' : ''}">${totalRejected.toFixed(3)}</td>
+          <td style="text-align: center;">${parseInt(totalShipped.toString(), 10)}</td>
+          <td style="text-align: center; color: #2e7d32;">${parseInt(totalAccepted.toString(), 10)}</td>
+          <td style="text-align: center; ${data.status === 'partial' ? 'color: #d32f2f;' : ''}">${parseInt(totalRejected.toString(), 10)}</td>
           <td></td>
         </tr>
       </tfoot>
@@ -527,18 +526,18 @@ export class DeliverDocumentGenerator {
     const year = new Date(data.deliveryDate).getFullYear();
     const relativePath = `storage/sales-order/deliveries/tenants/${data.tenantId}/${year}`;
     const fileName = `${data.deliveryNumber}.html`;
-    
+
     // Create directory if it doesn't exist
     const fullDirPath = path.join(process.cwd(), relativePath);
     await fs.mkdir(fullDirPath, { recursive: true });
-    
+
     // Write HTML file
     const fullFilePath = path.join(fullDirPath, fileName);
     await fs.writeFile(fullFilePath, htmlContent, 'utf-8');
-    
+
     // Store in generated_documents table
     const relativeFilePath = `${relativePath}/${fileName}`;
-    
+
     const [document] = await db
       .insert(generatedDocuments)
       .values({

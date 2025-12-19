@@ -305,8 +305,8 @@ export class PickDocumentGenerator {
               <td class="text-center">${index + 1}</td>
               <td style="font-weight: 600;">${item.productSku}</td>
               <td>${item.productName}</td>
-              <td class="text-right">${item.allocatedQuantity.toFixed(2)}</td>
-              <td class="text-right" style="font-weight: 600;">${item.pickedQuantity.toFixed(2)}</td>
+              <td class="text-right">${parseInt(item.allocatedQuantity.toString(), 10)}</td>
+              <td class="text-right" style="font-weight: 600;">${parseInt(item.pickedQuantity.toString(), 10)}</td>
             </tr>
           </tbody>
         </table>
@@ -320,7 +320,7 @@ export class PickDocumentGenerator {
                 ${pick.lotNumber ? `Lot: ${pick.lotNumber}` : ''}
                 ${pick.expiryDate ? `| Exp: ${new Date(pick.expiryDate).toLocaleDateString()}` : ''}
               </span>
-              <span class="qty">Qty: ${pick.quantity.toFixed(2)}</span>
+              <span class="qty">Qty: ${parseInt(pick.quantity.toString(), 10)}</span>
             </div>
           `).join('')}
         </div>

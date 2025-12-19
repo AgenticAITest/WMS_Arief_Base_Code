@@ -349,7 +349,7 @@ export class SODocumentGenerator {
           </div>
           ` : ''}
         </td>
-        <td class="text-center">${item.orderedQuantity}</td>
+        <td class="text-center">${parseInt(item.orderedQuantity.toString(), 10)}</td>
         <td class="text-right">$${parseFloat(item.unitPrice).toFixed(2)}</td>
         <td class="text-right">$${parseFloat(item.totalPrice).toFixed(2)}</td>
       </tr>
