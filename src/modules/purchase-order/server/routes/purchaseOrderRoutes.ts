@@ -1147,11 +1147,20 @@ router.get('/orders/:id/html', authorized('ADMIN', 'purchase-order.view'), async
  *             type: object
  *             required:
  *               - supplierId
+ *               - warehouseId
+ *               - items
  *             properties:
  *               supplierId:
  *                 type: string
  *                 format: uuid
  *               supplierLocationId:
+ *                 type: string
+ *                 format: uuid
+ *               deliveryMethod:
+ *                 type: string
+ *                 enum: [delivery, pickup]
+ *                 default: delivery
+ *               warehouseId:
  *                 type: string
  *                 format: uuid
  *               expectedDeliveryDate:
@@ -1163,6 +1172,9 @@ router.get('/orders/:id/html', authorized('ADMIN', 'purchase-order.view'), async
  *                 type: array
  *                 items:
  *                   type: object
+ *                   required:
+ *                     - productId
+ *                     - orderedQuantity
  *                   properties:
  *                     productId:
  *                       type: string
