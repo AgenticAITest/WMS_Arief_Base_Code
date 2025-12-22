@@ -28,6 +28,7 @@ import {
 } from '@client/components/ui/alert-dialog';
 import { DebouncedInput } from '@client/components/DebouncedInput';
 import Authorized from '@client/components/auth/Authorized';
+import { Badge } from '@client/components/ui/badge';
 
 interface ShippingMethod {
   id: string;
@@ -231,8 +232,17 @@ export default function ShippingMethodTab() {
                         <code className="text-sm">{method.code}</code>
                       </TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-950/30 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-200">
+                        {/* <span className="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-950/30 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-200">
                           {method.type}
+                        </span> */}
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            method.type === 'internal'
+                              ? 'bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-200'
+                              : 'bg-orange-100 dark:bg-orange-950/30 text-orange-800 dark:text-orange-200'
+                          }`}
+                        >
+                          {method.type === 'internal' ? 'Internal' : 'Third Party'}
                         </span>
                       </TableCell>
                       <TableCell className="capitalize">
@@ -245,7 +255,7 @@ export default function ShippingMethodTab() {
                         {method.estimatedDays ? `${method.estimatedDays} days` : 'N/A'}
                       </TableCell>
                       <TableCell>
-                        <span
+                        {/* <span
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                             method.isActive
                               ? 'bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-200'
@@ -253,7 +263,10 @@ export default function ShippingMethodTab() {
                           }`}
                         >
                           {method.isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        </span> */}
+                        <Badge variant={method.isActive ? 'default' : 'secondary'}>
+                          {method.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
