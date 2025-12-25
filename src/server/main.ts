@@ -44,6 +44,7 @@ import roleRoutes from "./routes/system/role";
 import tenantRoutes from "./routes/system/tenant";
 import userRoutes from "./routes/system/user";
 import auditLogRoutes from "./routes/auditLogRoutes";
+import profileRoutes from "./routes/account/profile";
 
 
 const app = express();
@@ -124,6 +125,9 @@ app.use('/api/system/user', userRoutes);
 app.use('/api/system/module-authorization', moduleAuthorizationRoutes);
 app.use('/api/system/module-registry', moduleRegistryRoutes);
 app.use('/api/audit-logs', auditLogRoutes);
+
+// account routes
+app.use('/api/account/profile', profileRoutes);
 
 // demo routes
 app.use('/api/demo/department', departmentRoutes);

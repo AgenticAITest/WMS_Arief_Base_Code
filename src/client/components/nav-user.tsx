@@ -94,7 +94,7 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate("/console/profile")}>
                 <CircleUser />
                 Your Profile
               </DropdownMenuItem>

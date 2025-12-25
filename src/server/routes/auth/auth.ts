@@ -436,7 +436,10 @@ authRoutes.post('/setup-otp', authenticated(), async (req, res) => {
     // Check if user already has OTP
     const existingOtp = await db.select().from(table.userOtp).where(eq(table.userOtp.userId, userId)).limit(1);
     if (existingOtp.length > 0) {
-      return res.status(400).json({ message: 'OTP already set up' });
+      // check if enabled
+      if (existingOtp[0].enabled) {
+        return res.status(400).json({ message: 'OTP is already enabled for this user' });
+      }
     }
 
     // Generate secret
@@ -448,7 +451,17 @@ authRoutes.post('/setup-otp', authenticated(), async (req, res) => {
     // Generate QR code
     const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url!);
 
-    // Save to database
+    // if existingOtp exists but not enabled, update the secret
+    if (existingOtp.length === 1) {
+      await db.update(table.userOtp).set({ secret: secret.base32 }).where(eq(table.userOtp.userId, userId));
+      return res.json({
+        secret: secret.base32,
+        qrCodeUrl,
+        otpauth_url: secret.otpauth_url
+      });
+    }
+
+    // insert to database
     await db.insert(table.userOtp).values({
       id: crypto.randomUUID(),
       userId,

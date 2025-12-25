@@ -12,6 +12,7 @@ import { useAuth } from "@client/provider/AuthProvider";
 import axios from "axios";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 
 const OtpSetup = () => {
   const [step, setStep] = useState<'setup' | 'verify' | 'enabled'>('setup');
@@ -21,6 +22,7 @@ const OtpSetup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
+  const navigate = useNavigate();
 
   const { user } = useAuth();
 
@@ -93,7 +95,7 @@ const OtpSetup = () => {
     <div className="container mx-auto p-6">
       <Card className="max-w-md mx-auto">
         <CardHeader>
-          <CardTitle>Setup Two-Factor Authentication</CardTitle>
+          <CardTitle>Setup TOTP Authentication</CardTitle>
           <CardDescription>
             Scan the QR code with your authenticator app and enter the code to enable OTP login.
           </CardDescription>
@@ -105,9 +107,14 @@ const OtpSetup = () => {
               <p className="text-sm text-muted-foreground mt-2">
                 You can use OTP to login.
               </p>
-              <Button onClick={disableOtp} variant="outline" className="mt-4">
-                Disable OTP
-              </Button>
+              <div className="flex flex-col gap-0 mt-4">
+                <Button onClick={disableOtp} variant="destructive" className="mt-4">
+                  Disable OTP
+                </Button>
+                <Button onClick={() => navigate('/console/profile')} variant="outline" className="mt-4">
+                  Back to Profile
+                </Button>
+              </div>
             </div>
           )}
 
@@ -120,9 +127,14 @@ const OtpSetup = () => {
               <p className="text-xs text-muted-foreground mt-1">
                 Secret: {secret}
               </p>
-              <Button onClick={() => setStep('verify')} className="mt-4">
-                I've scanned the code
-              </Button>
+              <div className="flex flex-col gap-0 mt-4">
+                <Button onClick={() => setStep('verify')} className="mt-4">
+                  I've scanned the code
+                </Button>
+                <Button onClick={() => navigate('/console/profile')} variant="outline" className="mt-4">
+                  Back to Profile
+                </Button>
+              </div>
             </div>
           )}
 
