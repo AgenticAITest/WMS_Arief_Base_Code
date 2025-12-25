@@ -22,6 +22,8 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -35,10 +37,11 @@ export function LoginForm({
     setLoading(true);
     setError("");
     try {
-      const loginResponse = await axios.post("/api/auth/login", {
-        username,
-        password,
-      });
+      const loginData = loginMethod === 'password' 
+        ? { username, password }
+        : { username, otp };
+      
+      const loginResponse = await axios.post(`/api/auth/${loginMethod === 'password' ? 'login' : 'login-otp'}`, loginData);
       const userResponse = await axios.get("/api/auth/user", {
         headers: {
           Authorization: "Bearer " + loginResponse.data.accessToken,
@@ -78,24 +81,59 @@ export function LoginForm({
                     onChange={(e) => setUsername(e.target.value)}
                   />
                 </div>
-                <div className="grid gap-3">
-                  <div className="flex items-center">
-                    <Label htmlFor="password">Password</Label>
-                    <Link
-                      to="/auth/forget-password"
-                      className="ml-auto text-sm underline-offset-4 hover:underline"
-                    >
-                      Forgot your password?
-                    </Link>
-                  </div>
-                  <Input
-                    id="password"
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
+                
+                <div className="flex items-center space-x-2 hidden">
+                  <Button
+                    type="button"
+                    variant={loginMethod === 'password' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setLoginMethod('password')}
+                  >
+                    Password
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={loginMethod === 'otp' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setLoginMethod('otp')}
+                  >
+                    OTP
+                  </Button>
                 </div>
+
+                {loginMethod === 'password' ? (
+                  <div className="grid gap-3">
+                    <div className="flex items-center">
+                      <Label htmlFor="password">Password</Label>
+                      <Link
+                        to="/auth/forget-password"
+                        className="ml-auto text-sm underline-offset-4 hover:underline"
+                      >
+                        Forgot your password?
+                      </Link>
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    <Label htmlFor="otp">OTP Code</Label>
+                    <Input
+                      id="otp"
+                      type="text"
+                      required
+                      value={otp}
+                      placeholder="Enter 6-digit code"
+                      maxLength={6}
+                      onChange={(e) => setOtp(e.target.value)}
+                    />
+                  </div>
+                )}
 
                 {error && (
                   <p className="text-destructive text-center text-sm">

@@ -8,6 +8,13 @@
       "when": 1764822679984,
       "tag": "20251204043119_friendly_squadron_supreme",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766627317453,
+      "tag": "20251225014837_slim_medusa",
+      "breakpoints": true
     }
   ]
 }

@@ -53,6 +53,7 @@ import User from "./pages/console/system/users/User";
 import UserAdd from "./pages/console/system/users/UserAdd";
 import UserEdit from "./pages/console/system/users/UserEdit";
 import UserResetPassword from "./pages/console/system/users/UserResetPassword";
+import OtpSetup from "./pages/console/system/OtpSetup";
 import UserView from "./pages/console/system/users/UserView";
 
 export const router = createBrowserRouter([
@@ -166,6 +167,7 @@ export const router = createBrowserRouter([
                   { path: ":id/edit", Component: ModuleRegistryEdit },
                 ]
               },
+              { path: "otp-setup", Component: OtpSetup },
             ]
           },
           sampleModuleReactRoutes("modules/sample-module"),

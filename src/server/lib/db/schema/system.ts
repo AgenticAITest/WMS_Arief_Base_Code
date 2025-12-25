@@ -25,6 +25,21 @@ export const user = pgTable('sys_user', {
   updatedAt: timestamp("updatedAt").defaultNow().notNull().$onUpdate(() => new Date()),
 });
 
+export const userOtp = pgTable('sys_user_otp', {
+  id: uuid('id').primaryKey(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => user.id),
+  secret: varchar('secret', { length: 255 }).notNull(),
+  enabled: boolean('enabled').notNull().default(false),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull().$onUpdate(() => new Date()),
+},
+  (t) => [
+    uniqueIndex("user_otp_unique_idx").on(t.userId),
+  ]
+);
+
 export const role = pgTable('sys_role', {
   id: uuid('id').primaryKey(),
   code: varchar('code', { length: 255 }).notNull(),
@@ -130,6 +145,10 @@ export const userRelations = relations(user, ({ one, many }) => ({
   }),
   tenants: many(userTenant),
   roles: many(userRole),
+  otp: one(userOtp, {
+    fields: [user.id],
+    references: [userOtp.userId],
+  }),
 }));
 
 // role relations
@@ -197,6 +216,14 @@ export const rolePermissionRelations = relations(rolePermission, ({ one }) => ({
   }),
 }));
 
+// user otp relations
+export const userOtpRelations = relations(userOtp, ({ one }) => ({
+  user: one(user, {
+    fields: [userOtp.userId],
+    references: [user.id],
+  }),
+}));
+
 export type Tenant = typeof tenant.$inferSelect;
 
 export type User = typeof user.$inferSelect;
@@ -212,3 +239,5 @@ export type UserTenant = typeof userTenant.$inferSelect;
 export type UserRole = typeof userRole.$inferSelect;
 
 export type RolePermission = typeof rolePermission.$inferSelect;
+
+export type UserOtp = typeof userOtp.$inferSelect;

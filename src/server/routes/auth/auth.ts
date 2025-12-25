@@ -9,6 +9,8 @@ import { sendResetEmail } from 'src/server/lib/email';
 import { authenticated, DecodedToken } from 'src/server/middleware/authMiddleware';
 import { validateData } from 'src/server/middleware/validationMiddleware';
 import { tenantCodeRegistrationValidationSchema, tenantRegistrationSchema, userForgetPasswordSchema, userLoginSchema, usernameValidationSchema, userRegistrationSchema, userResetPasswordSchema } from 'src/server/schemas/userSchema';
+import speakeasy from 'speakeasy';
+import qrcode from 'qrcode';
 
 
 
@@ -409,6 +411,246 @@ authRoutes.post("/validate-username", validateData(usernameValidationSchema), as
  */
 authRoutes.post("/validate-tenantcode", validateData(tenantCodeRegistrationValidationSchema), async (req, res) => {
   res.status(200).json({ message: "Tenant code is valid." });
+});
+
+/**
+ * @swagger
+ * /api/auth/setup-otp:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Setup OTP for user
+ *     description: Generate OTP secret and QR code for authenticator app
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: OTP setup data
+ *       500:
+ *         description: Internal server error
+ */
+authRoutes.post('/setup-otp', authenticated(), async (req, res) => {
+  try {
+    const userId = req.user!.id;
+
+    // Check if user already has OTP
+    const existingOtp = await db.select().from(table.userOtp).where(eq(table.userOtp.userId, userId)).limit(1);
+    if (existingOtp.length > 0) {
+      return res.status(400).json({ message: 'OTP already set up' });
+    }
+
+    // Generate secret
+    const secret = speakeasy.generateSecret({
+      name: `WMS:${req.user!.username}`,
+      issuer: 'WMS'
+    });
+
+    // Generate QR code
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url!);
+
+    // Save to database
+    await db.insert(table.userOtp).values({
+      id: crypto.randomUUID(),
+      userId,
+      secret: secret.base32,
+      enabled: false
+    });
+
+    res.json({
+      secret: secret.base32,
+      qrCodeUrl,
+      otpauth_url: secret.otpauth_url
+    });
+  } catch (error) {
+    console.error('Error setting up OTP:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/enable-otp:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Enable OTP for user
+ *     description: Verify OTP code and enable OTP login
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 description: The OTP code from authenticator app
+ *     responses:
+ *       200:
+ *         description: OTP enabled
+ *       400:
+ *         description: Invalid code
+ *       500:
+ *         description: Internal server error
+ */
+authRoutes.post('/enable-otp', authenticated(), async (req, res) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user!.id;
+
+    const userOtp = await db.select().from(table.userOtp).where(eq(table.userOtp.userId, userId)).limit(1);
+    if (userOtp.length === 0) {
+      return res.status(400).json({ message: 'OTP not set up' });
+    }
+
+    // Verify the code
+    const verified = speakeasy.totp.verify({
+      secret: userOtp[0].secret,
+      encoding: 'base32',
+      token: code,
+      window: 2
+    });
+
+    if (!verified) {
+      return res.status(400).json({ message: 'Invalid OTP code' });
+    }
+
+    // Enable OTP
+    await db.update(table.userOtp).set({ enabled: true }).where(eq(table.userOtp.userId, userId));
+
+    res.json({ message: 'OTP enabled successfully' });
+  } catch (error) {
+    console.error('Error enabling OTP:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/disable-otp:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Disable OTP for user
+ *     description: Disable OTP login for the user
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: OTP disabled
+ *       500:
+ *         description: Internal server error
+ */
+authRoutes.post('/disable-otp', authenticated(), async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    await db.delete(table.userOtp).where(eq(table.userOtp.userId, userId));
+    res.json({ message: 'OTP disabled successfully' });
+  } catch (error) {
+    console.error('Error disabling OTP:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/otp-status:
+ *   get:
+ *     tags:
+ *       - Auth
+ *     summary: Get OTP status for user
+ *     description: Check if OTP is enabled for the authenticated user
+ *     responses:
+ *       200:
+ *         description: OTP status retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 enabled:
+ *                   type: boolean
+ *                   description: Whether OTP is enabled for the user
+ *       500:
+ *         description: Internal server error
+ */
+authRoutes.get('/otp-status', authenticated(), async (req, res) => {
+  try {
+    const userId = req.user!.id;
+    const userOtp = await db.select().from(table.userOtp).where(and(eq(table.userOtp.userId, userId), eq(table.userOtp.enabled, true))).limit(1);
+    res.json({ enabled: userOtp.length > 0 });
+  } catch (error) {
+    console.error('Error checking OTP status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/login-otp:
+ *   post:
+ *     tags:
+ *       - Auth
+ *     summary: Login with OTP
+ *     description: Login using username and OTP code
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: The username of the user
+ *               otp:
+ *                 type: string
+ *                 description: The OTP code from authenticator app
+ *     responses:
+ *       200:
+ *         description: User logged in successfully
+ *       400:
+ *         description: Invalid credentials
+ */
+authRoutes.post('/login-otp', async (req, res) => {
+  const { username, otp } = req.body;
+
+  const results = await db.select().from(table.user).where(
+    and(
+      eq(table.user.username, username),
+      eq(table.user.status, 'active')
+    ));
+
+  const user = results.at(0);
+  if (!user) {
+    return res.status(400).json({ message: 'Invalid credentials' });
+  }
+
+  // Check if OTP is enabled
+  const userOtp = await db.select().from(table.userOtp).where(and(eq(table.userOtp.userId, user.id), eq(table.userOtp.enabled, true))).limit(1);
+  if (userOtp.length === 0) {
+    return res.status(400).json({ message: 'OTP not enabled for this user' });
+  }
+
+  // Verify OTP
+  const verified = speakeasy.totp.verify({
+    secret: userOtp[0].secret,
+    encoding: 'base32',
+    token: otp,
+    window: 2
+  });
+
+  if (!verified) {
+    return res.status(400).json({ message: 'Invalid OTP code' });
+  }
+
+  // Create a JWT
+  const accessToken = jwt.sign({ username: user.username }, ACCESS_TOKEN_SECRET, { expiresIn: '24h' });
+  const refreshToken = jwt.sign({ username: user.username }, REFRESH_TOKEN_SECRET, { expiresIn: '48h' });
+
+  res.json({ accessToken, refreshToken });
 });
 
 /** 
