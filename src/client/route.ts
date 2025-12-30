@@ -19,6 +19,7 @@ import { workflowReactRoutes } from '../modules/workflow/client/routes/workflowR
 import { reportsReactRoutes } from '../modules/reports/client/routes/reportsReactRoutes';
 import { generalReactRoutes } from '../modules/general/client/routes/generalReactRoutes';
 import { documentNumberingReactRoutes } from '../modules/document-numbering/client/routes/documentNumberingReactRoutes';
+import { integrationReactRoutes } from '../modules/integration/client/routes/integrationReactRoutes';
 import ForgetPassword from "./pages/auth/ForgetPassword";
 import RegisterTenant from "./pages/auth/RegisterTenant";
 import ResetPassword from "./pages/auth/ResetPassword";
@@ -182,6 +183,7 @@ export const router = createBrowserRouter([
             documentNumberingReactRoutes("modules/document-numbering"),
             reportsReactRoutes("modules/reports"),
             generalReactRoutes("modules/general"),
+            integrationReactRoutes("modules/integration"),
 ],
       },
     ],

@@ -1,0 +1,63 @@
+{
+  "id": "integration",
+  "name": "Integration",
+  "owner": "Developer",
+  "description": "Integration Module (Inbound/Outbound)",
+  "version": "1.0.0",
+  "metadata": {
+    "category": "System",
+    "tags": [
+      "integration",
+      "crud",
+      "module"
+    ],
+    "dependencies": {
+      "requires": [
+        "authentication",
+        "multi-tenant"
+      ],
+      "optional": []
+    },
+    "permissions": [
+      "integration.view",
+      "integration.create",
+      "integration.edit",
+      "integration.delete"
+    ],
+    "routes": {
+      "api": "/api/modules/integration",
+      "client": "/console/modules/integration"
+    },
+    "database": {
+      "tables": [
+        "integration"
+      ],
+      "relations": [
+        "tenant"
+      ]
+    },
+    "features": [
+      "Create, Read, Update, Delete operations",
+      "Server-side pagination",
+      "Client-side search and filtering",
+      "Form validation",
+      "Multi-tenant support",
+      "TypeScript support",
+      "Modern UI with shadcn/ui components",
+      "Responsive design"
+    ]
+  },
+  "author": {
+    "name": "Developer",
+    "email": "developer@neo-fusion.com",
+    "url": "https://github.com/your-org/react-admin"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/react-admin.git",
+    "directory": "src/modules/integration"
+  },
+  "license": "MIT",
+  "createdAt": "2025-12-30T04:51:46.079Z",
+  "updatedAt": "2025-12-30T04:51:46.079Z"
+}
